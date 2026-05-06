@@ -167,6 +167,13 @@ type WalletDetail = {
   transactions: WalletTransaction[];
 };
 
+type PremiumSubscriptionState = {
+  isActive: boolean;
+  nextBillingDate: string;
+  startedAt?: string;
+  cancelledAt?: string;
+};
+
 type ContentReview = {
   id: string;
   workId: string;
@@ -716,6 +723,14 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
+function formatDateOnly(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
 function parseAudienceCount(value: string) {
   const normalized = value.replace(",", "").trim();
   if (normalized.endsWith("만")) {
@@ -735,6 +750,40 @@ function readStoredIds(key: string, fallback: string[] = []) {
   } catch {
     return fallback;
   }
+}
+
+const premiumStorageKey = "creator-universe-premium-subscriptions";
+
+function getNextPremiumBillingDate(base = new Date()) {
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + 1);
+  return next.toISOString();
+}
+
+function createInactivePremiumSubscription(): PremiumSubscriptionState {
+  return {
+    isActive: false,
+    nextBillingDate: getNextPremiumBillingDate(),
+  };
+}
+
+function readPremiumSubscriptionRecord() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(premiumStorageKey) || "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, PremiumSubscriptionState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readUserPremiumSubscription(userId: string) {
+  return readPremiumSubscriptionRecord()[userId] ?? createInactivePremiumSubscription();
+}
+
+function writeUserPremiumSubscription(userId: string, subscription: PremiumSubscriptionState) {
+  const record = readPremiumSubscriptionRecord();
+  record[userId] = subscription;
+  localStorage.setItem(premiumStorageKey, JSON.stringify(record));
 }
 
 function getWalletTypeLabel(type: WalletTransaction["type"]) {
@@ -1864,10 +1913,13 @@ function AccountModal({
   wallet,
   purchasedWorkIds,
   scrappedWorkIds,
+  premiumSubscription,
   onClose,
   onLogout,
   onDeleteAccount,
   onOpenPayment,
+  onStartPremium,
+  onCancelPremium,
   onNavigate,
   onOpenLibrary,
 }: {
@@ -1875,10 +1927,13 @@ function AccountModal({
   wallet: number | null;
   purchasedWorkIds: string[];
   scrappedWorkIds: string[];
+  premiumSubscription: PremiumSubscriptionState;
   onClose: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
   onOpenPayment: () => void;
+  onStartPremium: () => void;
+  onCancelPremium: () => void;
   onNavigate: (page: PageId) => void;
   onOpenLibrary: (view: (typeof libraryViewItems)[number]["id"]) => void;
 }) {
@@ -1926,14 +1981,27 @@ function AccountModal({
               <Sparkles size={20} />
               <strong>크리에이터 유니버스 프리미엄</strong>
             </div>
+            <div className={`premium-status-pill ${premiumSubscription.isActive ? "active" : ""}`}>
+              {premiumSubscription.isActive ? "구독중" : "미구독"}
+            </div>
             <div className="premium-mini-price">
               <span>월 구독</span>
               <b>7,900 코인</b>
             </div>
+            <div className="premium-billing-card">
+              <span>{premiumSubscription.isActive ? "다음 재결제일" : "구독 시작 시"}</span>
+              <strong>{premiumSubscription.isActive ? formatDateOnly(premiumSubscription.nextBillingDate) : "즉시 활성화"}</strong>
+              <small>{premiumSubscription.isActive ? "재결제 전 언제든 해지할 수 있어요." : "광고 제거와 보너스 코인이 계정에 적용됩니다."}</small>
+            </div>
             {universePremiumBenefits.slice(0, 3).map((benefit) => (
               <p key={benefit}><CheckCircle2 size={15} /> {benefit}</p>
             ))}
-            <button onClick={onOpenPayment}>프리미엄 구독 관리</button>
+            {premiumSubscription.isActive ? (
+              <button className="premium-cancel-button" onClick={onCancelPremium}>프리미엄 해지</button>
+            ) : (
+              <button onClick={onStartPremium}>프리미엄 구독 시작</button>
+            )}
+            <button className="premium-manage-button" onClick={onOpenPayment}>코인 충전/결제 관리</button>
           </section>
 
           <section className="account-panel">
@@ -2071,6 +2139,7 @@ export function App() {
   const [messengerInput, setMessengerInput] = useState("");
   const [creatorChatThreads, setCreatorChatThreads] = useState<Record<string, CreatorChatMessage[]>>({});
   const [theme, setTheme] = useState(() => localStorage.getItem("creator-universe-theme") || "light");
+  const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
   const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery" | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
@@ -2358,6 +2427,14 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("creator-universe-scrapped-works", JSON.stringify(scrappedWorkIds));
   }, [scrappedWorkIds]);
+
+  useEffect(() => {
+    if (user?.id) {
+      setPremiumSubscription(readUserPremiumSubscription(user.id));
+    } else {
+      setPremiumSubscription(createInactivePremiumSubscription());
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (settlement?.members.length) {
@@ -2773,6 +2850,51 @@ export function App() {
     setActivePage("home");
     localStorage.removeItem("creator-universe-token");
     setStatus("계정 탈퇴가 완료되었습니다.");
+  }
+
+  function startPremiumSubscription() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const now = new Date();
+    const nextBillingDate = getNextPremiumBillingDate(now);
+    setPremiumSubscription({
+      isActive: true,
+      startedAt: now.toISOString(),
+      nextBillingDate,
+    });
+    if (user?.id) {
+      writeUserPremiumSubscription(user.id, {
+        isActive: true,
+        startedAt: now.toISOString(),
+        nextBillingDate,
+      });
+    }
+    setCommunityMessage(`프리미엄 구독이 시작되었습니다. 다음 재결제일은 ${formatDateOnly(nextBillingDate)}입니다.`);
+  }
+
+  function cancelPremiumSubscription() {
+    if (!premiumSubscription.isActive) {
+      return;
+    }
+
+    const confirmed = window.confirm("프리미엄 구독을 해지할까요? 다음 재결제는 중단되고 현재 혜택은 표시상 해지 상태로 전환됩니다.");
+    if (!confirmed) {
+      return;
+    }
+
+    const nextSubscription = {
+      ...premiumSubscription,
+      isActive: false,
+      cancelledAt: new Date().toISOString(),
+    };
+    setPremiumSubscription(nextSubscription);
+    if (user?.id) {
+      writeUserPremiumSubscription(user.id, nextSubscription);
+    }
+    setCommunityMessage("프리미엄 구독이 해지되었습니다. 언제든 다시 시작할 수 있어요.");
   }
 
   return (
@@ -4101,6 +4223,7 @@ export function App() {
           wallet={wallet}
           purchasedWorkIds={purchasedWorkIds}
           scrappedWorkIds={scrappedWorkIds}
+          premiumSubscription={premiumSubscription}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
           onDeleteAccount={() => void deleteAccount()}
@@ -4108,6 +4231,8 @@ export function App() {
             setIsAccountModalOpen(false);
             openPayment();
           }}
+          onStartPremium={startPremiumSubscription}
+          onCancelPremium={cancelPremiumSubscription}
           onNavigate={navigate}
           onOpenLibrary={openReaderLibrary}
         />
