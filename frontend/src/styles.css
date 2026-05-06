@@ -6278,13 +6278,92 @@ h2 {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(5, 7, 13, 0.5);
-  backdrop-filter: blur(12px);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 184, 77, 0.16), transparent 26rem),
+    radial-gradient(circle at 82% 18%, rgba(64, 214, 255, 0.14), transparent 24rem),
+    rgba(5, 7, 13, 0.62);
+  backdrop-filter: blur(18px) saturate(1.12);
 }
 
 .auth-modal {
   width: min(520px, 100%);
-  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 32px;
+  padding: 24px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 92%, #ffffff), var(--surface)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--brand) 16%, transparent), transparent 16rem);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.32);
+}
+
+.auth-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent) top / 100% 1px no-repeat,
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 18rem);
+}
+
+.auth-modal > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-modal .modal-header {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  margin: -2px -2px 18px;
+  padding: 2px 2px 18px;
+}
+
+.auth-modal .modal-header h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.85rem, 4vw, 2.45rem);
+  letter-spacing: -0.065em;
+}
+
+.auth-modal .segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  margin: 18px 0;
+  padding: 5px;
+  background: color-mix(in srgb, var(--surface-2) 76%, transparent);
+}
+
+.auth-modal .segmented.small {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.auth-modal .segmented button {
+  border: 0;
+  border-radius: 13px;
+  padding: 11px 10px;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 900;
+}
+
+.auth-modal .segmented button.active {
+  color: var(--text);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, var(--surface)), color-mix(in srgb, var(--cyan) 12%, var(--surface)));
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--brand) 12%, transparent);
+}
+
+.auth-modal .notice {
+  border-color: color-mix(in srgb, var(--brand) 24%, var(--line));
+  border-radius: 16px;
+  margin-bottom: 14px;
+  color: var(--text);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 10%, var(--surface)), color-mix(in srgb, var(--cyan) 7%, var(--surface)));
 }
 
 .payment-backdrop {
@@ -6420,38 +6499,52 @@ h2 {
 
 .auth-form {
   display: grid;
-  gap: 12px;
+  gap: 13px;
 }
 
 .auth-form label {
   display: grid;
-  gap: 7px;
-  font-weight: 700;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 900;
 }
 
 .auth-form input {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px 13px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 15px;
+  padding: 14px 15px;
   color: var(--text);
-  background: var(--surface-2);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 88%, #ffffff), var(--surface-2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.auth-form input:focus {
+  border-color: color-mix(in srgb, var(--brand) 46%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 12%, transparent);
+  transform: translateY(-1px);
 }
 
 .auth-inline-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 9px;
 }
 
 .auth-inline-field button {
   border: 1px solid color-mix(in srgb, var(--brand) 34%, var(--line));
-  border-radius: 8px;
-  padding: 0 13px;
+  border-radius: 15px;
+  padding: 0 14px;
   color: var(--brand);
-  font-weight: 800;
-  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+  font-weight: 900;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 14%, var(--surface)), color-mix(in srgb, var(--cyan) 8%, var(--surface)));
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .auth-inline-field button:disabled {
@@ -6463,6 +6556,25 @@ h2 {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+@media (max-width: 540px) {
+  .auth-modal {
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .auth-modal .segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-inline-field {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-inline-field button {
+    min-height: 44px;
+  }
 }
 
 .payment-hero {

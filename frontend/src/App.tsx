@@ -885,6 +885,10 @@ function isStrongPassword(password: string) {
   return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
 }
 
+function isValidEmailAddress(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function AuthModal({
   mode,
   onClose,
@@ -925,7 +929,12 @@ function AuthModal({
     const data = new FormData(event.currentTarget);
     const displayName = String(data.get("displayName") || "").trim();
     const username = String(data.get("username") || "").trim();
+    const email = String(data.get("email") || "").trim();
     const password = String(data.get("password") || "");
+    if (!isValidEmailAddress(email)) {
+      setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
+      return;
+    }
     if (data.get("password") !== data.get("passwordConfirm")) {
       setMessage("비밀번호 확인이 일치하지 않습니다.");
       return;
@@ -949,7 +958,7 @@ function AuthModal({
         method: "POST",
         body: JSON.stringify({
           displayName,
-          email: data.get("email"),
+          email,
           username,
           password,
         }),
@@ -964,11 +973,16 @@ function AuthModal({
   async function submitFindId(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const email = String(data.get("email") || "").trim();
+    if (!isValidEmailAddress(email)) {
+      setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
+      return;
+    }
     setMessage("");
     try {
       const result = await request<{ username: string; displayName: string }>("/api/auth/find-id", null, {
         method: "POST",
-        body: JSON.stringify({ email: data.get("email") }),
+        body: JSON.stringify({ email }),
       });
       setMessage(`${result.displayName}님의 아이디는 ${result.username} 입니다.`);
     } catch (error) {
@@ -979,7 +993,12 @@ function AuthModal({
   async function submitResetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const email = String(data.get("email") || "").trim();
     const newPassword = String(data.get("newPassword") || "");
+    if (!isValidEmailAddress(email)) {
+      setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
+      return;
+    }
     if (!isStrongPassword(newPassword)) {
       setMessage("새 비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다.");
       return;
@@ -990,7 +1009,7 @@ function AuthModal({
         method: "POST",
         body: JSON.stringify({
           username: data.get("username"),
-          email: data.get("email"),
+          email,
           newPassword,
         }),
       });
@@ -2891,9 +2910,9 @@ export function App() {
               <div className="section-head intro-head">
                 <div>
                 <p className="kicker">Why Creator Universe</p>
-                <h2>크몽의 매칭력과 포스타입의 유통력에 멀티 콘텐츠 협업을 더합니다</h2>
+                <h2>창작자 협업, 콘텐츠 유통, 정산 자동화를 하나의 스튜디오로 연결합니다</h2>
                 </div>
-                <p>무명 창작자의 협업 부담, 수익 분배 갈등, 시각 중심 콘텐츠 접근성 문제를 하나의 제품 흐름으로 해결하는 플랫폼입니다.</p>
+                <p>흩어진 창작자가 팀을 만들고, 작품을 판매하고, 수익을 투명하게 나누는 과정을 하나의 제품 흐름으로 설계한 멀티 IP 플랫폼입니다.</p>
               </div>
               <div className="feature-grid">
                 {featureCards.map((feature) => (
@@ -2940,7 +2959,7 @@ export function App() {
                     <span>같은 세계관 안에서 만납니다</span>
                   </h2>
                 </div>
-                <p>포스타입처럼 취향 기반 창작 커뮤니티의 결을 살리되, 소설·웹툰·만화·오디오를 하나의 협업 IP로 확장할 수 있게 설계합니다.</p>
+                <p>팬덤형 창작 커뮤니티의 감성을 살리면서 소설, 웹툰, 만화, 애니메이션, 오디오드라마를 하나의 협업 IP로 확장할 수 있게 설계했습니다.</p>
               </div>
               <div className="audience-grid">
                 {audienceSegments.map((segment, index) => (
