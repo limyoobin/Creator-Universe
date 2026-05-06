@@ -6369,84 +6369,165 @@ h2 {
   line-height: 1.6;
 }
 
-.loader-cosmos {
+.loader-cat {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 132px;
-  height: 132px;
-  animation: cosmosFloat 1.8s ease-in-out infinite;
+  width: 138px;
+  height: 112px;
+  animation: catTrotting 1.25s ease-in-out infinite;
 }
 
-.loader-cosmos img {
-  position: relative;
-  z-index: 2;
-  width: 86px;
-  height: 86px;
-  border-radius: 28px;
-  object-fit: cover;
+.cat-shadow {
+  position: absolute;
+  left: 26px;
+  right: 22px;
+  bottom: 4px;
+  height: 13px;
+  border-radius: 999px;
+  background: rgba(20, 20, 36, 0.16);
+  filter: blur(2px);
+  animation: catShadow 1.25s ease-in-out infinite;
+}
+
+.cat-body {
+  position: absolute;
+  left: 34px;
+  bottom: 18px;
+  width: 74px;
+  height: 58px;
+  border-radius: 34px 42px 28px 30px;
+  background: linear-gradient(135deg, #fff6e7, #ffcf8b 56%, #ffd6f4);
   box-shadow:
-    0 18px 42px rgba(31, 64, 140, 0.32),
-    0 0 32px rgba(238, 180, 255, 0.42);
+    inset 0 -9px 18px rgba(89, 51, 21, 0.1),
+    0 18px 34px rgba(255, 184, 77, 0.18);
 }
 
-.loader-orbit {
+.cat-head {
+  position: absolute;
+  left: 18px;
+  bottom: 41px;
+  width: 58px;
+  height: 52px;
+  border-radius: 26px 26px 24px 24px;
+  background: linear-gradient(135deg, #fff8ee, #ffc86f 68%);
+  box-shadow: inset 0 -7px 14px rgba(89, 51, 21, 0.08);
+  animation: catHeadNod 1.25s ease-in-out infinite;
+}
+
+.cat-ear {
+  position: absolute;
+  top: -12px;
+  width: 24px;
+  height: 26px;
+  border-radius: 7px 18px 6px 18px;
+  background: #ffbd63;
+}
+
+.cat-ear::after {
+  content: "";
   position: absolute;
   inset: 7px;
-  border: 1px solid color-mix(in srgb, var(--brand) 46%, transparent);
-  border-radius: 999px;
-  transform: rotate(-18deg) scaleY(0.72);
-  animation: orbitSpin 2.8s linear infinite;
+  border-radius: inherit;
+  background: #ffd6f4;
 }
 
-.loader-orbit.orbit-two {
-  inset: 17px;
-  border-color: color-mix(in srgb, var(--cyan) 42%, transparent);
-  transform: rotate(24deg) scaleY(0.68);
-  animation-duration: 3.4s;
-  animation-direction: reverse;
+.cat-ear.ear-left {
+  left: 7px;
+  transform: rotate(-23deg);
 }
 
-.loader-star,
-.loader-spark {
+.cat-ear.ear-right {
+  right: 7px;
+  transform: rotate(23deg) scaleX(-1);
+}
+
+.cat-eye {
   position: absolute;
-  z-index: 3;
-  width: 14px;
-  height: 14px;
-  background: #fff;
-  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  filter: drop-shadow(0 0 12px rgba(255, 215, 255, 0.8));
-  animation: starTwinkle 1.4s ease-in-out infinite;
+  top: 24px;
+  width: 7px;
+  height: 9px;
+  border-radius: 999px;
+  background: #151827;
+  animation: catBlink 2.6s ease-in-out infinite;
 }
 
-.loader-star.star-one {
-  top: 12px;
-  left: 28px;
+.cat-eye.eye-left {
+  left: 17px;
 }
 
-.loader-star.star-two {
+.cat-eye.eye-right {
+  right: 17px;
+}
+
+.cat-nose {
+  position: absolute;
+  left: 50%;
+  top: 34px;
+  width: 8px;
+  height: 6px;
+  border-radius: 999px;
+  background: #ff7ab6;
+  transform: translateX(-50%);
+}
+
+.cat-nose::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 20px;
+  height: 9px;
+  border-bottom: 3px solid #151827;
+  border-radius: 0 0 999px 999px;
+  transform: translateX(-50%);
+}
+
+.cat-tail {
+  position: absolute;
   right: 14px;
-  top: 48px;
-  width: 11px;
-  height: 11px;
-  animation-delay: 0.25s;
+  bottom: 42px;
+  width: 36px;
+  height: 36px;
+  border: 9px solid #ffcf8b;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 999px;
+  transform-origin: 6px 28px;
+  animation: catTailWag 0.72s ease-in-out infinite alternate;
 }
 
-.loader-star.star-three {
-  bottom: 18px;
-  left: 24px;
-  width: 10px;
-  height: 10px;
-  animation-delay: 0.45s;
-}
-
-.loader-spark {
-  right: 33px;
-  bottom: 16px;
+.cat-paw {
+  position: absolute;
+  bottom: -5px;
   width: 18px;
-  height: 18px;
-  background: linear-gradient(135deg, #fff, #ffd6f4 42%, #93e6ff);
-  animation: sparkTravel 1.6s ease-in-out infinite;
+  height: 10px;
+  border-radius: 999px;
+  background: #fff8ee;
+  box-shadow: 0 4px 10px rgba(89, 51, 21, 0.08);
+  animation: catPawStep 0.62s ease-in-out infinite;
+}
+
+.cat-paw.paw-one {
+  left: 17px;
+}
+
+.cat-paw.paw-two {
+  right: 17px;
+  animation-delay: 0.31s;
+}
+
+.cat-yarn {
+  position: absolute;
+  right: 8px;
+  bottom: 13px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background:
+    linear-gradient(36deg, transparent 42%, rgba(255, 255, 255, 0.7) 43% 48%, transparent 49%),
+    linear-gradient(125deg, transparent 38%, rgba(255, 255, 255, 0.58) 39% 45%, transparent 46%),
+    linear-gradient(135deg, #ff7ab6, #8bdcff);
+  box-shadow: 0 0 20px rgba(255, 122, 182, 0.34);
+  animation: yarnRoll 1.25s ease-in-out infinite;
 }
 
 .loader-dots {
@@ -6472,23 +6553,39 @@ h2 {
   animation-delay: 0.3s;
 }
 
-@keyframes cosmosFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-9px) scale(1.02); }
+@keyframes catTrotting {
+  0%, 100% { transform: translateX(-3px) translateY(0); }
+  50% { transform: translateX(4px) translateY(-7px); }
 }
 
-@keyframes orbitSpin {
-  to { rotate: 360deg; }
+@keyframes catShadow {
+  0%, 100% { opacity: 0.55; transform: scaleX(1); }
+  50% { opacity: 0.32; transform: scaleX(0.78); }
 }
 
-@keyframes starTwinkle {
-  0%, 100% { opacity: 0.45; transform: scale(0.82) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1.2) rotate(18deg); }
+@keyframes catHeadNod {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(3deg) translateY(-1px); }
 }
 
-@keyframes sparkTravel {
-  0%, 100% { transform: translate(0, 0) scale(0.9); }
-  50% { transform: translate(12px, -18px) scale(1.18); }
+@keyframes catBlink {
+  0%, 88%, 100% { transform: scaleY(1); }
+  92% { transform: scaleY(0.12); }
+}
+
+@keyframes catTailWag {
+  from { transform: rotate(-16deg); }
+  to { transform: rotate(18deg); }
+}
+
+@keyframes catPawStep {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes yarnRoll {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(11px) rotate(120deg); }
 }
 
 @keyframes dotPulse {

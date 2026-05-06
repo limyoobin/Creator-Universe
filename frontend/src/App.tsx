@@ -2902,14 +2902,21 @@ export function App() {
       {isBootLoading && (
         <div className="boot-loader" role="status" aria-live="polite">
           <div className="boot-loader-card">
-            <div className="loader-cosmos" aria-hidden="true">
-              <span className="loader-orbit orbit-one" />
-              <span className="loader-orbit orbit-two" />
-              <img src="/logo.png" alt="" />
-              <i className="loader-star star-one" />
-              <i className="loader-star star-two" />
-              <i className="loader-star star-three" />
-              <b className="loader-spark" />
+            <div className="loader-cat" aria-hidden="true">
+              <span className="cat-shadow" />
+              <span className="cat-tail" />
+              <span className="cat-body">
+                <i className="cat-paw paw-one" />
+                <i className="cat-paw paw-two" />
+              </span>
+              <span className="cat-head">
+                <i className="cat-ear ear-left" />
+                <i className="cat-ear ear-right" />
+                <b className="cat-eye eye-left" />
+                <b className="cat-eye eye-right" />
+                <em className="cat-nose" />
+              </span>
+              <span className="cat-yarn" />
             </div>
             <strong>크리에이터 유니버스 준비 중</strong>
             <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>
