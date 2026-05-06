@@ -10,7 +10,9 @@
     "dev:web": "npm --prefix frontend run dev",
     "build": "tsc -p tsconfig.json",
     "build:web": "npm --prefix frontend run build",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
+    "render:build": "prisma generate && tsc -p tsconfig.json",
+    "render:start": "prisma migrate deploy && node dist/src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts"

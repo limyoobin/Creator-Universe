@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: creator-universe-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run render:build
+    startCommand: npm run render:start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
