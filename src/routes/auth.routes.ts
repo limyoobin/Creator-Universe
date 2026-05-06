@@ -1,6 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import {
+  PASSWORD_RULE_MESSAGE,
+  checkDisplayNameAvailability,
+  checkUsernameAvailability,
   findUsernameByEmail,
   deactivateAccount,
   getUserBySessionToken,
@@ -15,9 +18,9 @@ import { AppError } from "../errors/app-error.js";
 
 const signupSchema = z.object({
   email: z.string().email(),
-  username: z.string().min(2),
-  displayName: z.string().min(1),
-  password: z.string().min(6),
+  username: z.string().trim().min(2).max(24).regex(/^[a-zA-Z0-9_]+$/, "Username can contain only letters, numbers, and underscores."),
+  displayName: z.string().trim().min(1).max(20),
+  password: z.string().min(8).regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/, PASSWORD_RULE_MESSAGE),
 });
 
 const loginSchema = z.object({
@@ -32,7 +35,15 @@ const findIdSchema = z.object({
 const resetPasswordSchema = z.object({
   username: z.string().min(1),
   email: z.string().email(),
-  newPassword: z.string().min(6),
+  newPassword: z.string().min(8).regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/, PASSWORD_RULE_MESSAGE),
+});
+
+const checkUsernameSchema = z.object({
+  username: z.string().trim().min(2).max(24).regex(/^[a-zA-Z0-9_]+$/),
+});
+
+const checkNicknameSchema = z.object({
+  displayName: z.string().trim().min(1).max(20),
 });
 
 export const authRouter = Router();
@@ -72,6 +83,32 @@ authRouter.get(
     res.json({
       success: true,
       data: user,
+    });
+  }),
+);
+
+authRouter.post(
+  "/check-username",
+  asyncHandler(async (req, res) => {
+    const payload = checkUsernameSchema.parse(req.body);
+    const result = await checkUsernameAvailability(payload.username);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+);
+
+authRouter.post(
+  "/check-nickname",
+  asyncHandler(async (req, res) => {
+    const payload = checkNicknameSchema.parse(req.body);
+    const result = await checkDisplayNameAvailability(payload.displayName);
+
+    res.json({
+      success: true,
+      data: result,
     });
   }),
 );

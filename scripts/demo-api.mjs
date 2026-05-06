@@ -237,6 +237,11 @@ const supportTickets = [];
 const userReports = [];
 const chatMessages = [];
 const matchRequests = [];
+
+function isStrongPassword(password = "") {
+  return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
+}
+
 const contentReviews = [
   {
     id: "review-seed-1",
@@ -467,6 +472,14 @@ app.post("/api/auth/signup", (req, res) => {
     res.status(409).json({ success: false, message: "이미 사용 중인 아이디 또는 이메일입니다." });
     return;
   }
+  if (users.some((user) => user.displayName === displayName)) {
+    res.status(409).json({ success: false, message: "이미 사용 중인 닉네임입니다." });
+    return;
+  }
+  if (!isStrongPassword(password)) {
+    res.status(422).json({ success: false, message: "비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다." });
+    return;
+  }
   const user = {
     id: `user-${crypto.randomUUID()}`,
     email,
@@ -488,6 +501,24 @@ app.get("/api/auth/me", (req, res) => {
   if (user) {
     json(res, publicUser(user));
   }
+});
+
+app.post("/api/auth/check-username", (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  if (!username || !/^[A-Za-z0-9_]{2,24}$/.test(username)) {
+    res.status(422).json({ success: false, message: "아이디는 영문, 숫자, 밑줄 2-24자로 입력해 주세요." });
+    return;
+  }
+  json(res, { available: !users.some((user) => user.username === username), value: username });
+});
+
+app.post("/api/auth/check-nickname", (req, res) => {
+  const displayName = String(req.body?.displayName || "").trim();
+  if (!displayName || displayName.length > 20) {
+    res.status(422).json({ success: false, message: "닉네임은 1-20자로 입력해 주세요." });
+    return;
+  }
+  json(res, { available: !users.some((user) => user.displayName === displayName), value: displayName });
 });
 
 app.post("/api/auth/logout", (req, res) => {
@@ -534,6 +565,10 @@ app.post("/api/auth/find-id", (req, res) => {
 
 app.post("/api/auth/reset-password", (req, res) => {
   const { username, email, newPassword } = req.body || {};
+  if (!isStrongPassword(newPassword)) {
+    res.status(422).json({ success: false, message: "새 비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다." });
+    return;
+  }
   const user = users.find((item) => item.username === username && item.email === email);
   if (!user) {
     res.status(404).json({ success: false, message: "계정 정보를 확인해 주세요." });

@@ -12,6 +12,12 @@ type SignupInput = {
   password: string;
 };
 
+export const PASSWORD_RULE_MESSAGE = "Password must be at least 8 characters and include a special character.";
+
+export function isValidPassword(password: string) {
+  return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
+}
+
 function publicUser(user: {
   id: string;
   email: string;
@@ -48,9 +54,10 @@ async function issueSession(userId: string) {
 }
 
 export async function signup(input: SignupInput) {
-  const [emailExists, usernameExists] = await Promise.all([
+  const [emailExists, usernameExists, displayNameExists] = await Promise.all([
     prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
     prisma.user.findUnique({ where: { username: input.username }, select: { id: true } }),
+    prisma.user.findFirst({ where: { displayName: input.displayName }, select: { id: true } }),
   ]);
 
   if (emailExists) {
@@ -59,6 +66,14 @@ export async function signup(input: SignupInput) {
 
   if (usernameExists) {
     throw new AppError("Username is already taken.", 409);
+  }
+
+  if (displayNameExists) {
+    throw new AppError("Nickname is already taken.", 409);
+  }
+
+  if (!isValidPassword(input.password)) {
+    throw new AppError(PASSWORD_RULE_MESSAGE, 422);
   }
 
   const passwordHash = await hashPassword(input.password);
@@ -164,6 +179,10 @@ export async function findUsernameByEmail(email: string) {
 }
 
 export async function resetPassword(username: string, email: string, newPassword: string) {
+  if (!isValidPassword(newPassword)) {
+    throw new AppError(PASSWORD_RULE_MESSAGE, 422);
+  }
+
   const user = await prisma.user.findFirst({
     where: { username, email },
     select: { id: true },
@@ -216,7 +235,7 @@ export async function deactivateAccount(token: string) {
       data: {
         email: `deleted-${deletedSuffix}@deleted.creator-universe.local`,
         username: `deleted_${deletedSuffix}`,
-        displayName: "탈퇴한 사용자",
+        displayName: `Deleted user ${deletedSuffix}`,
         passwordHash: null,
         isPartner: false,
         partnerTier: PartnerTier.NONE,
@@ -225,4 +244,30 @@ export async function deactivateAccount(token: string) {
   });
 
   return { ok: true };
+}
+
+export async function checkUsernameAvailability(username: string) {
+  const normalized = username.trim();
+  const user = await prisma.user.findUnique({
+    where: { username: normalized },
+    select: { id: true },
+  });
+
+  return {
+    available: !user,
+    value: normalized,
+  };
+}
+
+export async function checkDisplayNameAvailability(displayName: string) {
+  const normalized = displayName.trim();
+  const user = await prisma.user.findFirst({
+    where: { displayName: normalized },
+    select: { id: true },
+  });
+
+  return {
+    available: !user,
+    value: normalized,
+  };
 }

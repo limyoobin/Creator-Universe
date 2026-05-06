@@ -6438,6 +6438,33 @@ h2 {
   background: var(--surface-2);
 }
 
+.auth-inline-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.auth-inline-field button {
+  border: 1px solid color-mix(in srgb, var(--brand) 34%, var(--line));
+  border-radius: 8px;
+  padding: 0 13px;
+  color: var(--brand);
+  font-weight: 800;
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+  cursor: pointer;
+}
+
+.auth-inline-field button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.auth-help {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .payment-hero {
   display: grid;
   grid-template-columns: 1fr auto;

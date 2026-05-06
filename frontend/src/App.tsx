@@ -848,22 +848,41 @@ function getCreatorPortfolio(creator: Creator) {
 }
 
 async function request<T>(path: string, token: string | null, options: RequestInit = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
+  }
 
-  const payload = await response.json();
+  const rawText = await response.text();
+  let payload: { message?: string; data: T };
+  try {
+    payload = rawText ? JSON.parse(rawText) : { success: response.ok, data: null as T };
+  } catch {
+    throw new Error("API 응답을 읽을 수 없습니다. 프론트 환경변수 VITE_API_URL이 백엔드 주소로 설정됐는지 확인해 주세요.");
+  }
 
   if (!response.ok) {
     throw new Error(payload.message || "API request failed.");
   }
 
   return payload.data as T;
+}
+
+function getFriendlyError(error: unknown) {
+  return error instanceof Error ? error.message : "요청 처리 중 오류가 발생했습니다.";
+}
+
+function isStrongPassword(password: string) {
+  return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
 }
 
 function AuthModal({
@@ -878,65 +897,152 @@ function AuthModal({
   const [view, setView] = useState(mode);
   const [recoveryMode, setRecoveryMode] = useState<"find-id" | "reset-password">("find-id");
   const [message, setMessage] = useState("");
+  const [checkedUsername, setCheckedUsername] = useState("");
+  const [checkedNickname, setCheckedNickname] = useState("");
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
 
   async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const result = await request<{ user: User; token: string }>("/api/auth/login", null, {
-      method: "POST",
-      body: JSON.stringify({
-        username: data.get("username"),
-        password: data.get("password"),
-      }),
-    });
-    onAuth(result.user, result.token);
-    onClose();
+    setMessage("");
+    try {
+      const result = await request<{ user: User; token: string }>("/api/auth/login", null, {
+        method: "POST",
+        body: JSON.stringify({
+          username: data.get("username"),
+          password: data.get("password"),
+        }),
+      });
+      onAuth(result.user, result.token);
+      onClose();
+    } catch (error) {
+      setMessage(`로그인 실패: ${getFriendlyError(error)}`);
+    }
   }
 
   async function submitSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const displayName = String(data.get("displayName") || "").trim();
+    const username = String(data.get("username") || "").trim();
+    const password = String(data.get("password") || "");
     if (data.get("password") !== data.get("passwordConfirm")) {
       setMessage("비밀번호 확인이 일치하지 않습니다.");
       return;
     }
+    if (!isStrongPassword(password)) {
+      setMessage("비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다.");
+      return;
+    }
+    if (checkedNickname !== displayName) {
+      setMessage("닉네임 중복확인을 먼저 완료해 주세요.");
+      return;
+    }
+    if (checkedUsername !== username) {
+      setMessage("아이디 중복확인을 먼저 완료해 주세요.");
+      return;
+    }
 
-    const result = await request<{ user: User; token: string }>("/api/auth/signup", null, {
-      method: "POST",
-      body: JSON.stringify({
-        displayName: data.get("displayName"),
-        email: data.get("email"),
-        username: data.get("username"),
-        password: data.get("password"),
-      }),
-    });
-    onAuth(result.user, result.token);
-    onClose();
+    setMessage("");
+    try {
+      const result = await request<{ user: User; token: string }>("/api/auth/signup", null, {
+        method: "POST",
+        body: JSON.stringify({
+          displayName,
+          email: data.get("email"),
+          username,
+          password,
+        }),
+      });
+      onAuth(result.user, result.token);
+      onClose();
+    } catch (error) {
+      setMessage(`회원가입 실패: ${getFriendlyError(error)}`);
+    }
   }
 
   async function submitFindId(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const result = await request<{ username: string; displayName: string }>("/api/auth/find-id", null, {
-      method: "POST",
-      body: JSON.stringify({ email: data.get("email") }),
-    });
-    setMessage(`${result.displayName}님의 아이디는 ${result.username} 입니다.`);
+    setMessage("");
+    try {
+      const result = await request<{ username: string; displayName: string }>("/api/auth/find-id", null, {
+        method: "POST",
+        body: JSON.stringify({ email: data.get("email") }),
+      });
+      setMessage(`${result.displayName}님의 아이디는 ${result.username} 입니다.`);
+    } catch (error) {
+      setMessage(`아이디 찾기 실패: ${getFriendlyError(error)}`);
+    }
   }
 
   async function submitResetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    await request("/api/auth/reset-password", null, {
-      method: "POST",
-      body: JSON.stringify({
-        username: data.get("username"),
-        email: data.get("email"),
-        newPassword: data.get("newPassword"),
-      }),
-    });
-    setMessage("비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.");
-    setView("login");
+    const newPassword = String(data.get("newPassword") || "");
+    if (!isStrongPassword(newPassword)) {
+      setMessage("새 비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다.");
+      return;
+    }
+    setMessage("");
+    try {
+      await request("/api/auth/reset-password", null, {
+        method: "POST",
+        body: JSON.stringify({
+          username: data.get("username"),
+          email: data.get("email"),
+          newPassword,
+        }),
+      });
+      setMessage("비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.");
+      setView("login");
+    } catch (error) {
+      setMessage(`비밀번호 재설정 실패: ${getFriendlyError(error)}`);
+    }
+  }
+
+  async function checkAuthValue(type: "nickname" | "username", form: HTMLFormElement | null) {
+    if (!form) {
+      return;
+    }
+    const data = new FormData(form);
+    const value = String(data.get(type === "nickname" ? "displayName" : "username") || "").trim();
+    if (!value) {
+      setMessage(type === "nickname" ? "닉네임을 먼저 입력해 주세요." : "아이디를 먼저 입력해 주세요.");
+      return;
+    }
+
+    setIsCheckingAuth(true);
+    setMessage("");
+    try {
+      const result = await request<{ available: boolean; value: string }>(
+        type === "nickname" ? "/api/auth/check-nickname" : "/api/auth/check-username",
+        null,
+        {
+          method: "POST",
+          body: JSON.stringify(type === "nickname" ? { displayName: value } : { username: value }),
+        },
+      );
+      if (!result.available) {
+        if (type === "nickname") {
+          setCheckedNickname("");
+        } else {
+          setCheckedUsername("");
+        }
+        setMessage(type === "nickname" ? "이미 사용 중인 닉네임입니다." : "이미 사용 중인 아이디입니다.");
+        return;
+      }
+      if (type === "nickname") {
+        setCheckedNickname(result.value);
+      } else {
+        setCheckedUsername(result.value);
+      }
+      setMessage(type === "nickname" ? "사용 가능한 닉네임입니다." : "사용 가능한 아이디입니다.");
+    } catch (error) {
+      setMessage(`중복확인 실패: ${getFriendlyError(error)}`);
+    } finally {
+      setIsCheckingAuth(false);
+    }
   }
 
   return (
@@ -968,19 +1074,52 @@ function AuthModal({
 
         {view === "login" && (
           <form className="auth-form" onSubmit={submitLogin}>
-            <label>아이디<input name="username" required defaultValue="yurino_script" /></label>
-            <label>비밀번호<input name="password" required type="password" defaultValue="demo1234" /></label>
+            <label>아이디<input name="username" required placeholder="가입한 아이디" /></label>
+            <label>비밀번호<input name="password" required type="password" placeholder="비밀번호" /></label>
             <button className="primary-button" type="submit"><LogIn size={18} /> 로그인</button>
           </form>
         )}
 
         {view === "signup" && (
           <form className="auth-form" onSubmit={submitSignup}>
-            <label>닉네임<input name="displayName" required /></label>
+            <label>
+              닉네임
+              <div className="auth-inline-field">
+                <input
+                  name="displayName"
+                  required
+                  onChange={() => setCheckedNickname("")}
+                  placeholder="서비스에서 사용할 닉네임"
+                />
+                <button type="button" onClick={(event) => void checkAuthValue("nickname", event.currentTarget.form)} disabled={isCheckingAuth}>
+                  중복확인
+                </button>
+              </div>
+            </label>
             <label>이메일<input name="email" type="email" required /></label>
-            <label>아이디<input name="username" required /></label>
-            <label>비밀번호<input name="password" type="password" minLength={6} required /></label>
-            <label>비밀번호 확인<input name="passwordConfirm" type="password" minLength={6} required /></label>
+            <label>
+              아이디
+              <div className="auth-inline-field">
+                <input
+                  name="username"
+                  required
+                  minLength={2}
+                  maxLength={24}
+                  pattern="[A-Za-z0-9_]+"
+                  onChange={() => setCheckedUsername("")}
+                  placeholder="영문, 숫자, 밑줄만 가능"
+                />
+                <button type="button" onClick={(event) => void checkAuthValue("username", event.currentTarget.form)} disabled={isCheckingAuth}>
+                  중복확인
+                </button>
+              </div>
+            </label>
+            <label>
+              비밀번호
+              <input name="password" type="password" minLength={8} required placeholder="8자 이상, 특수문자 1개 이상" />
+              <small className="auth-help">예: universe!2026 처럼 특수문자를 포함해 주세요.</small>
+            </label>
+            <label>비밀번호 확인<input name="passwordConfirm" type="password" minLength={8} required /></label>
             <button className="primary-button" type="submit"><UserPlus size={18} /> 회원가입</button>
           </form>
         )}
@@ -1004,7 +1143,11 @@ function AuthModal({
               <form className="auth-form" onSubmit={submitResetPassword}>
                 <label>아이디<input name="username" required /></label>
                 <label>가입 이메일<input name="email" type="email" required /></label>
-                <label>새 비밀번호<input name="newPassword" type="password" minLength={6} required /></label>
+                <label>
+                  새 비밀번호
+                  <input name="newPassword" type="password" minLength={8} required placeholder="8자 이상, 특수문자 1개 이상" />
+                  <small className="auth-help">새 비밀번호에도 특수문자를 1개 이상 포함해야 합니다.</small>
+                </label>
                 <button className="primary-button" type="submit"><RefreshCw size={18} /> 비밀번호 재설정</button>
               </form>
             )}
