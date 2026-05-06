@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f59e0b"/><stop offset=".55" stop-color="#ec4899"/><stop offset="1" stop-color="#312e81"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <circle cx="360" cy="478" r="180" fill="#fff" opacity=".22"/>
+  <circle cx="292" cy="438" r="78" fill="#fde68a" opacity=".78"/>
+  <circle cx="442" cy="520" r="98" fill="#93c5fd" opacity=".7"/>
+  <path d="M122 720c118-75 249-83 393-24 48 20 92 19 134-2v266H122z" fill="#111827" opacity=".38"/>
+  <text x="54" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="800">PAINTED</text>
+  <text x="54" y="174" fill="#fde68a" font-family="Arial, sans-serif" font-size="52" font-weight="800">PLANET</text>
+</svg>

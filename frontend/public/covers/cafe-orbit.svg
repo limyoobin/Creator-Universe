@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#064e3b"/><stop offset=".55" stop-color="#10b981"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <circle cx="540" cy="220" r="118" fill="#bbf7d0" opacity=".38"/>
+  <path d="M188 520h320l-42 198c-14 65-72 112-139 112s-125-47-139-112z" fill="#fff" opacity=".75"/>
+  <path d="M504 570h42c62 0 62 96 0 96h-58" fill="none" stroke="#fff" stroke-width="30" opacity=".66"/>
+  <path d="M242 428c-24-58 52-72 18-134M346 428c-24-58 52-72 18-134M450 428c-24-58 52-72 18-134" stroke="#ecfeff" stroke-width="14" stroke-linecap="round" opacity=".52"/>
+  <text x="58" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="54" font-weight="800">CAFE</text>
+  <text x="58" y="174" fill="#bbf7d0" font-family="Arial, sans-serif" font-size="54" font-weight="800">ORBIT</text>
+</svg>

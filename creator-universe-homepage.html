@@ -1,0 +1,1953 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>크리에이터 유니버스</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f6fb;
+        --bg-accent: radial-gradient(circle at top left, rgba(240, 171, 252, 0.24), transparent 20%),
+          radial-gradient(circle at top right, rgba(125, 211, 252, 0.24), transparent 22%),
+          linear-gradient(180deg, #fcfcff 0%, #f5f6fb 52%, #eef1f7 100%);
+        --surface: rgba(255, 255, 255, 0.82);
+        --surface-strong: rgba(255, 255, 255, 0.95);
+        --surface-soft: rgba(255, 255, 255, 0.64);
+        --line: rgba(15, 23, 42, 0.09);
+        --line-strong: rgba(15, 23, 42, 0.14);
+        --text: #121826;
+        --muted: rgba(18, 24, 38, 0.72);
+        --subtle: rgba(18, 24, 38, 0.46);
+        --brand: #ff5b7f;
+        --brand-soft: rgba(255, 91, 127, 0.12);
+        --cyan: #1fb6d9;
+        --violet: #7c6dff;
+        --amber: #f59e0b;
+        --shadow: 0 18px 60px rgba(17, 24, 39, 0.08);
+        --shadow-strong: 0 28px 90px rgba(17, 24, 39, 0.12);
+        --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.2));
+        --viewer-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.36));
+      }
+
+      body[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #06070c;
+        --bg-accent: radial-gradient(circle at top left, rgba(251, 113, 133, 0.16), transparent 22%),
+          radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 24%),
+          linear-gradient(180deg, #0b0c11 0%, #07080d 52%, #05060a 100%);
+        --surface: rgba(18, 20, 29, 0.82);
+        --surface-strong: rgba(18, 20, 29, 0.94);
+        --surface-soft: rgba(255, 255, 255, 0.04);
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.14);
+        --text: #f7f8fb;
+        --muted: rgba(247, 248, 251, 0.72);
+        --subtle: rgba(247, 248, 251, 0.46);
+        --brand: #ff6d93;
+        --brand-soft: rgba(255, 109, 147, 0.14);
+        --cyan: #67e8f9;
+        --violet: #a78bfa;
+        --amber: #fbbf24;
+        --shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+        --shadow-strong: 0 34px 110px rgba(0, 0, 0, 0.4);
+        --hero-overlay: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+        --viewer-overlay: linear-gradient(180deg, rgba(5, 7, 13, 0.08), rgba(5, 7, 13, 0.6));
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: var(--bg-accent);
+        color: var(--text);
+        font-family: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+        transition: background 420ms ease, color 280ms ease;
+      }
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; cursor: pointer; }
+      .site-shell { width: min(1240px, calc(100% - 28px)); margin: 0 auto; }
+      .topbar {
+        position: sticky; top: 0; z-index: 50; backdrop-filter: blur(20px);
+        background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+        border-bottom: 1px solid var(--line); transition: background 280ms ease, border-color 280ms ease;
+      }
+      .topbar-inner {
+        display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 76px;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: -0.02em; }
+      .brand-mark {
+        width: 38px; height: 38px; border-radius: 14px; background: linear-gradient(135deg, var(--brand), var(--violet));
+        box-shadow: 0 10px 24px rgba(124, 109, 255, 0.24); position: relative; overflow: hidden;
+      }
+      .brand-mark::before {
+        content: ""; position: absolute; inset: 1px; border-radius: 13px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0.08));
+      }
+      .brand-copy strong { display: block; font-size: 16px; }
+      .brand-copy span { display: block; margin-top: 2px; font-size: 12px; color: var(--subtle); font-weight: 500; }
+      .nav {
+        display: flex; align-items: center; gap: 10px; padding: 6px; border: 1px solid var(--line);
+        border-radius: 999px; background: color-mix(in srgb, var(--surface) 84%, transparent);
+      }
+      .nav a {
+        padding: 10px 14px; border-radius: 999px; color: var(--muted);
+        transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+      }
+      .nav a:hover { background: var(--surface-soft); color: var(--text); transform: translateY(-1px); }
+      .nav a.active { background: var(--brand-soft); color: var(--brand); }
+      .topbar-actions { display: flex; align-items: center; gap: 12px; }
+      .mobile-tabbar {
+        position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 70;
+        display: none; width: min(calc(100% - 20px), 560px); padding: 8px; border: 1px solid var(--line);
+        border-radius: 24px; background: color-mix(in srgb, var(--surface-strong) 92%, transparent);
+        backdrop-filter: blur(20px); box-shadow: var(--shadow-strong);
+      }
+      .mobile-tabbar nav {
+        display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px;
+      }
+      .mobile-tab {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+        min-height: 58px; border-radius: 18px; color: var(--subtle);
+        transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+      }
+      .mobile-tab:hover { transform: translateY(-1px); }
+      .mobile-tab.active { background: var(--brand-soft); color: var(--brand); }
+      .mobile-tab-icon { font-size: 18px; line-height: 1; }
+      .mobile-tab-label { font-size: 11px; font-weight: 700; letter-spacing: -0.01em; }
+      .ghost-button, .solid-button, .theme-toggle, .status-chip, .auth-chip {
+        border: 1px solid var(--line); border-radius: 999px;
+        background: color-mix(in srgb, var(--surface) 86%, transparent); color: var(--text);
+        transition: transform 180ms ease, background 220ms ease, border-color 220ms ease, color 220ms ease;
+      }
+      .ghost-button, .solid-button { padding: 11px 16px; }
+      .solid-button {
+        background: linear-gradient(90deg, var(--brand), var(--violet)); color: white; border-color: transparent;
+        box-shadow: 0 12px 26px rgba(124, 109, 255, 0.18);
+      }
+      .ghost-button:hover, .solid-button:hover, .theme-toggle:hover, .status-chip:hover, .auth-chip:hover { transform: translateY(-1px); }
+      .theme-toggle {
+        display: inline-flex; align-items: center; gap: 12px; width: 98px; padding: 6px; position: relative; overflow: hidden;
+      }
+      .theme-toggle-track {
+        position: absolute; inset: 5px; border-radius: 999px; background: linear-gradient(90deg, rgba(255, 199, 94, 0.18), rgba(124, 109, 255, 0.18)); opacity: 0.8;
+      }
+      .theme-toggle-thumb {
+        position: absolute; width: 38px; height: 38px; left: 6px; top: 6px; border-radius: 999px;
+        background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.7));
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+        transition: transform 360ms cubic-bezier(.2,.8,.2,1), background 360ms ease, box-shadow 360ms ease;
+      }
+      body[data-theme="dark"] .theme-toggle-thumb {
+        transform: translateX(48px); background: linear-gradient(135deg, #d8d6ff, #7c6dff); box-shadow: 0 10px 26px rgba(124, 109, 255, 0.3);
+      }
+      .theme-toggle-labels {
+        position: relative; z-index: 1; width: 100%; display: flex; justify-content: space-between; padding: 0 6px; font-size: 14px;
+      }
+      .hero { padding: 34px 0 22px; }
+      .hero-grid { display: grid; grid-template-columns: 1.14fr 0.86fr; gap: 18px; align-items: stretch; }
+      .panel {
+        border: 1px solid var(--line); border-radius: 32px; background: color-mix(in srgb, var(--surface) 90%, transparent);
+        box-shadow: var(--shadow); transition: background 280ms ease, border-color 280ms ease, box-shadow 280ms ease, transform 220ms ease;
+      }
+      .panel:hover { transform: translateY(-2px); box-shadow: var(--shadow-strong); }
+      .hero-main { position: relative; overflow: hidden; padding: 36px; min-height: 560px; }
+      .hero-main::before { content: ""; position: absolute; inset: 0; background: var(--hero-overlay); }
+      .hero-main::after {
+        content: ""; position: absolute; right: -6%; top: -7%; width: 360px; height: 360px; border-radius: 999px;
+        background: radial-gradient(circle at center, rgba(124, 109, 255, 0.26), transparent 65%); filter: blur(8px);
+        animation: floatAura 10s ease-in-out infinite;
+      }
+      .hero-content { position: relative; z-index: 1; }
+      .eyebrow {
+        display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px;
+        border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-strong) 86%, transparent);
+        color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase;
+      }
+      h1 { margin: 18px 0 0; font-size: clamp(42px, 6vw, 78px); line-height: 0.97; letter-spacing: -0.05em; }
+      .headline-accent { display: block; margin-top: 12px; color: var(--brand); }
+      .hero-copy { max-width: 680px; margin-top: 22px; font-size: 17px; line-height: 1.9; color: var(--muted); }
+      .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+      .hero-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 30px; }
+      .hero-stat {
+        padding: 18px; border: 1px solid var(--line); border-radius: 24px; background: color-mix(in srgb, var(--surface-strong) 74%, transparent);
+      }
+      .hero-stat small { color: var(--subtle); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; }
+      .hero-stat strong { display: block; margin-top: 12px; font-size: 28px; line-height: 1; }
+      .hero-stat p { margin: 10px 0 0; color: var(--muted); line-height: 1.7; font-size: 14px; }
+      .hero-side { display: grid; gap: 18px; }
+      .side-card { padding: 24px; }
+      .side-card h3, .section-title { margin: 14px 0 0; font-size: clamp(28px, 3.5vw, 42px); letter-spacing: -0.04em; line-height: 1.08; }
+      .side-card p, .section-copy { margin-top: 14px; color: var(--muted); line-height: 1.8; }
+      .mini-list { display: grid; gap: 10px; margin-top: 18px; }
+      .mini-item {
+        display: flex; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 18px;
+        background: color-mix(in srgb, var(--surface-strong) 76%, transparent); border: 1px solid var(--line);
+      }
+      .mini-item strong { font-size: 15px; }
+      .mini-item span { color: var(--subtle); font-size: 13px; }
+      .section { padding: 12px 0; }
+      .section-card { padding: 30px; }
+      .section-header { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+      .section-badge {
+        display: inline-flex; padding: 7px 12px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font-size: 13px; font-weight: 600;
+      }
+      .status-chip {
+        padding: 10px 14px; color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 22%, var(--line));
+        background: color-mix(in srgb, var(--cyan) 10%, var(--surface)); font-size: 14px; font-weight: 600;
+      }
+      .auth-chip {
+        padding: 10px 14px; color: var(--muted); font-size: 14px; font-weight: 600;
+      }
+      .is-hidden { display: none !important; }
+      .auth-overlay {
+        position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+        padding: 24px; background: rgba(8, 10, 18, 0.52); backdrop-filter: blur(14px);
+      }
+      .auth-modal {
+        width: min(560px, 100%); border-radius: 32px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface-strong) 96%, transparent); box-shadow: var(--shadow-strong);
+        overflow: hidden;
+      }
+      .auth-header {
+        display: flex; align-items: start; justify-content: space-between; gap: 18px; padding: 24px 24px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .auth-header h3 { margin: 10px 0 0; font-size: 30px; letter-spacing: -0.04em; }
+      .auth-header p { margin: 10px 0 0; color: var(--muted); line-height: 1.7; }
+      .auth-close {
+        width: 42px; height: 42px; border-radius: 999px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 86%, transparent); color: var(--text);
+      }
+      .auth-tabs, .auth-subtabs {
+        display: flex; gap: 8px; flex-wrap: wrap;
+      }
+      .auth-tabs { padding: 18px 24px 0; }
+      .auth-subtabs { padding: 0 24px 0; margin-top: 14px; }
+      .auth-tab {
+        padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 86%, transparent); color: var(--muted);
+      }
+      .auth-tab.active {
+        background: var(--brand-soft); color: var(--brand); border-color: color-mix(in srgb, var(--brand) 25%, var(--line));
+      }
+      .auth-body { padding: 20px 24px 24px; }
+      .auth-view { display: none; }
+      .auth-view.active { display: block; }
+      .auth-form { display: grid; gap: 14px; }
+      .auth-field { display: grid; gap: 8px; }
+      .auth-field label { font-size: 14px; font-weight: 600; }
+      .auth-field input {
+        width: 100%; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--text);
+      }
+      .auth-submit {
+        width: 100%; margin-top: 8px; padding: 14px 18px; border-radius: 18px; border: none;
+        background: linear-gradient(90deg, var(--brand), var(--violet)); color: white; font-weight: 700;
+        box-shadow: 0 12px 26px rgba(124, 109, 255, 0.18);
+      }
+      .auth-links {
+        display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px;
+      }
+      .auth-link {
+        border: none; padding: 0; background: none; color: var(--brand); font-size: 14px; font-weight: 600;
+      }
+      .auth-message {
+        margin-bottom: 16px; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface) 90%, transparent); color: var(--muted); line-height: 1.7;
+      }
+      .auth-message.error {
+        color: var(--brand); border-color: color-mix(in srgb, var(--brand) 24%, var(--line));
+        background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+      }
+      .auth-message.success {
+        color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 24%, var(--line));
+        background: color-mix(in srgb, var(--cyan) 10%, var(--surface));
+      }
+      .filter-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+      .filter-pill {
+        padding: 12px 17px; border-radius: 999px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface-strong) 78%, transparent); color: var(--muted);
+      }
+      .filter-pill:hover, .filter-pill.active {
+        transform: translateY(-1px); border-color: color-mix(in srgb, var(--brand) 25%, var(--line)); background: var(--brand-soft); color: var(--brand);
+      }
+      .creator-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
+      .creator-card { overflow: hidden; padding: 22px; position: relative; }
+      .creator-card::before { content: ""; position: absolute; inset: 0; opacity: 0.86; pointer-events: none; }
+      .creator-card[data-accent="WRITER"]::before { background: linear-gradient(135deg, rgba(255, 91, 127, 0.11), transparent 42%); }
+      .creator-card[data-accent="ILLUSTRATOR"]::before { background: linear-gradient(135deg, rgba(31, 182, 217, 0.12), transparent 42%); }
+      .creator-card[data-accent="VOICE_ACTOR"]::before { background: linear-gradient(135deg, rgba(124, 109, 255, 0.14), transparent 42%); }
+      .creator-card[data-accent="SOUND_DIRECTOR"]::before { background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), transparent 42%); }
+      .creator-card[data-accent="PRODUCER"]::before, .creator-card[data-accent="EDITOR"]::before { background: linear-gradient(135deg, rgba(148, 163, 184, 0.14), transparent 42%); }
+      .creator-inner { position: relative; z-index: 1; }
+      .creator-role {
+        display: inline-flex; padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface-strong) 76%, transparent); color: var(--subtle); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+      }
+      .creator-head { display: flex; justify-content: space-between; gap: 16px; margin-top: 16px; }
+      .creator-name { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; }
+      .creator-handle { margin-top: 5px; color: var(--subtle); font-size: 14px; }
+      .creator-rate {
+        padding: 12px 14px; border-radius: 18px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+        min-width: 92px; text-align: right;
+      }
+      .creator-rate small { display: block; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--subtle); }
+      .creator-rate strong { display: block; margin-top: 7px; font-size: 15px; }
+      .creator-tagline { margin-top: 18px; font-size: 17px; line-height: 1.7; font-weight: 600; }
+      .creator-desc { margin-top: 10px; color: var(--muted); line-height: 1.76; font-size: 14px; }
+      .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+      .chip-row span {
+        padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--surface-strong) 72%, transparent); font-size: 12px; color: var(--muted);
+      }
+      .voice-player {
+        margin-top: 16px; padding: 16px; border-radius: 22px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-strong) 74%, transparent);
+      }
+      .voice-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
+      .voice-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+      .wave-play {
+        width: 52px; height: 52px; border-radius: 999px; display: grid; place-items: center;
+        border: 1px solid color-mix(in srgb, var(--violet) 28%, var(--line)); background: color-mix(in srgb, var(--violet) 16%, var(--surface)); color: var(--text);
+      }
+      .waveform { flex: 1; min-height: 80px; display: flex; align-items: end; gap: 6px; }
+      .waveform span { display: block; width: 9px; border-radius: 999px; background: color-mix(in srgb, var(--text) 12%, transparent); }
+      .waveform span.active { background: linear-gradient(180deg, var(--cyan) 0%, var(--violet) 55%, #ffd6e4 100%); box-shadow: 0 0 12px rgba(124, 109, 255, 0.22); }
+      .creator-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+      .creator-stats small { display: block; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.18em; font-size: 10px; }
+      .creator-stats strong { display: block; margin-top: 8px; font-size: 16px; }
+      .settlement-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 18px; margin-top: 24px; }
+      .settlement-layout { display: grid; grid-template-columns: 312px 1fr; gap: 24px; align-items: center; }
+      .settlement-panel { padding: 24px; }
+      .donut-wrap { display: grid; place-items: center; }
+      .donut {
+        width: 284px; height: 284px; border-radius: 50%; position: relative;
+        background: radial-gradient(circle at center, transparent 0 44%, rgba(0, 0, 0, 0) 45%), conic-gradient(var(--brand) 0 30%, var(--cyan) 30% 60%, var(--violet) 60% 100%);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-strong) 72%, transparent), 0 20px 44px rgba(124, 109, 255, 0.12);
+      }
+      .donut::before {
+        content: ""; position: absolute; inset: 58px; border-radius: 50%; background: color-mix(in srgb, var(--surface-strong) 92%, transparent); border: 1px solid var(--line);
+      }
+      .donut-center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 58px; }
+      .donut-center small { display: block; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.22em; font-size: 11px; }
+      .donut-center strong { display: block; margin-top: 10px; font-size: 34px; line-height: 1.2; }
+      .donut-center p { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+      .share-list { display: grid; gap: 12px; }
+      .share-item {
+        border: 1px solid var(--line); border-radius: 22px; padding: 18px; background: color-mix(in srgb, var(--surface-strong) 76%, transparent);
+      }
+      .share-item[data-tone="WRITER"] { background: linear-gradient(90deg, rgba(255, 91, 127, 0.1), color-mix(in srgb, var(--surface-strong) 76%, transparent)); }
+      .share-item[data-tone="ILLUSTRATOR"] { background: linear-gradient(90deg, rgba(31, 182, 217, 0.1), color-mix(in srgb, var(--surface-strong) 76%, transparent)); }
+      .share-item[data-tone="VOICE_ACTOR"] { background: linear-gradient(90deg, rgba(124, 109, 255, 0.12), color-mix(in srgb, var(--surface-strong) 76%, transparent)); }
+      .share-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+      .share-head small { display: block; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; }
+      .share-head strong { display: block; margin-top: 6px; font-size: 20px; }
+      .share-percent { font-size: 30px; font-weight: 700; }
+      .share-item p { margin: 6px 0 0; color: var(--muted); }
+      .calc-list { display: grid; gap: 12px; }
+      .calc-row, .my-settlement {
+        border-radius: 24px; border: 1px solid var(--line); background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+      }
+      .calc-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px; }
+      .calc-row span { color: var(--muted); }
+      .calc-row strong { font-size: 16px; }
+      .my-settlement {
+        padding: 24px; background: radial-gradient(circle at top, color-mix(in srgb, var(--violet) 16%, transparent), transparent 62%),
+        linear-gradient(180deg, color-mix(in srgb, var(--violet) 10%, transparent), color-mix(in srgb, var(--surface-strong) 76%, transparent));
+      }
+      .my-settlement small { color: var(--subtle); text-transform: uppercase; letter-spacing: 0.24em; font-size: 11px; }
+      .my-settlement strong { display: block; margin-top: 14px; font-size: clamp(36px, 5vw, 56px); line-height: 1; }
+      .my-settlement p { margin-top: 14px; color: var(--muted); line-height: 1.8; }
+      .viewer-card { overflow: hidden; padding: 0; }
+      .viewer-top {
+        position: relative; min-height: 430px; border-bottom: 1px solid var(--line);
+        background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06), transparent 38%), var(--viewer-overlay),
+          linear-gradient(135deg, rgba(31, 182, 217, 0.24), rgba(124, 109, 255, 0.18), rgba(255, 91, 127, 0.12));
+      }
+      .viewer-top::before {
+        content: ""; position: absolute; inset: 0;
+        background: radial-gradient(circle at 20% 26%, rgba(255, 255, 255, 0.12), transparent 16%), radial-gradient(circle at 74% 20%, rgba(255, 255, 255, 0.08), transparent 14%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 42%); opacity: 0.88;
+      }
+      .transcript { position: relative; z-index: 1; max-width: 980px; margin: 0 auto; padding: 76px 24px; text-align: center; }
+      .lyric {
+        margin-top: 16px; font-weight: 700; line-height: 1.74; letter-spacing: 0.01em;
+        transition: transform 260ms ease, opacity 260ms ease, color 260ms ease;
+      }
+      .lyric.past { font-size: clamp(20px, 2.8vw, 30px); opacity: 0.5; }
+      .lyric.active { font-size: clamp(28px, 4vw, 50px); opacity: 1; color: #ffffff; text-shadow: 0 0 24px rgba(255, 255, 255, 0.2); }
+      .lyric.active span {
+        background: linear-gradient(90deg, #ffffff 0%, #ffffff 32%, #cffafe 58%, #f5d0fe 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .lyric.next { font-size: clamp(22px, 3vw, 38px); opacity: 0.86; color: color-mix(in srgb, #ffffff 90%, var(--cyan)); }
+      .lyric.future { font-size: clamp(18px, 2.4vw, 28px); opacity: 0.38; }
+      .viewer-bottom { padding: 30px; }
+      .viewer-bottom-inner { display: grid; gap: 24px; }
+      .viewer-center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+      .viewer-center h3 { margin: 16px 0 0; font-size: clamp(30px, 4vw, 54px); line-height: 1.08; letter-spacing: -0.04em; }
+      .viewer-center p { max-width: 760px; margin: 16px auto 0; color: var(--muted); line-height: 1.8; }
+      .big-play {
+        width: 132px; height: 132px; margin-top: 24px; border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+        background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+        position: relative; box-shadow: 0 0 60px rgba(31, 182, 217, 0.12); overflow: hidden;
+      }
+      .big-play::before {
+        content: ""; position: absolute; inset: -20%;
+        background: conic-gradient(from 180deg, rgba(31, 182, 217, 0.24), rgba(124, 109, 255, 0.18), rgba(255, 91, 127, 0.16), rgba(31, 182, 217, 0.24));
+        filter: blur(18px); animation: pulseRotate 6s linear infinite;
+      }
+      .pause-bars { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; gap: 8px; z-index: 1; }
+      .pause-bars span { width: 10px; height: 40px; border-radius: 999px; background: var(--text); }
+      .progress-shell { border: 1px solid var(--line); border-radius: 28px; background: color-mix(in srgb, var(--surface-strong) 78%, transparent); padding: 18px 18px 20px; }
+      .progress-top { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+      .progress-meta small { display: block; color: var(--subtle); text-transform: uppercase; letter-spacing: 0.2em; font-size: 11px; }
+      .progress-meta strong { display: block; margin-top: 8px; font-size: 24px; }
+      .high-contrast {
+        display: inline-flex; padding: 10px 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--cyan) 22%, var(--line));
+        background: color-mix(in srgb, var(--cyan) 10%, var(--surface)); color: var(--cyan); font-size: 14px; font-weight: 600;
+      }
+      .bar-times { display: flex; justify-content: space-between; gap: 16px; margin-top: 16px; color: var(--muted); font-size: 14px; }
+      .progress-bar {
+        position: relative; margin-top: 10px; height: 18px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line);
+        background: color-mix(in srgb, var(--text) 10%, transparent);
+      }
+      .progress-fill {
+        position: absolute; inset: 0 auto 0 0; width: 61%; border-radius: inherit;
+        background: linear-gradient(90deg, var(--cyan) 0%, var(--violet) 58%, #ffd6e4 100%); box-shadow: 0 0 20px rgba(124, 109, 255, 0.2);
+      }
+      .progress-head {
+        position: absolute; top: 2px; bottom: 2px; left: calc(61% - 18px); width: 40px; border-radius: 999px; background: rgba(255, 255, 255, 0.74); filter: blur(2px);
+      }
+      .empty-state {
+        margin-top: 24px; padding: 22px; border-radius: 24px; border: 1px dashed var(--line-strong);
+        background: color-mix(in srgb, var(--surface-strong) 68%, transparent); color: var(--muted); line-height: 1.8;
+      }
+      .footer { padding: 26px 0 54px; color: var(--subtle); text-align: center; font-size: 14px; }
+      .reveal { opacity: 0; transform: translateY(18px); transition: opacity 560ms ease, transform 560ms ease; }
+      .reveal.is-visible { opacity: 1; transform: translateY(0); }
+      @keyframes floatAura {
+        0%,100% { transform: translate3d(0,0,0) scale(1); }
+        50% { transform: translate3d(-14px,20px,0) scale(1.03); }
+      }
+      @keyframes pulseRotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      }
+      @media (max-width: 1100px) {
+        .hero-grid,.creator-grid,.settlement-grid,.settlement-layout { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 860px) {
+        .topbar-inner { flex-wrap: wrap; padding: 12px 0; justify-content: center; }
+        .nav { order: 3; width: 100%; justify-content: center; flex-wrap: wrap; border-radius: 24px; }
+        .section-header,.progress-top { flex-direction: column; align-items: start; }
+      }
+      @media (max-width: 720px) {
+        .site-shell { width: min(100% - 18px, 1240px); }
+        .hero-main,.section-card,.viewer-bottom,.side-card { padding: 20px; }
+        .hero-stat-grid,.creator-stats { grid-template-columns: 1fr; }
+        .waveform span { width: 8px; }
+        .donut { width: 244px; height: 244px; }
+        .transcript { padding: 54px 18px; }
+        .nav { display: none; }
+        .topbar-inner { justify-content: space-between; align-items: center; flex-wrap: nowrap; }
+        .topbar-actions { gap: 8px; }
+        .topbar-actions .status-chip { display: none; }
+        .topbar-actions .auth-chip {
+          max-width: 132px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mobile-tabbar { display: block; }
+        body { padding-bottom: 92px; }
+      }
+    </style>
+  </head>
+  <body data-theme="light">
+    <header class="topbar">
+      <div class="site-shell topbar-inner">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <div class="brand-copy">
+            <strong>크리에이터 유니버스</strong>
+            <span>Audio-first creator platform</span>
+          </div>
+        </div>
+        <nav class="nav" aria-label="주요 메뉴">
+          <a href="#discover" class="active">홈</a>
+          <a href="#discover">발견</a>
+          <a href="#settlement">정산</a>
+          <a href="#viewer">감상</a>
+          <a href="#request">리퀘스트</a>
+        </nav>
+        <div class="topbar-actions">
+          <button type="button" class="theme-toggle" id="themeToggle" aria-label="다크 모드와 라이트 모드 전환">
+            <span class="theme-toggle-track"></span>
+            <span class="theme-toggle-thumb"></span>
+            <span class="theme-toggle-labels"><span>☀</span><span>☾</span></span>
+          </button>
+          <button type="button" class="auth-chip" id="authUserChip">게스트 모드</button>
+          <button type="button" class="ghost-button" id="openAuthButton">로그인</button>
+          <button type="button" class="ghost-button is-hidden" id="logoutButton">로그아웃</button>
+          <button type="button" class="status-chip" id="connectionStatus">데모 백엔드 연결 중</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="site-shell">
+      <section class="hero">
+        <div class="hero-grid">
+          <article class="panel hero-main reveal">
+            <div class="hero-content">
+              <span class="eyebrow">취향의 팀이 작품이 되는 곳</span>
+              <h1>
+                포트폴리오를 탐색하고
+                <span class="headline-accent">오디오 프로젝트 팀을 만드는 창작 홈</span>
+              </h1>
+              <p class="hero-copy">
+                실제 데모 백엔드와 연결된 홈페이지입니다. 창작자 목록, 프로젝트 정산 수치, 콘텐츠 열람 권한이
+                구매 시뮬레이션에 따라 함께 움직입니다.
+              </p>
+              <div class="hero-cta">
+                <button type="button" class="solid-button" id="purchaseButton">1,000코인 구매 시뮬레이션</button>
+                <button type="button" class="ghost-button" id="resetButton">데모 상태 초기화</button>
+              </div>
+              <div class="hero-stat-grid">
+                <div class="hero-stat">
+                  <small>활성 프로젝트</small>
+                  <strong id="heroProjectCount">-</strong>
+                  <p>배경 오디오, 대본, 팀 지분 구조까지 함께 포함된 출판 가능 프로젝트 수입니다.</p>
+                </div>
+                <div class="hero-stat">
+                  <small>누적 결제</small>
+                  <strong id="heroGrossRevenue">-</strong>
+                  <p>실제 구매 시뮬레이션이 반영된 총 결제 코인입니다.</p>
+                </div>
+                <div class="hero-stat">
+                  <small>결제 건수</small>
+                  <strong id="heroTransactionCount">-</strong>
+                  <p>독자 열람 결제가 일어나면 자동 정산과 함께 이 숫자도 증가합니다.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <div class="hero-side">
+            <article class="panel side-card reveal" id="request">
+              <span class="section-badge">Live Scenario</span>
+              <h3 id="projectTitleCard">프로젝트 로딩 중</h3>
+              <p id="projectSynopsisCard">현재 프로젝트 시놉시스와 가격 정책을 불러오는 중입니다.</p>
+              <div class="mini-list">
+                <div class="mini-item"><strong>콘텐츠 가격</strong><span id="projectPriceLabel">-</span></div>
+                <div class="mini-item"><strong>플랫폼 수수료</strong><span id="projectFeeLabel">-</span></div>
+                <div class="mini-item"><strong>현재 열람 상태</strong><span id="projectAccessLabel">확인 중</span></div>
+              </div>
+            </article>
+
+            <article class="panel side-card reveal">
+              <span class="section-badge">Wallet</span>
+              <h3>독자 지갑과 접근 권한</h3>
+              <p>이 데모에서는 `reader_demo` 계정으로 접속한 상태를 가정합니다. 구매가 완료되면 지갑 정보와 프로젝트 열람 권한이 함께 갱신됩니다.</p>
+              <div class="mini-list">
+                <div class="mini-item"><strong>현재 사용자</strong><span id="currentUserLabel">게스트</span></div>
+                <div class="mini-item"><strong>내 지갑 잔액</strong><span id="walletBalanceLabel">로그인 필요</span></div>
+                <div class="mini-item"><strong>뷰어 접근</strong><span id="viewerAccessLabel">잠금됨</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="discover">
+        <article class="panel section-card reveal">
+          <div class="section-header">
+            <div>
+              <span class="section-badge">Matching Dashboard</span>
+              <h2 class="section-title">백엔드 데이터로 채워지는 창작자 매칭 화면</h2>
+              <p class="section-copy">
+                필터를 누르면 실제 API 응답을 기준으로 카드가 다시 렌더링됩니다. 성우는 음성 데모 웨이브폼도 함께 표시됩니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="filter-row" id="filterRow">
+            <button class="filter-pill active" data-filter="ALL">전체</button>
+            <button class="filter-pill" data-filter="WRITER">글</button>
+            <button class="filter-pill" data-filter="ILLUSTRATOR">그림</button>
+            <button class="filter-pill" data-filter="VOICE_ACTOR">목소리</button>
+            <button class="filter-pill" data-filter="SOUND_DIRECTOR">BGM</button>
+          </div>
+
+          <div class="creator-grid" id="creatorGrid"></div>
+        </article>
+      </section>
+
+      <section class="section" id="settlement">
+        <article class="panel section-card reveal">
+          <div class="section-header">
+            <div>
+              <span class="section-badge">Smart Settlement</span>
+              <h2 class="section-title">구매 시뮬레이션이 바로 반영되는 자동 정산 대시보드</h2>
+              <p class="section-copy">
+                1,000코인 결제가 발생하면 일반 수수료 15%를 먼저 차감하고, 작가 30% · 일러스트 30% · 성우 40%
+                비율로 자동 분배된 결과가 즉시 다시 표시됩니다.
+              </p>
+            </div>
+          </div>
+
+          <div class="settlement-grid">
+            <div class="panel settlement-panel reveal">
+              <div class="settlement-layout">
+                <div class="donut-wrap">
+                  <div class="donut">
+                    <div class="donut-center">
+                      <div>
+                        <small>분배 가능 금액</small>
+                        <strong id="netAmountLabel">-</strong>
+                        <p>수수료 차감 후 팀 정산 대상</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="share-list" id="shareList"></div>
+              </div>
+            </div>
+
+            <div class="calc-list reveal">
+              <div class="calc-row"><span>이번 달 총 결제 수익</span><strong id="grossAmountLabel">-</strong></div>
+              <div class="calc-row"><span id="feeRateLabel">플랫폼 수수료</span><strong id="feeAmountLabel">-</strong></div>
+              <div class="calc-row"><span>팀 정산 대상 금액</span><strong id="distributableAmountLabel">-</strong></div>
+              <div class="my-settlement">
+                <small>나의 실제 정산액</small>
+                <strong id="mySettlementLabel">-</strong>
+                <p id="mySettlementDescription">현재 로그인 사용자가 팀원이 아니면 정산액은 0으로 표시됩니다.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="section" id="viewer">
+        <article class="panel viewer-card reveal">
+          <div class="viewer-top">
+            <div class="transcript">
+              <span class="eyebrow">Voice First Multimedia Viewer</span>
+              <div id="transcriptArea">
+                <div class="lyric past">콘텐츠 접근 상태를 확인하는 중입니다.</div>
+                <div class="lyric active"><span>구매 시뮬레이션 후 뷰어가 열리면 대본이 여기에 표시됩니다.</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="viewer-bottom">
+            <div class="viewer-bottom-inner">
+              <div class="viewer-center">
+                <span class="section-badge">Accessible Playback</span>
+                <h3 id="viewerTitle">멀티미디어 뷰어 연결 대기 중</h3>
+                <p id="viewerSummary">권한이 없을 때는 잠금 상태를 보여주고, 결제 후에는 실제 에피소드 메타데이터와 대본 큐를 렌더링합니다.</p>
+                <button class="big-play" type="button" aria-label="재생 또는 일시정지">
+                  <span class="pause-bars"><span></span><span></span></span>
+                </button>
+              </div>
+
+              <div class="progress-shell">
+                <div class="progress-top">
+                  <div class="progress-meta">
+                    <small>Now Playing</small>
+                    <strong id="nowPlayingLabel">잠금된 콘텐츠</strong>
+                  </div>
+                  <span class="high-contrast" id="viewerModeLabel">고대비 모드 활성화</span>
+                </div>
+                <div class="bar-times"><span id="currentTimeLabel">00:00</span><span id="durationLabel">00:00</span></div>
+                <div class="progress-bar" aria-label="오디오 진행률" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="61">
+                  <div class="progress-fill" id="progressFill"></div>
+                  <div class="progress-head" id="progressHead"></div>
+                </div>
+                <div class="empty-state" id="viewerStatusBox">프로젝트를 구매하면 오디오와 대본이 동기화된 뷰어를 바로 확인할 수 있습니다.</div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <div class="mobile-tabbar" aria-label="모바일 탭 메뉴">
+      <nav>
+        <a href="#discover" class="mobile-tab active" data-mobile-tab="discover">
+          <span class="mobile-tab-icon">⌂</span>
+          <span class="mobile-tab-label">홈</span>
+        </a>
+        <a href="#discover" class="mobile-tab" data-mobile-tab="matching">
+          <span class="mobile-tab-icon">◫</span>
+          <span class="mobile-tab-label">발견</span>
+        </a>
+        <a href="#settlement" class="mobile-tab" data-mobile-tab="settlement">
+          <span class="mobile-tab-icon">◔</span>
+          <span class="mobile-tab-label">정산</span>
+        </a>
+        <a href="#viewer" class="mobile-tab" data-mobile-tab="viewer">
+          <span class="mobile-tab-icon">▷</span>
+          <span class="mobile-tab-label">감상</span>
+        </a>
+        <a href="#request" class="mobile-tab" data-mobile-tab="request">
+          <span class="mobile-tab-icon">✦</span>
+          <span class="mobile-tab-label">리퀘스트</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="auth-overlay is-hidden" id="authOverlay" aria-hidden="true">
+      <div class="auth-modal">
+        <div class="auth-header">
+          <div>
+            <span class="section-badge">Account Center</span>
+            <h3 id="authTitle">로그인</h3>
+            <p id="authDescription">작품 구매와 멀티미디어 뷰어 열람을 위해 로그인해 주세요.</p>
+          </div>
+          <button type="button" class="auth-close" id="closeAuthButton" aria-label="닫기">✕</button>
+        </div>
+
+        <div class="auth-tabs">
+          <button type="button" class="auth-tab active" data-auth-view="login">로그인</button>
+          <button type="button" class="auth-tab" data-auth-view="signup">회원가입</button>
+          <button type="button" class="auth-tab" data-auth-view="recovery">계정 찾기</button>
+        </div>
+
+        <div class="auth-body">
+          <div class="auth-message is-hidden" id="authMessage"></div>
+
+          <section class="auth-view active" data-auth-view-panel="login">
+            <form class="auth-form" id="loginForm">
+              <div class="auth-field">
+                <label for="loginUsername">아이디</label>
+                <input id="loginUsername" name="username" placeholder="아이디를 입력하세요" required />
+              </div>
+              <div class="auth-field">
+                <label for="loginPassword">비밀번호</label>
+                <input id="loginPassword" name="password" type="password" placeholder="비밀번호를 입력하세요" required />
+              </div>
+              <button type="submit" class="auth-submit">로그인</button>
+            </form>
+            <div class="auth-links">
+              <button type="button" class="auth-link" data-auth-switch="signup">회원가입</button>
+              <button type="button" class="auth-link" data-auth-switch="recovery" data-recovery-mode="find-id">아이디 찾기</button>
+              <button type="button" class="auth-link" data-auth-switch="recovery" data-recovery-mode="reset-password">비밀번호 찾기</button>
+            </div>
+          </section>
+
+          <section class="auth-view" data-auth-view-panel="signup">
+            <form class="auth-form" id="signupForm">
+              <div class="auth-field">
+                <label for="signupDisplayName">닉네임</label>
+                <input id="signupDisplayName" name="displayName" placeholder="표시할 이름" required />
+              </div>
+              <div class="auth-field">
+                <label for="signupEmail">이메일</label>
+                <input id="signupEmail" name="email" type="email" placeholder="example@creator-universe.dev" required />
+              </div>
+              <div class="auth-field">
+                <label for="signupUsername">아이디</label>
+                <input id="signupUsername" name="username" placeholder="영문/숫자 아이디" required />
+              </div>
+              <div class="auth-field">
+                <label for="signupPassword">비밀번호</label>
+                <input id="signupPassword" name="password" type="password" placeholder="비밀번호" required />
+              </div>
+              <div class="auth-field">
+                <label for="signupPasswordConfirm">비밀번호 확인</label>
+                <input id="signupPasswordConfirm" name="passwordConfirm" type="password" placeholder="비밀번호 다시 입력" required />
+              </div>
+              <button type="submit" class="auth-submit">회원가입 후 로그인</button>
+            </form>
+          </section>
+
+          <section class="auth-view" data-auth-view-panel="recovery">
+            <div class="auth-subtabs">
+              <button type="button" class="auth-tab active" data-recovery-tab="find-id">아이디 찾기</button>
+              <button type="button" class="auth-tab" data-recovery-tab="reset-password">비밀번호 찾기</button>
+            </div>
+
+            <div class="auth-view active" data-recovery-panel="find-id">
+              <form class="auth-form" id="findIdForm" style="margin-top: 18px;">
+                <div class="auth-field">
+                  <label for="findIdEmail">가입 이메일</label>
+                  <input id="findIdEmail" name="email" type="email" placeholder="가입한 이메일을 입력하세요" required />
+                </div>
+                <button type="submit" class="auth-submit">아이디 찾기</button>
+              </form>
+            </div>
+
+            <div class="auth-view" data-recovery-panel="reset-password">
+              <form class="auth-form" id="resetPasswordForm" style="margin-top: 18px;">
+                <div class="auth-field">
+                  <label for="resetUsername">아이디</label>
+                  <input id="resetUsername" name="username" placeholder="가입한 아이디" required />
+                </div>
+                <div class="auth-field">
+                  <label for="resetEmail">가입 이메일</label>
+                  <input id="resetEmail" name="email" type="email" placeholder="가입한 이메일" required />
+                </div>
+                <div class="auth-field">
+                  <label for="resetPasswordNew">새 비밀번호</label>
+                  <input id="resetPasswordNew" name="newPassword" type="password" placeholder="새 비밀번호" required />
+                </div>
+                <button type="submit" class="auth-submit">비밀번호 재설정</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      크리에이터 유니버스 · HTML 홈과 데모 백엔드가 연결된 라이브 프리뷰
+    </footer>
+
+    <script>
+      const DEMO_PROJECT_ID = "project-midnight-signal";
+      const localDemoBackend = createDemoBackend();
+      const authState = {
+        currentUserId: localStorage.getItem("creator-universe-auth-user"),
+        currentUser: null,
+      };
+      const state = {
+        creators: [],
+        project: null,
+        settlement: null,
+        wallet: null,
+        viewer: null,
+        activeFilter: "ALL",
+      };
+
+      const roleLabel = {
+        WRITER: "글",
+        ILLUSTRATOR: "그림",
+        VOICE_ACTOR: "목소리",
+        SOUND_DIRECTOR: "BGM",
+        PRODUCER: "프로듀서",
+        EDITOR: "에디터",
+      };
+
+      function formatCoins(value) {
+        const number = Number(value || 0);
+        return `${number.toLocaleString("ko-KR")} 코인`;
+      }
+
+      function formatSeconds(totalSeconds) {
+        const safe = Math.max(0, Math.floor(Number(totalSeconds || 0)));
+        const minutes = String(Math.floor(safe / 60)).padStart(2, "0");
+        const seconds = String(safe % 60).padStart(2, "0");
+        return `${minutes}:${seconds}`;
+      }
+
+      function createDemoBackend() {
+        const initialState = () => ({
+          users: {
+            writer_demo: {
+              id: "writer_demo",
+              email: "writer@creator-universe.dev",
+              username: "yurino_script",
+              displayName: "유리노",
+              password: "demo1234",
+              role: "CREATOR",
+              walletBalance: 0,
+              creatorProfile: {
+                primaryRole: "WRITER",
+                headline: "보이스 드라마와 여성향 세계관 설계에 강한 시나리오 작가",
+                bio: "긴 호흡의 감정선과 캐릭터 중심 대사를 잘 다듬습니다.",
+                skills: ["시나리오", "대사 각색", "세계관 설계"],
+                availabilityNote: "2주 내 합류 가능",
+                responseRate: 98,
+                followerCount: 3800,
+                completedProjects: 18,
+              },
+            },
+            illustrator_demo: {
+              id: "illustrator_demo",
+              email: "illustrator@creator-universe.dev",
+              username: "renka_frame",
+              displayName: "렌카",
+              password: "demo1234",
+              role: "CREATOR",
+              walletBalance: 0,
+              creatorProfile: {
+                primaryRole: "ILLUSTRATOR",
+                headline: "서브컬처 캐릭터 비주얼과 썸네일 아트 디렉션 전문",
+                bio: "라이트노벨 커버와 오디오 드라마 키비주얼을 제작합니다.",
+                skills: ["캐릭터 디자인", "표지", "썸네일"],
+                availabilityNote: "즉시 가능",
+                responseRate: 95,
+                followerCount: 8200,
+                completedProjects: 24,
+              },
+            },
+            voice_demo: {
+              id: "voice_demo",
+              email: "voice@creator-universe.dev",
+              username: "haruka_voice",
+              displayName: "하루카",
+              password: "demo1234",
+              role: "CREATOR",
+              walletBalance: 0,
+              creatorProfile: {
+                primaryRole: "VOICE_ACTOR",
+                headline: "청량한 소녀 톤부터 몽환적인 내레이션까지 소화하는 성우",
+                bio: "ASMR, 오디오북, 캐릭터 보이스 샘플을 빠르게 공유합니다.",
+                skills: ["캐릭터 보이스", "나레이션", "ASMR"],
+                availabilityNote: "이번 주 녹음 슬롯 3개",
+                responseRate: 99,
+                followerCount: 12400,
+                completedProjects: 31,
+                voiceDemo: {
+                  title: "Moonlit Monologue Demo",
+                  durationSeconds: 102,
+                  waveform: [20, 34, 28, 52, 47, 68, 36, 54, 42, 73, 50, 32, 61, 40],
+                },
+              },
+            },
+            reader_demo: {
+              id: "reader_demo",
+              email: "reader@creator-universe.dev",
+              username: "reader_one",
+              displayName: "리더 원",
+              password: "demo1234",
+              role: "READER",
+              walletBalance: 0,
+              creatorProfile: null,
+            },
+          },
+          projects: {
+            [DEMO_PROJECT_ID]: {
+              id: DEMO_PROJECT_ID,
+              title: "너의 이름을 부르는 목소리",
+              description: "감정선 중심의 오디오 드라마 프로젝트",
+              synopsis: "이름을 잃어버린 두 사람이 밤마다 서로를 듣게 되는 이야기.",
+              priceCoins: 1000,
+              isOfficialPartner: false,
+              platformFeeRate: 0.15,
+              partnerFeeRate: 0.08,
+              members: [
+                { userId: "writer_demo", memberRole: "WRITER", sharePercentage: 30 },
+                { userId: "illustrator_demo", memberRole: "ILLUSTRATOR", sharePercentage: 30 },
+                { userId: "voice_demo", memberRole: "VOICE_ACTOR", sharePercentage: 40 },
+              ],
+              episode: {
+                id: "episode-midnight-signal-01",
+                title: "Episode 01 · Midnight Signal",
+                slug: "midnight-signal-ep01",
+                summary: "첫 번째 신호가 울린 밤",
+                audioUrl: "https://cdn.example.com/audio/midnight-signal-ep01.mp3",
+                durationSeconds: 342,
+                sequenceNumber: 1,
+                transcriptCues: [
+                  { startMs: 0, endMs: 5200, text: "문이 열리는 순간, 오래된 별빛이 숨을 쉬기 시작했다." },
+                  { startMs: 5201, endMs: 10400, text: "지금, 너의 이름을 부르는 목소리가 가장 또렷하게 번진다." },
+                  { startMs: 10401, endMs: 15600, text: "한 걸음 더 다가오면, 잊고 있던 장면들이 파도처럼 깨어난다." },
+                  { startMs: 15601, endMs: 20800, text: "멈추지 마. 이 밤의 마지막 페이지는 아직 재생 중이니까." },
+                ],
+              },
+            },
+          },
+          transactions: [],
+          contentAccesses: [],
+          transactionCounter: 1,
+          userCounter: 1,
+        });
+
+        let backendState = initialState();
+
+        function hasAccess(userId, projectId) {
+          const project = backendState.projects[projectId];
+          return (
+            project.members.some((member) => member.userId === userId) ||
+            backendState.contentAccesses.some((access) => access.userId === userId && access.projectId === projectId)
+          );
+        }
+
+        function sanitizeUser(user) {
+          return {
+            id: user.id,
+            email: user.email,
+            username: user.username,
+            displayName: user.displayName,
+            role: user.role,
+          };
+        }
+
+        function getProject(projectId, userId) {
+          const project = backendState.projects[projectId];
+          const appliedFeeRate = project.isOfficialPartner ? project.partnerFeeRate : project.platformFeeRate;
+          return {
+            id: project.id,
+            title: project.title,
+            description: project.description,
+            synopsis: project.synopsis,
+            priceCoins: project.priceCoins,
+            hasAccess: hasAccess(userId, projectId),
+            appliedFeeRate,
+          };
+        }
+
+        function getSettlement(projectId, userId) {
+          const project = backendState.projects[projectId];
+          const projectTransactions = backendState.transactions.filter((transaction) => transaction.projectId === projectId);
+          const grossAmount = projectTransactions.reduce((sum, transaction) => sum + transaction.grossAmount, 0);
+          const platformFeeAmount = projectTransactions.reduce((sum, transaction) => sum + transaction.platformFeeAmount, 0);
+          const netAmount = projectTransactions.reduce((sum, transaction) => sum + transaction.netAmount, 0);
+          const appliedFeeRate = project.isOfficialPartner ? project.partnerFeeRate : project.platformFeeRate;
+          const members = project.members.map((member) => {
+            const user = backendState.users[member.userId];
+            return {
+              userId: member.userId,
+              displayName: user.displayName,
+              username: user.username,
+              memberRole: member.memberRole,
+              sharePercentage: member.sharePercentage,
+              expectedSettlement: Number((netAmount * member.sharePercentage / 100).toFixed(2)),
+            };
+          });
+          const myMember = project.members.find((member) => member.userId === userId);
+          return {
+            projectId,
+            title: project.title,
+            grossAmount,
+            platformFeeAmount,
+            netAmount,
+            appliedFeeRate,
+            members,
+            mySettlement: {
+              userId,
+              sharePercentage: myMember ? myMember.sharePercentage : 0,
+              amount: myMember ? Number((netAmount * myMember.sharePercentage / 100).toFixed(2)) : 0,
+            },
+          };
+        }
+
+        function getHome() {
+          const creators = Object.values(backendState.users)
+            .filter((user) => user.creatorProfile)
+            .map((user) => ({
+              id: user.id,
+              displayName: user.displayName,
+              username: user.username,
+              primaryRole: user.creatorProfile.primaryRole,
+              headline: user.creatorProfile.headline,
+              skills: user.creatorProfile.skills,
+              voiceWaveform: user.creatorProfile.voiceDemo?.waveform || [],
+            }));
+          const totalGrossRevenue = backendState.transactions.reduce((sum, transaction) => sum + transaction.grossAmount, 0);
+          return {
+            featuredCreators: creators,
+            featuredProjects: Object.values(backendState.projects).map((project) => ({
+              id: project.id,
+              title: project.title,
+              synopsis: project.synopsis,
+              priceCoins: project.priceCoins,
+            })),
+            platformStats: {
+              totalPaidTransactions: backendState.transactions.length,
+              totalGrossRevenue,
+            },
+          };
+        }
+
+        function getCreators(role) {
+          return Object.values(backendState.users)
+            .filter((user) => user.creatorProfile)
+            .filter((user) => !role || user.creatorProfile.primaryRole === role)
+            .map((user) => ({
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+              primaryRole: user.creatorProfile.primaryRole,
+              headline: user.creatorProfile.headline,
+              bio: user.creatorProfile.bio,
+              skills: user.creatorProfile.skills,
+              availabilityNote: user.creatorProfile.availabilityNote,
+              responseRate: user.creatorProfile.responseRate,
+              followerCount: user.creatorProfile.followerCount,
+              completedProjects: user.creatorProfile.completedProjects,
+              voiceDemo: user.creatorProfile.voiceDemo || null,
+            }));
+        }
+
+        function getViewer(projectId, userId) {
+          if (!hasAccess(userId, projectId)) {
+            throw new Error("User does not have access to this project.");
+          }
+          const project = backendState.projects[projectId];
+          return {
+            project: {
+              id: project.id,
+              title: project.title,
+              synopsis: project.synopsis,
+            },
+            episode: {
+              ...project.episode,
+            },
+          };
+        }
+
+        function purchase(projectId, userId, coinAmount) {
+          if (!userId) {
+            throw new Error("로그인이 필요합니다.");
+          }
+          if (hasAccess(userId, projectId)) {
+            throw new Error("This user already owns access to the project.");
+          }
+
+          const project = backendState.projects[projectId];
+          const appliedFeeRate = project.isOfficialPartner ? project.partnerFeeRate : project.platformFeeRate;
+          const platformFeeAmount = Number((coinAmount * appliedFeeRate).toFixed(2));
+          const netAmount = Number((coinAmount - platformFeeAmount).toFixed(2));
+          let allocated = 0;
+
+          const settlements = project.members.map((member, index) => {
+            const isLast = index === project.members.length - 1;
+            let settledAmount = Number((netAmount * member.sharePercentage / 100).toFixed(2));
+            if (isLast) {
+              settledAmount = Number((netAmount - allocated).toFixed(2));
+            }
+            allocated = Number((allocated + settledAmount).toFixed(2));
+            backendState.users[member.userId].walletBalance = Number(
+              (backendState.users[member.userId].walletBalance + settledAmount).toFixed(2),
+            );
+            return {
+              userId: member.userId,
+              memberRole: member.memberRole,
+              sharePercentage: member.sharePercentage,
+              settledAmount,
+            };
+          });
+
+          const transactionId = `txn_${String(backendState.transactionCounter).padStart(4, "0")}`;
+          backendState.transactionCounter += 1;
+          backendState.transactions.push({
+            id: transactionId,
+            projectId,
+            buyerId: userId,
+            grossAmount: coinAmount,
+            appliedFeeRate,
+            platformFeeAmount,
+            netAmount,
+          });
+          backendState.contentAccesses.push({
+            userId,
+            projectId,
+            transactionId,
+          });
+
+          return {
+            transactionId,
+            projectId,
+            grossAmount: coinAmount,
+            appliedFeeRate,
+            platformFeeAmount,
+            netAmount,
+            settlements,
+          };
+        }
+
+        function login(username, password) {
+          const user = Object.values(backendState.users).find(
+            (candidate) => candidate.username === username && candidate.password === password,
+          );
+          if (!user) {
+            throw new Error("아이디 또는 비밀번호가 올바르지 않습니다.");
+          }
+          return sanitizeUser(user);
+        }
+
+        function signup(payload) {
+          const usernameExists = Object.values(backendState.users).some((user) => user.username === payload.username);
+          if (usernameExists) {
+            throw new Error("이미 사용 중인 아이디입니다.");
+          }
+
+          const emailExists = Object.values(backendState.users).some((user) => user.email === payload.email);
+          if (emailExists) {
+            throw new Error("이미 가입된 이메일입니다.");
+          }
+
+          const nextId = `reader_signup_${backendState.userCounter}`;
+          backendState.userCounter += 1;
+          backendState.users[nextId] = {
+            id: nextId,
+            email: payload.email,
+            username: payload.username,
+            displayName: payload.displayName,
+            password: payload.password,
+            role: "READER",
+            walletBalance: 0,
+            creatorProfile: null,
+          };
+
+          return sanitizeUser(backendState.users[nextId]);
+        }
+
+        function findId(email) {
+          const user = Object.values(backendState.users).find((candidate) => candidate.email === email);
+          if (!user) {
+            throw new Error("해당 이메일로 가입된 계정을 찾을 수 없습니다.");
+          }
+          return {
+            username: user.username,
+            displayName: user.displayName,
+          };
+        }
+
+        function resetPassword(username, email, newPassword) {
+          const user = Object.values(backendState.users).find(
+            (candidate) => candidate.username === username && candidate.email === email,
+          );
+          if (!user) {
+            throw new Error("입력한 아이디와 이메일이 일치하는 계정을 찾을 수 없습니다.");
+          }
+          user.password = newPassword;
+          return {
+            reset: true,
+            username: user.username,
+          };
+        }
+
+        return {
+          async request(path, options = {}) {
+            const method = (options.method || "GET").toUpperCase();
+            const body = options.body ? JSON.parse(options.body) : {};
+            const currentUserId = options.headers?.["x-user-id"] || null;
+
+            if (method === "GET" && path === "/api/home") {
+              return getHome();
+            }
+
+            if (method === "GET" && path.startsWith("/api/creators")) {
+              const url = new URL(`http://local${path}`);
+              return getCreators(url.searchParams.get("role"));
+            }
+
+            if (method === "GET" && path === "/api/users/me/wallet") {
+              if (!currentUserId || !backendState.users[currentUserId]) {
+                throw new Error("로그인이 필요합니다.");
+              }
+              const user = backendState.users[currentUserId];
+              return {
+                userId: user.id,
+                balance: user.walletBalance,
+                currency: "COIN",
+                user: {
+                  id: user.id,
+                  displayName: user.displayName,
+                  username: user.username,
+                },
+              };
+            }
+
+            if (method === "GET" && path === `/api/projects/${DEMO_PROJECT_ID}`) {
+              return getProject(DEMO_PROJECT_ID, currentUserId);
+            }
+
+            if (method === "GET" && path === `/api/projects/${DEMO_PROJECT_ID}/settlement-dashboard`) {
+              return getSettlement(DEMO_PROJECT_ID, currentUserId);
+            }
+
+            if (method === "GET" && path === `/api/projects/${DEMO_PROJECT_ID}/viewer`) {
+              return getViewer(DEMO_PROJECT_ID, currentUserId);
+            }
+
+            if (method === "POST" && path === "/api/settlements/content-purchase") {
+              return purchase(body.projectId, currentUserId, body.coinAmount);
+            }
+
+            if (method === "GET" && path === "/api/auth/me") {
+              return currentUserId && backendState.users[currentUserId] ? sanitizeUser(backendState.users[currentUserId]) : null;
+            }
+
+            if (method === "POST" && path === "/api/auth/login") {
+              return login(body.username, body.password);
+            }
+
+            if (method === "POST" && path === "/api/auth/signup") {
+              return signup(body);
+            }
+
+            if (method === "POST" && path === "/api/auth/find-id") {
+              return findId(body.email);
+            }
+
+            if (method === "POST" && path === "/api/auth/reset-password") {
+              return resetPassword(body.username, body.email, body.newPassword);
+            }
+
+            if (method === "POST" && path === "/api/debug/reset") {
+              backendState = initialState();
+              return { reset: true };
+            }
+
+            throw new Error("지원하지 않는 데모 API 요청입니다.");
+          },
+        };
+      }
+
+      async function apiFetch(path, options = {}) {
+        const requestOptions = {
+          headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
+          },
+          ...options,
+        };
+
+        if (authState.currentUserId) {
+          requestOptions.headers["x-user-id"] = authState.currentUserId;
+        }
+
+        const shouldUseLocalDemo = location.protocol === "file:";
+        if (shouldUseLocalDemo) {
+          return localDemoBackend.request(path, requestOptions);
+        }
+
+        try {
+          const response = await fetch(path, requestOptions);
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.message || "API request failed.");
+          }
+          return data.data;
+        } catch (error) {
+          return localDemoBackend.request(path, requestOptions);
+        }
+      }
+
+      function setConnectionStatus(text, connected = true) {
+        const status = document.getElementById("connectionStatus");
+        status.textContent = text;
+        status.style.color = connected ? "var(--cyan)" : "var(--brand)";
+      }
+
+      function setAuthMessage(message, tone = "default") {
+        const box = document.getElementById("authMessage");
+        if (!message) {
+          box.textContent = "";
+          box.className = "auth-message is-hidden";
+          return;
+        }
+        box.textContent = message;
+        box.className = `auth-message ${tone}`;
+      }
+
+      function renderCreators() {
+        const grid = document.getElementById("creatorGrid");
+        const filtered = state.activeFilter === "ALL"
+          ? state.creators
+          : state.creators.filter((creator) => creator.primaryRole === state.activeFilter);
+
+        if (filtered.length === 0) {
+          grid.innerHTML = `<div class="empty-state">현재 조건에 맞는 창작자가 없습니다.</div>`;
+          return;
+        }
+
+        grid.innerHTML = filtered
+          .map((creator) => {
+            const waveform = creator.voiceDemo?.waveform?.length
+              ? `
+                <div class="voice-player">
+                  <div class="voice-head"><span>${creator.voiceDemo.title}</span><span>${formatSeconds(creator.voiceDemo.durationSeconds)}</span></div>
+                  <div class="voice-row">
+                    <div class="wave-play">▶</div>
+                    <div class="waveform">
+                      ${creator.voiceDemo.waveform
+                        .map((height, index) => `<span class="${index < Math.ceil(creator.voiceDemo.waveform.length * 0.55) ? "active" : ""}" style="height:${height}px"></span>`)
+                        .join("")}
+                    </div>
+                  </div>
+                </div>
+              `
+              : "";
+
+            return `
+              <article class="panel creator-card reveal is-visible" data-accent="${creator.primaryRole}">
+                <div class="creator-inner">
+                  <span class="creator-role">${roleLabel[creator.primaryRole] || creator.primaryRole}</span>
+                  <div class="creator-head">
+                    <div>
+                      <div class="creator-name">${creator.displayName}</div>
+                      <div class="creator-handle">@${creator.username}</div>
+                    </div>
+                    <div class="creator-rate"><small>Response</small><strong>${creator.responseRate}%</strong></div>
+                  </div>
+                  <div class="creator-tagline">${creator.headline}</div>
+                  <div class="creator-desc">${creator.bio}</div>
+                  ${waveform}
+                  <div class="chip-row">${creator.skills.map((skill) => `<span>${skill}</span>`).join("")}</div>
+                  <div class="creator-stats">
+                    <div><small>Projects</small><strong>${creator.completedProjects}</strong></div>
+                    <div><small>Followers</small><strong>${creator.followerCount.toLocaleString("ko-KR")}</strong></div>
+                    <div><small>Available</small><strong>${creator.availabilityNote || "문의 가능"}</strong></div>
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      function renderProjectSummary() {
+        if (!state.project) return;
+        document.getElementById("projectTitleCard").textContent = state.project.title;
+        document.getElementById("projectSynopsisCard").textContent = state.project.synopsis || state.project.description || "프로젝트 소개가 없습니다.";
+        document.getElementById("projectPriceLabel").textContent = formatCoins(state.project.priceCoins);
+        document.getElementById("projectFeeLabel").textContent = `${Math.round((state.project.appliedFeeRate || 0) * 100)}%`;
+        document.getElementById("projectAccessLabel").textContent = state.project.hasAccess ? "열람 가능" : "미구매";
+        document.getElementById("viewerAccessLabel").textContent = state.project.hasAccess ? "열람 가능" : "잠금됨";
+      }
+
+      function renderSettlement() {
+        if (!state.settlement) return;
+        document.getElementById("grossAmountLabel").textContent = formatCoins(state.settlement.grossAmount);
+        document.getElementById("feeAmountLabel").textContent = `- ${formatCoins(state.settlement.platformFeeAmount)}`;
+        document.getElementById("feeRateLabel").textContent = `플랫폼 수수료 ${Math.round(state.settlement.appliedFeeRate * 100)}%`;
+        document.getElementById("netAmountLabel").textContent = formatCoins(state.settlement.netAmount);
+        document.getElementById("distributableAmountLabel").textContent = formatCoins(state.settlement.netAmount);
+        document.getElementById("mySettlementLabel").textContent = formatCoins(state.settlement.mySettlement.amount);
+        document.getElementById("mySettlementDescription").textContent =
+          state.settlement.mySettlement.sharePercentage > 0
+            ? `현재 로그인한 사용자는 팀 지분 ${state.settlement.mySettlement.sharePercentage}%를 가진 멤버입니다.`
+            : "현재 로그인한 사용자는 독자 계정이므로 팀 정산액은 0으로 표시됩니다.";
+
+        document.getElementById("shareList").innerHTML = state.settlement.members
+          .map((member) => `
+            <div class="share-item" data-tone="${member.memberRole}">
+              <div class="share-head">
+                <div><small>Share Holder</small><strong>${member.displayName} · ${roleLabel[member.memberRole] || member.memberRole}</strong></div>
+                <div class="share-percent">${member.sharePercentage}%</div>
+              </div>
+              <p>이번 달 예상 정산액 ${formatCoins(member.expectedSettlement)}</p>
+            </div>
+          `)
+          .join("");
+      }
+
+      function renderWallet() {
+        if (!authState.currentUser) {
+          document.getElementById("walletBalanceLabel").textContent = "로그인 필요";
+          return;
+        }
+        if (!state.wallet) {
+          document.getElementById("walletBalanceLabel").textContent = "불러오는 중";
+          return;
+        }
+        document.getElementById("walletBalanceLabel").textContent = formatCoins(state.wallet.balance);
+      }
+
+      function renderViewer() {
+        const transcriptArea = document.getElementById("transcriptArea");
+        if (!authState.currentUser) {
+          document.getElementById("viewerTitle").textContent = "로그인 후 감상 가능";
+          document.getElementById("viewerSummary").textContent = "로그인하면 구매, 열람 권한 확인, 멀티미디어 뷰어 접근까지 이어집니다.";
+          document.getElementById("nowPlayingLabel").textContent = "로그인 필요";
+          document.getElementById("durationLabel").textContent = "00:00";
+          document.getElementById("currentTimeLabel").textContent = "00:00";
+          document.getElementById("viewerStatusBox").textContent = "먼저 로그인한 뒤 프로젝트를 구매하면 오디오와 대본이 동기화된 뷰어를 확인할 수 있습니다.";
+          transcriptArea.innerHTML = `
+            <div class="lyric past">현재 게스트 모드입니다.</div>
+            <div class="lyric active"><span>로그인 창에서 계정을 만들거나 로그인해 보세요.</span></div>
+          `;
+          return;
+        }
+
+        if (!state.viewer) {
+          document.getElementById("viewerTitle").textContent = "콘텐츠 잠금 상태";
+          document.getElementById("viewerSummary").textContent = "구매 전에는 뷰어에 접근할 수 없습니다. 상단의 구매 시뮬레이션 버튼으로 열람 권한을 획득해 보세요.";
+          document.getElementById("nowPlayingLabel").textContent = "잠금된 콘텐츠";
+          document.getElementById("durationLabel").textContent = "00:00";
+          document.getElementById("currentTimeLabel").textContent = "00:00";
+          document.getElementById("viewerStatusBox").textContent = "프로젝트를 구매하면 오디오와 대본이 동기화된 뷰어를 바로 확인할 수 있습니다.";
+          transcriptArea.innerHTML = `
+            <div class="lyric past">콘텐츠 접근 권한이 아직 없습니다.</div>
+            <div class="lyric active"><span>1,000코인 구매 시뮬레이션을 실행하면 이 영역이 실제 대본 큐로 바뀝니다.</span></div>
+          `;
+          return;
+        }
+
+        const cues = state.viewer.episode.transcriptCues || [];
+        const lines = cues.slice(0, 4);
+        transcriptArea.innerHTML = lines
+          .map((cue, index) => {
+            const classes = index === 1 ? "lyric active" : index === 0 ? "lyric past" : index === 2 ? "lyric next" : "lyric future";
+            return `<div class="${classes}">${index === 1 ? `<span>${cue.text}</span>` : cue.text}</div>`;
+          })
+          .join("");
+
+        document.getElementById("viewerTitle").textContent = state.viewer.project.title;
+        document.getElementById("viewerSummary").textContent = state.viewer.episode.summary || state.viewer.project.synopsis || "오디오 에피소드 감상 준비 완료";
+        document.getElementById("nowPlayingLabel").textContent = state.viewer.episode.title;
+        document.getElementById("durationLabel").textContent = formatSeconds(state.viewer.episode.durationSeconds);
+        document.getElementById("currentTimeLabel").textContent = lines[1] ? formatSeconds(Math.floor(lines[1].startMs / 1000)) : "00:00";
+        document.getElementById("viewerStatusBox").textContent = "구매 완료. 오디오와 대본 동기화 뷰어가 열렸습니다.";
+      }
+
+      function renderAuthState() {
+        const authUserChip = document.getElementById("authUserChip");
+        const openAuthButton = document.getElementById("openAuthButton");
+        const logoutButton = document.getElementById("logoutButton");
+        const currentUserLabel = document.getElementById("currentUserLabel");
+        const purchaseButton = document.getElementById("purchaseButton");
+
+        if (authState.currentUser) {
+          authUserChip.textContent = `${authState.currentUser.displayName} · @${authState.currentUser.username}`;
+          openAuthButton.textContent = "계정";
+          logoutButton.classList.remove("is-hidden");
+          currentUserLabel.textContent = `${authState.currentUser.displayName} (@${authState.currentUser.username})`;
+          purchaseButton.disabled = false;
+          purchaseButton.textContent = "1,000코인 구매 시뮬레이션";
+        } else {
+          authUserChip.textContent = "게스트 모드";
+          openAuthButton.textContent = "로그인";
+          logoutButton.classList.add("is-hidden");
+          currentUserLabel.textContent = "게스트";
+          purchaseButton.disabled = false;
+          purchaseButton.textContent = "로그인 후 구매 시뮬레이션";
+        }
+      }
+
+      async function loadHomeData() {
+        const home = await apiFetch("/api/home");
+        document.getElementById("heroProjectCount").textContent = home.featuredProjects.length.toLocaleString("ko-KR");
+        document.getElementById("heroGrossRevenue").textContent = formatCoins(home.platformStats.totalGrossRevenue);
+        document.getElementById("heroTransactionCount").textContent = home.platformStats.totalPaidTransactions.toLocaleString("ko-KR");
+      }
+
+      async function loadSession() {
+        if (!authState.currentUserId) {
+          authState.currentUser = null;
+          renderAuthState();
+          return;
+        }
+
+        try {
+          authState.currentUser = await apiFetch("/api/auth/me");
+          if (!authState.currentUser) {
+            authState.currentUserId = null;
+            localStorage.removeItem("creator-universe-auth-user");
+          }
+        } catch (_error) {
+          authState.currentUserId = null;
+          authState.currentUser = null;
+          localStorage.removeItem("creator-universe-auth-user");
+        }
+
+        renderAuthState();
+      }
+
+      async function loadCreators(role) {
+        const query = role && role !== "ALL" ? `?role=${encodeURIComponent(role)}` : "";
+        state.creators = await apiFetch(`/api/creators${query}`);
+        renderCreators();
+      }
+
+      async function loadProject() {
+        state.project = await apiFetch(`/api/projects/${DEMO_PROJECT_ID}`);
+        renderProjectSummary();
+      }
+
+      async function loadSettlement() {
+        state.settlement = await apiFetch(`/api/projects/${DEMO_PROJECT_ID}/settlement-dashboard`);
+        renderSettlement();
+      }
+
+      async function loadWallet() {
+        if (!authState.currentUserId) {
+          state.wallet = null;
+          renderWallet();
+          return;
+        }
+        state.wallet = await apiFetch("/api/users/me/wallet");
+        renderWallet();
+      }
+
+      async function loadViewer() {
+        try {
+          state.viewer = await apiFetch(`/api/projects/${DEMO_PROJECT_ID}/viewer`);
+        } catch (_error) {
+          state.viewer = null;
+        }
+        renderViewer();
+      }
+
+      async function purchaseProject() {
+        if (!authState.currentUserId) {
+          openAuthModal("login");
+          setConnectionStatus("구매 전 로그인해 주세요.", false);
+          return;
+        }
+        const button = document.getElementById("purchaseButton");
+        button.disabled = true;
+        button.textContent = "정산 처리 중...";
+        try {
+          await apiFetch("/api/settlements/content-purchase", {
+            method: "POST",
+            body: JSON.stringify({
+              projectId: DEMO_PROJECT_ID,
+              coinAmount: 1000,
+              externalPaymentId: `demo_${Date.now()}`,
+            }),
+          });
+          await hydrateAll();
+          setConnectionStatus("결제 완료 · 백엔드 반영됨");
+        } catch (error) {
+          setConnectionStatus(error.message, false);
+        } finally {
+          button.disabled = false;
+          button.textContent = "1,000코인 구매 시뮬레이션";
+        }
+      }
+
+      async function resetDemo() {
+        const button = document.getElementById("resetButton");
+        button.disabled = true;
+        button.textContent = "초기화 중...";
+        try {
+          await apiFetch("/api/debug/reset", { method: "POST" });
+          authState.currentUserId = null;
+          authState.currentUser = null;
+          localStorage.removeItem("creator-universe-auth-user");
+          await hydrateAll();
+          setConnectionStatus("데모 상태 초기화 완료");
+        } catch (error) {
+          setConnectionStatus(error.message, false);
+        } finally {
+          button.disabled = false;
+          button.textContent = "데모 상태 초기화";
+        }
+      }
+
+      async function hydrateAll() {
+        await loadSession();
+        await Promise.all([loadHomeData(), loadCreators(state.activeFilter), loadProject(), loadSettlement(), loadWallet(), loadViewer()]);
+        renderAuthState();
+        renderWallet();
+        renderViewer();
+      }
+
+      function updateAuthHeader(view, recoveryMode = "find-id") {
+        const title = document.getElementById("authTitle");
+        const description = document.getElementById("authDescription");
+
+        if (view === "login") {
+          title.textContent = "로그인";
+          description.textContent = "작품 구매와 멀티미디어 뷰어 열람을 위해 로그인해 주세요.";
+          return;
+        }
+
+        if (view === "signup") {
+          title.textContent = "회원가입";
+          description.textContent = "새 계정을 만들고 바로 로그인한 상태로 데모를 체험할 수 있습니다.";
+          return;
+        }
+
+        title.textContent = recoveryMode === "find-id" ? "아이디 찾기" : "비밀번호 찾기";
+        description.textContent = recoveryMode === "find-id"
+          ? "가입한 이메일을 입력하면 데모 계정의 아이디를 안내합니다."
+          : "아이디와 이메일을 확인한 뒤 새 비밀번호로 재설정할 수 있습니다.";
+      }
+
+      function switchAuthView(view, recoveryMode = "find-id") {
+        document.querySelectorAll("[data-auth-view]").forEach((button) => {
+          button.classList.toggle("active", button.getAttribute("data-auth-view") === view);
+        });
+        document.querySelectorAll("[data-auth-view-panel]").forEach((panel) => {
+          panel.classList.toggle("active", panel.getAttribute("data-auth-view-panel") === view);
+        });
+
+        if (view === "recovery") {
+          switchRecoveryTab(recoveryMode);
+        }
+
+        updateAuthHeader(view, recoveryMode);
+        setAuthMessage("");
+      }
+
+      function switchRecoveryTab(mode) {
+        document.querySelectorAll("[data-recovery-tab]").forEach((button) => {
+          button.classList.toggle("active", button.getAttribute("data-recovery-tab") === mode);
+        });
+        document.querySelectorAll("[data-recovery-panel]").forEach((panel) => {
+          panel.classList.toggle("active", panel.getAttribute("data-recovery-panel") === mode);
+        });
+        updateAuthHeader("recovery", mode);
+      }
+
+      function openAuthModal(view = "login", recoveryMode = "find-id") {
+        const overlay = document.getElementById("authOverlay");
+        overlay.classList.remove("is-hidden");
+        overlay.setAttribute("aria-hidden", "false");
+        switchAuthView(view, recoveryMode);
+      }
+
+      function closeAuthModal() {
+        const overlay = document.getElementById("authOverlay");
+        overlay.classList.add("is-hidden");
+        overlay.setAttribute("aria-hidden", "true");
+        setAuthMessage("");
+      }
+
+      async function handleLoginSubmit(event) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        try {
+          const user = await apiFetch("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({
+              username: String(form.get("username") || "").trim(),
+              password: String(form.get("password") || ""),
+            }),
+          });
+          authState.currentUserId = user.id;
+          authState.currentUser = user;
+          localStorage.setItem("creator-universe-auth-user", user.id);
+          setAuthMessage(`${user.displayName} 계정으로 로그인되었습니다.`, "success");
+          await hydrateAll();
+          closeAuthModal();
+          setConnectionStatus("로그인 완료");
+        } catch (error) {
+          setAuthMessage(error.message || "로그인에 실패했습니다.", "error");
+        }
+      }
+
+      async function handleSignupSubmit(event) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const password = String(form.get("password") || "");
+        const passwordConfirm = String(form.get("passwordConfirm") || "");
+
+        if (password !== passwordConfirm) {
+          setAuthMessage("비밀번호와 비밀번호 확인이 일치하지 않습니다.", "error");
+          return;
+        }
+
+        try {
+          const user = await apiFetch("/api/auth/signup", {
+            method: "POST",
+            body: JSON.stringify({
+              displayName: String(form.get("displayName") || "").trim(),
+              email: String(form.get("email") || "").trim(),
+              username: String(form.get("username") || "").trim(),
+              password,
+            }),
+          });
+          authState.currentUserId = user.id;
+          authState.currentUser = user;
+          localStorage.setItem("creator-universe-auth-user", user.id);
+          setAuthMessage(`${user.displayName}님, 회원가입이 완료되었습니다.`, "success");
+          await hydrateAll();
+          closeAuthModal();
+          setConnectionStatus("회원가입 및 로그인 완료");
+        } catch (error) {
+          setAuthMessage(error.message || "회원가입에 실패했습니다.", "error");
+        }
+      }
+
+      async function handleFindIdSubmit(event) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        try {
+          const result = await apiFetch("/api/auth/find-id", {
+            method: "POST",
+            body: JSON.stringify({
+              email: String(form.get("email") || "").trim(),
+            }),
+          });
+          setAuthMessage(`가입된 아이디는 ${result.username} 입니다. 표시 이름: ${result.displayName}`, "success");
+        } catch (error) {
+          setAuthMessage(error.message || "아이디를 찾지 못했습니다.", "error");
+        }
+      }
+
+      async function handleResetPasswordSubmit(event) {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        try {
+          await apiFetch("/api/auth/reset-password", {
+            method: "POST",
+            body: JSON.stringify({
+              username: String(form.get("username") || "").trim(),
+              email: String(form.get("email") || "").trim(),
+              newPassword: String(form.get("newPassword") || ""),
+            }),
+          });
+          setAuthMessage("비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.", "success");
+          switchAuthView("login");
+        } catch (error) {
+          setAuthMessage(error.message || "비밀번호 재설정에 실패했습니다.", "error");
+        }
+      }
+
+      function logout() {
+        authState.currentUserId = null;
+        authState.currentUser = null;
+        localStorage.removeItem("creator-universe-auth-user");
+        hydrateAll().then(() => {
+          setConnectionStatus("로그아웃되었습니다.");
+        });
+      }
+
+      function setupAuthModal() {
+        document.getElementById("openAuthButton").addEventListener("click", () => {
+          openAuthModal(authState.currentUser ? "login" : "login");
+        });
+        document.getElementById("authUserChip").addEventListener("click", () => {
+          if (authState.currentUser) {
+            openAuthModal("login");
+          }
+        });
+        document.getElementById("logoutButton").addEventListener("click", logout);
+        document.getElementById("closeAuthButton").addEventListener("click", closeAuthModal);
+        document.getElementById("authOverlay").addEventListener("click", (event) => {
+          if (event.target.id === "authOverlay") {
+            closeAuthModal();
+          }
+        });
+
+        document.querySelectorAll("[data-auth-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            switchAuthView(button.getAttribute("data-auth-view"));
+          });
+        });
+
+        document.querySelectorAll("[data-auth-switch]").forEach((button) => {
+          button.addEventListener("click", () => {
+            switchAuthView(
+              button.getAttribute("data-auth-switch"),
+              button.getAttribute("data-recovery-mode") || "find-id",
+            );
+          });
+        });
+
+        document.querySelectorAll("[data-recovery-tab]").forEach((button) => {
+          button.addEventListener("click", () => {
+            switchRecoveryTab(button.getAttribute("data-recovery-tab"));
+          });
+        });
+
+        document.getElementById("loginForm").addEventListener("submit", handleLoginSubmit);
+        document.getElementById("signupForm").addEventListener("submit", handleSignupSubmit);
+        document.getElementById("findIdForm").addEventListener("submit", handleFindIdSubmit);
+        document.getElementById("resetPasswordForm").addEventListener("submit", handleResetPasswordSubmit);
+      }
+
+      function setupThemeToggle() {
+        const themeToggle = document.getElementById("themeToggle");
+        const storedTheme = localStorage.getItem("creator-universe-theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+        function applyTheme(theme) {
+          document.body.setAttribute("data-theme", theme);
+          localStorage.setItem("creator-universe-theme", theme);
+        }
+
+        applyTheme(storedTheme || (prefersDark ? "dark" : "light"));
+        themeToggle.addEventListener("click", () => {
+          const nextTheme = document.body.getAttribute("data-theme") === "dark" ? "light" : "dark";
+          applyTheme(nextTheme);
+        });
+      }
+
+      function setupFilterButtons() {
+        const buttons = document.querySelectorAll(".filter-pill");
+        buttons.forEach((button) => {
+          button.addEventListener("click", async () => {
+            buttons.forEach((node) => node.classList.remove("active"));
+            button.classList.add("active");
+            state.activeFilter = button.getAttribute("data-filter");
+            await loadCreators(state.activeFilter);
+          });
+        });
+      }
+
+      function setupRevealAnimations() {
+        const revealItems = document.querySelectorAll(".reveal");
+        const observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("is-visible");
+                observer.unobserve(entry.target);
+              }
+            });
+          },
+          { threshold: 0.12 }
+        );
+        revealItems.forEach((item) => observer.observe(item));
+      }
+
+      function setupResponsiveTabs() {
+        const desktopLinks = Array.from(document.querySelectorAll(".nav a"));
+        const mobileLinks = Array.from(document.querySelectorAll(".mobile-tab"));
+        const sections = [
+          { id: "discover", aliases: ["discover", "matching"] },
+          { id: "settlement", aliases: ["settlement"] },
+          { id: "viewer", aliases: ["viewer"] },
+          { id: "request", aliases: ["request"] },
+        ]
+          .map((entry) => ({
+            ...entry,
+            element: document.getElementById(entry.id),
+          }))
+          .filter((entry) => entry.element);
+
+        function setActiveNav(sectionId) {
+          desktopLinks.forEach((link) => {
+            const href = link.getAttribute("href") || "";
+            const label = (link.textContent || "").trim();
+            const active = href === `#${sectionId}` || (sectionId === "discover" && href === "#discover" && label === "홈");
+            link.classList.toggle("active", active);
+          });
+
+          mobileLinks.forEach((link) => {
+            const tab = link.getAttribute("data-mobile-tab");
+            const matched = sections.find((section) => section.aliases.includes(tab));
+            link.classList.toggle("active", Boolean(matched && matched.id === sectionId));
+          });
+        }
+
+        function updateActiveSection() {
+          const scrollY = window.scrollY + 180;
+          let activeSection = "discover";
+
+          sections.forEach((section) => {
+            if (section.element && section.element.offsetTop <= scrollY) {
+              activeSection = section.id;
+            }
+          });
+
+          setActiveNav(activeSection);
+        }
+
+        window.addEventListener("scroll", updateActiveSection, { passive: true });
+        window.addEventListener("hashchange", updateActiveSection);
+        updateActiveSection();
+      }
+
+      async function boot() {
+        setupThemeToggle();
+        setupFilterButtons();
+        setupRevealAnimations();
+        setupResponsiveTabs();
+        setupAuthModal();
+        document.getElementById("purchaseButton").addEventListener("click", purchaseProject);
+        document.getElementById("resetButton").addEventListener("click", resetDemo);
+
+        try {
+          await hydrateAll();
+          setConnectionStatus(location.protocol === "file:" ? "내장 데모 백엔드 연결 완료" : "데모 백엔드 연결 완료");
+        } catch (error) {
+          setConnectionStatus(error.message || "백엔드 연결 실패", false);
+        }
+      }
+
+      boot();
+    </script>
+  </body>
+</html>

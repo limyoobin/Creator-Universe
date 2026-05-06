@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#020617"/><stop offset=".55" stop-color="#164e63"/><stop offset="1" stop-color="#450a0a"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <rect x="118" y="270" width="484" height="340" rx="26" fill="#fff" opacity=".12"/>
+  <path d="M162 340h396M162 426h396M162 512h396" stroke="#67e8f9" stroke-width="11" opacity=".22"/>
+  <circle cx="360" cy="656" r="98" fill="#fff" opacity=".16"/>
+  <path d="M300 660c28-58 92-58 120 0 18 38-18 74-60 74s-78-36-60-74z" fill="#f8fafc" opacity=".78"/>
+  <text x="54" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="50" font-weight="800">AFTER SCHOOL</text>
+  <text x="54" y="174" fill="#67e8f9" font-family="Arial, sans-serif" font-size="52" font-weight="800">GHOST CLUB</text>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1e1b4b"/><stop offset=".55" stop-color="#6d28d9"/><stop offset="1" stop-color="#111827"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <path d="M102 720c90-244 230-392 420-444-42 78-28 138 44 180-95 15-147 71-158 167 78-17 139-4 184 38-148 1-285 61-410 181z" fill="#fbbf24" opacity=".55"/>
+  <rect x="154" y="470" width="312" height="360" rx="24" fill="#f8fafc" opacity=".18"/>
+  <path d="M204 540h212M204 608h162M204 676h190" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".55"/>
+  <text x="58" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="800">DRAGON</text>
+  <text x="58" y="174" fill="#fde68a" font-family="Arial, sans-serif" font-size="52" font-weight="800">ARCHIVE</text>
+</svg>

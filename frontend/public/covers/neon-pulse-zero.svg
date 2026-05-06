@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111827"/><stop offset=".46" stop-color="#be123c"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <path d="M92 274h536v384H92z" fill="#020617" opacity=".38"/>
+  <path d="M120 302h480v328H120z" fill="none" stroke="#fff" stroke-width="10" opacity=".48"/>
+  <path d="M240 638l120-260 120 260M184 460h352" stroke="#f8fafc" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" opacity=".74"/>
+  <circle cx="360" cy="480" r="74" fill="#22d3ee" opacity=".28"/>
+  <path d="M98 760h524M98 820h410" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+  <text x="54" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="800">NEON PULSE</text>
+  <text x="54" y="174" fill="#a5f3fc" font-family="Arial, sans-serif" font-size="52" font-weight="800">ZERO</text>
+</svg>

@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CREATOR
+  READER
+  ADMIN
+}
+
+enum PartnerTier {
+  NONE
+  OFFICIAL_PARTNER
+}
+
+enum ProjectStatus {
+  DRAFT
+  RECRUITING
+  IN_PRODUCTION
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MemberRole {
+  WRITER
+  ILLUSTRATOR
+  VOICE_ACTOR
+  SOUND_DIRECTOR
+  PRODUCER
+  EDITOR
+}
+
+enum AccessGrantType {
+  PURCHASE
+  PARTNER_GRANT
+  ADMIN_GRANT
+}
+
+enum TransactionType {
+  COIN_PURCHASE
+  CONTENT_PURCHASE
+  SUBSCRIPTION
+  DONATION
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+model User {
+  id                String          @id @default(cuid())
+  email             String          @unique
+  username          String          @unique
+  displayName       String
+  passwordHash      String?
+  role              UserRole
+  isPartner         Boolean         @default(false)
+  partnerTier       PartnerTier     @default(NONE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  ownedProjects     Project[]       @relation("ProjectOwner")
+  projectMemberships ProjectMember[]
+  transactions      Transaction[]   @relation("BuyerTransactions")
+  wallet            Wallet?
+  settlementDistributions SettlementDistribution[]
+  creatorProfile    CreatorProfile?
+  contentAccesses   ContentAccess[]
+  authSessions      AuthSession[]
+}
+
+model Project {
+  id                    String           @id @default(cuid())
+  ownerId               String
+  title                 String
+  slug                  String           @unique
+  description           String?
+  synopsis              String?
+  coverImageUrl         String?
+  heroArtworkUrl        String?
+  status                ProjectStatus    @default(DRAFT)
+  isOfficialPartner     Boolean          @default(false)
+  priceCoins            Int              @default(1000)
+  totalRevenueAmount    Decimal          @db.Decimal(14, 2) @default(0)
+  totalNetRevenueAmount Decimal          @db.Decimal(14, 2) @default(0)
+  platformFeeRate       Decimal          @db.Decimal(5, 4)
+  partnerFeeRate        Decimal          @db.Decimal(5, 4)
+  settlementCurrency    String           @default("KRW")
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  owner                 User             @relation("ProjectOwner", fields: [ownerId], references: [id])
+  members               ProjectMember[]
+  transactions          Transaction[]
+  settlementDistributions SettlementDistribution[]
+  episodes              ProjectEpisode[]
+  contentAccesses       ContentAccess[]
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model ProjectMember {
+  id                    String    @id @default(cuid())
+  projectId             String
+  userId                String
+  memberRole            MemberRole
+  sharePercentage       Decimal   @db.Decimal(5, 2)
+  settlementAccount     String?
+  isActive              Boolean   @default(true)
+  joinedAt              DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  project               Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId, memberRole])
+  @@index([projectId])
+  @@index([userId])
+}
+
+model Transaction {
+  id                       String             @id @default(cuid())
+  buyerId                  String
+  projectId                String
+  transactionType          TransactionType
+  status                   TransactionStatus  @default(PENDING)
+  currency                 String             @default("KRW")
+  grossAmount              Decimal            @db.Decimal(14, 2)
+  appliedFeeRate          Decimal            @db.Decimal(5, 4)
+  platformFeeAmount        Decimal            @db.Decimal(14, 2)
+  netAmount                Decimal            @db.Decimal(14, 2)
+  coinAmount               Int?
+  externalPaymentId        String?            @unique
+  purchasedAt              DateTime?
+  refundedAt               DateTime?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+
+  buyer                    User               @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  project                  Project            @relation(fields: [projectId], references: [id])
+  settlementDistributions  SettlementDistribution[]
+  contentAccess            ContentAccess?
+
+  @@index([buyerId])
+  @@index([projectId])
+  @@index([status, purchasedAt])
+}
+
+model Wallet {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  balance           Decimal   @db.Decimal(14, 2) @default(0)
+  currency          String    @default("COIN")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SettlementDistribution {
+  id                String      @id @default(cuid())
+  transactionId     String
+  projectId         String
+  userId            String
+  memberRole        MemberRole
+  sharePercentage   Decimal     @db.Decimal(5, 2)
+  settledAmount     Decimal     @db.Decimal(14, 2)
+  createdAt         DateTime    @default(now())
+
+  transaction       Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  project           Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([projectId, userId])
+}
+
+model CreatorProfile {
+  id                       String      @id @default(cuid())
+  userId                   String      @unique
+  primaryRole              MemberRole
+  headline                 String
+  bio                      String
+  skills                   String[]    @default([])
+  availabilityNote         String?
+  responseRate             Int         @default(0)
+  followerCount            Int         @default(0)
+  completedProjects        Int         @default(0)
+  featured                 Boolean     @default(false)
+  voiceDemoTitle           String?
+  voiceDemoDurationSeconds Int?
+  voiceWaveform            Int[]       @default([])
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  user                     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([primaryRole, featured])
+}
+
+model ProjectEpisode {
+  id                       String        @id @default(cuid())
+  projectId                String
+  title                    String
+  slug                     String        @unique
+  summary                  String?
+  audioUrl                 String
+  artworkUrl               String?
+  durationSeconds          Int
+  sequenceNumber           Int
+  isPublished              Boolean       @default(false)
+  publishedAt              DateTime?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  project                  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  transcriptCues           TranscriptCue[]
+
+  @@unique([projectId, sequenceNumber])
+  @@index([projectId, isPublished])
+}
+
+model TranscriptCue {
+  id                       String        @id @default(cuid())
+  episodeId                String
+  startMs                  Int
+  endMs                    Int
+  text                     String
+  createdAt                DateTime      @default(now())
+
+  episode                  ProjectEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@index([episodeId, startMs])
+}
+
+model ContentAccess {
+  id                       String           @id @default(cuid())
+  userId                   String
+  projectId                String
+  transactionId            String           @unique
+  grantType                AccessGrantType  @default(PURCHASE)
+  grantedAt                DateTime         @default(now())
+
+  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project                  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  transaction              Transaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId, grantedAt])
+}
+
+model AuthSession {
+  id           String   @id @default(cuid())
+  userId       String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}

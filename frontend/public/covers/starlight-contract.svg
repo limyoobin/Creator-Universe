@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1f2"/><stop offset=".55" stop-color="#fb7185"/><stop offset="1" stop-color="#7c2d12"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <circle cx="560" cy="154" r="120" fill="#fff" opacity=".32"/>
+  <path d="M130 650c52-154 147-246 252-246s190 92 244 246v310H130z" fill="#2a0f1f" opacity=".5"/>
+  <path d="M210 352c62-88 238-88 300 0" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" opacity=".74"/>
+  <path d="M258 548l102-96 102 96-102 106z" fill="#fff" opacity=".78"/>
+  <text x="58" y="116" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="800">STARLIGHT</text>
+  <text x="58" y="178" fill="#ffe4e6" font-family="Arial, sans-serif" font-size="50" font-weight="800">CONTRACT</text>
+</svg>

@@ -1,0 +1,16 @@
+{
+  "folders": [
+    {
+      "name": "creator-universe",
+      "path": "."
+    },
+    {
+      "name": "frontend",
+      "path": "frontend"
+    }
+  ],
+  "settings": {
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "editor.formatOnSave": true
+  }
+}

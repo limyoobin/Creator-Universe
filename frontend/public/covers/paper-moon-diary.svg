@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4a044e"/><stop offset=".5" stop-color="#f472b6"/><stop offset="1" stop-color="#111827"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <path d="M470 150c-84 18-144 92-144 180 0 102 82 184 184 184 58 0 110-26 144-68-22 114-122 200-242 200-136 0-246-110-246-246 0-116 82-216 194-240 37-8 74-11 110-10z" fill="#fff7ed" opacity=".76"/>
+  <rect x="142" y="590" width="436" height="236" rx="24" fill="#fff" opacity=".16"/>
+  <path d="M190 654h340M190 714h280M190 774h318" stroke="#fff" stroke-width="12" stroke-linecap="round" opacity=".48"/>
+  <text x="54" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="800">PAPER MOON</text>
+  <text x="54" y="174" fill="#fce7f3" font-family="Arial, sans-serif" font-size="52" font-weight="800">DIARY</text>
+</svg>

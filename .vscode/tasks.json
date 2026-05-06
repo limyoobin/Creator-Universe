@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Creator Universe: Demo API dev",
+      "type": "shell",
+      "command": "npm run dev:demo-api",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Creator Universe: API dev",
+      "type": "shell",
+      "command": "npm run dev:api",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Creator Universe: Web dev",
+      "type": "shell",
+      "command": "npm run dev:web",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Creator Universe: Prisma seed",
+      "type": "shell",
+      "command": "npm run prisma:seed",
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

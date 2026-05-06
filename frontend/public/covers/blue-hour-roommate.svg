@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 960">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0f172a"/><stop offset=".5" stop-color="#2563eb"/><stop offset="1" stop-color="#581c87"/></linearGradient></defs>
+  <rect width="720" height="960" fill="url(#g)"/>
+  <rect x="110" y="332" width="500" height="360" rx="38" fill="#fff" opacity=".14"/>
+  <circle cx="284" cy="512" r="76" fill="#bfdbfe" opacity=".72"/>
+  <circle cx="438" cy="512" r="76" fill="#f5d0fe" opacity=".7"/>
+  <path d="M248 660c66 42 158 42 224 0" stroke="#fff" stroke-width="16" stroke-linecap="round" opacity=".68"/>
+  <text x="56" y="112" fill="#fff" font-family="Arial, sans-serif" font-size="52" font-weight="800">BLUE HOUR</text>
+  <text x="56" y="174" fill="#bfdbfe" font-family="Arial, sans-serif" font-size="50" font-weight="800">ROOMMATE</text>
+</svg>

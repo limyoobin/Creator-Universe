@@ -1,0 +1,30 @@
+{
+  "name": "creator-universe-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:api": "tsx watch src/server.ts",
+    "dev:demo-api": "node scripts/demo-api.mjs",
+    "dev:web": "npm --prefix frontend run dev",
+    "build": "tsc -p tsconfig.json",
+    "build:web": "npm --prefix frontend run build",
+    "start": "node dist/server.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "express": "^4.21.2",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.29",
+    "prisma": "^6.0.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

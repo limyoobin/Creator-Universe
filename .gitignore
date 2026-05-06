@@ -1,0 +1,11 @@
+node_modules
+frontend/node_modules
+dist
+frontend/dist
+.env
+frontend/.env
+*.log
+*.err.log
+*.out.log
+*.tsbuildinfo
+.DS_Store
