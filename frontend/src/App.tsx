@@ -2902,15 +2902,14 @@ export function App() {
       {isBootLoading && (
         <div className="boot-loader" role="status" aria-live="polite">
           <div className="boot-loader-card">
-            <div className="loader-pet" aria-hidden="true">
-              <span className="ear left" />
-              <span className="ear right" />
-              <span className="face">
-                <i />
-                <i />
-                <b />
-              </span>
-              <span className="tail" />
+            <div className="loader-cosmos" aria-hidden="true">
+              <span className="loader-orbit orbit-one" />
+              <span className="loader-orbit orbit-two" />
+              <img src="/logo.png" alt="" />
+              <i className="loader-star star-one" />
+              <i className="loader-star star-two" />
+              <i className="loader-star star-three" />
+              <b className="loader-spark" />
             </div>
             <strong>크리에이터 유니버스 준비 중</strong>
             <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>

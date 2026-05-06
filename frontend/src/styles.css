@@ -6369,81 +6369,84 @@ h2 {
   line-height: 1.6;
 }
 
-.loader-pet {
+.loader-cosmos {
   position: relative;
-  width: 108px;
-  height: 96px;
-  animation: petBounce 1.15s ease-in-out infinite;
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  animation: cosmosFloat 1.8s ease-in-out infinite;
 }
 
-.loader-pet .face {
+.loader-cosmos img {
+  position: relative;
+  z-index: 2;
+  width: 86px;
+  height: 86px;
+  border-radius: 28px;
+  object-fit: cover;
+  box-shadow:
+    0 18px 42px rgba(31, 64, 140, 0.32),
+    0 0 32px rgba(238, 180, 255, 0.42);
+}
+
+.loader-orbit {
   position: absolute;
-  inset: 18px 10px 0;
-  border-radius: 44% 44% 48% 48%;
-  background: linear-gradient(135deg, #fff3d9, #ffb84d 58%, #40d6ff);
-  box-shadow: inset 0 -8px 18px rgba(0, 0, 0, 0.08);
-}
-
-.loader-pet .ear {
-  position: absolute;
-  top: 5px;
-  width: 34px;
-  height: 38px;
-  border-radius: 12px 22px 8px 22px;
-  background: #ffb84d;
-}
-
-.loader-pet .ear.left {
-  left: 18px;
-  transform: rotate(-24deg);
-}
-
-.loader-pet .ear.right {
-  right: 18px;
-  background: #40d6ff;
-  transform: rotate(24deg) scaleX(-1);
-}
-
-.loader-pet .face i {
-  position: absolute;
-  top: 35px;
-  width: 9px;
-  height: 9px;
+  inset: 7px;
+  border: 1px solid color-mix(in srgb, var(--brand) 46%, transparent);
   border-radius: 999px;
-  background: #171318;
-  animation: petBlink 2.4s infinite;
+  transform: rotate(-18deg) scaleY(0.72);
+  animation: orbitSpin 2.8s linear infinite;
 }
 
-.loader-pet .face i:first-child {
+.loader-orbit.orbit-two {
+  inset: 17px;
+  border-color: color-mix(in srgb, var(--cyan) 42%, transparent);
+  transform: rotate(24deg) scaleY(0.68);
+  animation-duration: 3.4s;
+  animation-direction: reverse;
+}
+
+.loader-star,
+.loader-spark {
+  position: absolute;
+  z-index: 3;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  filter: drop-shadow(0 0 12px rgba(255, 215, 255, 0.8));
+  animation: starTwinkle 1.4s ease-in-out infinite;
+}
+
+.loader-star.star-one {
+  top: 12px;
   left: 28px;
 }
 
-.loader-pet .face i:nth-child(2) {
-  right: 28px;
+.loader-star.star-two {
+  right: 14px;
+  top: 48px;
+  width: 11px;
+  height: 11px;
+  animation-delay: 0.25s;
 }
 
-.loader-pet .face b {
-  position: absolute;
-  left: 50%;
-  bottom: 23px;
-  width: 28px;
-  height: 13px;
-  border-bottom: 4px solid #171318;
-  border-radius: 0 0 999px 999px;
-  transform: translateX(-50%);
+.loader-star.star-three {
+  bottom: 18px;
+  left: 24px;
+  width: 10px;
+  height: 10px;
+  animation-delay: 0.45s;
 }
 
-.loader-pet .tail {
-  position: absolute;
-  right: -3px;
+.loader-spark {
+  right: 33px;
   bottom: 16px;
-  width: 28px;
-  height: 28px;
-  border: 7px solid #40d6ff;
-  border-left-color: transparent;
-  border-bottom-color: transparent;
-  border-radius: 999px;
-  animation: tailWag 0.72s ease-in-out infinite alternate;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #fff, #ffd6f4 42%, #93e6ff);
+  animation: sparkTravel 1.6s ease-in-out infinite;
 }
 
 .loader-dots {
@@ -6469,19 +6472,23 @@ h2 {
   animation-delay: 0.3s;
 }
 
-@keyframes petBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+@keyframes cosmosFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-9px) scale(1.02); }
 }
 
-@keyframes petBlink {
-  0%, 88%, 100% { transform: scaleY(1); }
-  92% { transform: scaleY(0.15); }
+@keyframes orbitSpin {
+  to { rotate: 360deg; }
 }
 
-@keyframes tailWag {
-  from { transform: rotate(-12deg); }
-  to { transform: rotate(18deg); }
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.45; transform: scale(0.82) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.2) rotate(18deg); }
+}
+
+@keyframes sparkTravel {
+  0%, 100% { transform: translate(0, 0) scale(0.9); }
+  50% { transform: translate(12px, -18px) scale(1.18); }
 }
 
 @keyframes dotPulse {
