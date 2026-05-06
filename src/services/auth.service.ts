@@ -186,3 +186,43 @@ export async function resetPassword(username: string, email: string, newPassword
 
   return { ok: true };
 }
+
+export async function deactivateAccount(token: string) {
+  const session = await prisma.authSession.findUnique({
+    where: { tokenHash: hashToken(token) },
+    select: {
+      userId: true,
+      expiresAt: true,
+    },
+  });
+
+  if (!session || session.expiresAt <= new Date()) {
+    throw new AppError("Authorization token is invalid or expired.", 401);
+  }
+
+  const deletedSuffix = `${session.userId.slice(0, 8)}-${Date.now()}`;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.authSession.deleteMany({
+      where: { userId: session.userId },
+    });
+
+    await tx.creatorProfile.deleteMany({
+      where: { userId: session.userId },
+    });
+
+    await tx.user.update({
+      where: { id: session.userId },
+      data: {
+        email: `deleted-${deletedSuffix}@deleted.creator-universe.local`,
+        username: `deleted_${deletedSuffix}`,
+        displayName: "탈퇴한 사용자",
+        passwordHash: null,
+        isPartner: false,
+        partnerTier: PartnerTier.NONE,
+      },
+    });
+  });
+
+  return { ok: true };
+}

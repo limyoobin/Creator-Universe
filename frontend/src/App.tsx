@@ -1704,6 +1704,7 @@ function AccountModal({
   scrappedWorkIds,
   onClose,
   onLogout,
+  onDeleteAccount,
   onOpenPayment,
   onNavigate,
   onOpenLibrary,
@@ -1714,6 +1715,7 @@ function AccountModal({
   scrappedWorkIds: string[];
   onClose: () => void;
   onLogout: () => void;
+  onDeleteAccount: () => void;
   onOpenPayment: () => void;
   onNavigate: (page: PageId) => void;
   onOpenLibrary: (view: (typeof libraryViewItems)[number]["id"]) => void;
@@ -1853,8 +1855,9 @@ function AccountModal({
               <ShieldCheck size={20} />
               <strong>보안과 로그아웃</strong>
             </div>
-            <p>공용 PC에서는 감상 후 로그아웃을 권장합니다.</p>
+            <p>공용 PC에서는 감상 후 로그아웃을 권장합니다. 탈퇴 시 로그인 정보는 삭제되고 정산/결제 원장은 익명 계정으로 보존됩니다.</p>
             <button onClick={onLogout}><LogOut size={16} /> 로그아웃</button>
+            <button className="delete-account-button" onClick={onDeleteAccount}><ShieldCheck size={16} /> 계정 탈퇴</button>
           </section>
         </div>
       </div>
@@ -2578,6 +2581,30 @@ export function App() {
     setIsAccountMenuOpen(false);
     setIsAccountModalOpen(false);
     localStorage.removeItem("creator-universe-token");
+  }
+
+  async function deleteAccount() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const confirmed = window.confirm("정말 계정을 탈퇴할까요? 로그인 정보는 삭제되고 결제/정산 기록은 익명 처리되어 보존됩니다.");
+    if (!confirmed) {
+      return;
+    }
+
+    await request("/api/auth/me", token, { method: "DELETE" });
+    setUser(null);
+    setToken(null);
+    setWallet(null);
+    setWalletDetail(null);
+    setCreatorChatThreads({});
+    setIsAccountMenuOpen(false);
+    setIsAccountModalOpen(false);
+    setActivePage("home");
+    localStorage.removeItem("creator-universe-token");
+    setStatus("계정 탈퇴가 완료되었습니다.");
   }
 
   return (
@@ -3889,6 +3916,7 @@ export function App() {
           scrappedWorkIds={scrappedWorkIds}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
+          onDeleteAccount={() => void deleteAccount()}
           onOpenPayment={() => {
             setIsAccountModalOpen(false);
             openPayment();

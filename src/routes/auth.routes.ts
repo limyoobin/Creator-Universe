@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import {
   findUsernameByEmail,
+  deactivateAccount,
   getUserBySessionToken,
   login,
   logout,
@@ -110,6 +111,23 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const payload = resetPasswordSchema.parse(req.body);
     const result = await resetPassword(payload.username, payload.email, payload.newPassword);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+);
+
+authRouter.delete(
+  "/me",
+  asyncHandler(async (req, res) => {
+    const token = getBearerToken(req);
+    if (!token) {
+      throw new AppError("Authorization token is required.", 401);
+    }
+
+    const result = await deactivateAccount(token);
 
     res.json({
       success: true,

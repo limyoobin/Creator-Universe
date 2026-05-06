@@ -4694,6 +4694,17 @@ h2 {
   background: color-mix(in srgb, var(--brand) 5%, var(--surface));
 }
 
+.account-panel .delete-account-button {
+  border-color: color-mix(in srgb, #ef4444 28%, var(--line));
+  color: #ef4444;
+  background: color-mix(in srgb, #ef4444 8%, var(--surface));
+}
+
+.account-panel .delete-account-button:hover {
+  border-color: color-mix(in srgb, #ef4444 54%, var(--line));
+  background: color-mix(in srgb, #ef4444 14%, var(--surface));
+}
+
 .premium-account-panel {
   overflow: hidden;
   color: #fff;

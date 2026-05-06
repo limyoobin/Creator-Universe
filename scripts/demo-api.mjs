@@ -498,6 +498,31 @@ app.post("/api/auth/logout", (req, res) => {
   json(res, { loggedOut: true });
 });
 
+app.delete("/api/auth/me", (req, res) => {
+  const token = getToken(req);
+  const userId = token ? sessions.get(token) : null;
+  const user = users.find((item) => item.id === userId);
+  if (!user) {
+    res.status(401).json({ success: false, message: "로그인이 필요합니다." });
+    return;
+  }
+
+  for (const [sessionToken, sessionUserId] of sessions.entries()) {
+    if (sessionUserId === user.id) {
+      sessions.delete(sessionToken);
+    }
+  }
+
+  const deletedSuffix = `${user.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8)}-${Date.now()}`;
+  user.email = `deleted-${deletedSuffix}@deleted.creator-universe.local`;
+  user.username = `deleted_${deletedSuffix}`;
+  user.displayName = "탈퇴한 사용자";
+  user.password = null;
+  user.isOfficialPartner = false;
+
+  json(res, { ok: true });
+});
+
 app.post("/api/auth/find-id", (req, res) => {
   const user = users.find((item) => item.email === req.body?.email);
   if (!user) {
