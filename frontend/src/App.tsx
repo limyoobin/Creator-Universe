@@ -2083,6 +2083,7 @@ export function App() {
   const [activePage, setActivePage] = useState<PageId>("home");
   const [activeIntroSlide, setActiveIntroSlide] = useState(0);
   const [status, setStatus] = useState("백엔드 연결 중");
+  const [isBootLoading, setIsBootLoading] = useState(true);
   const librarySectionRef = useRef<HTMLElement | null>(null);
 
   const allPortfolioItems = useMemo(
@@ -2344,6 +2345,11 @@ export function App() {
     document.body.dataset.theme = theme;
     localStorage.setItem("creator-universe-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsBootLoading(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("creator-universe-purchased-works", JSON.stringify(purchasedWorkIds));
@@ -2771,6 +2777,25 @@ export function App() {
 
   return (
     <div className="app">
+      {isBootLoading && (
+        <div className="boot-loader" role="status" aria-live="polite">
+          <div className="boot-loader-card">
+            <div className="loader-pet" aria-hidden="true">
+              <span className="ear left" />
+              <span className="ear right" />
+              <span className="face">
+                <i />
+                <i />
+                <b />
+              </span>
+              <span className="tail" />
+            </div>
+            <strong>크리에이터 유니버스 준비 중</strong>
+            <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>
+            <div className="loader-dots" aria-hidden="true"><span /><span /><span /></div>
+          </div>
+        </div>
+      )}
       <header className="topbar">
         <button className="brand" onClick={() => navigate("home")}>
           <span className="brand-logo"><img src="/logo.png" alt="" /></span>

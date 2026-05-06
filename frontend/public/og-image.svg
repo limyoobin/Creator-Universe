@@ -1,0 +1,40 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#100F14"/>
+  <circle cx="140" cy="120" r="240" fill="#FFB84D" fill-opacity="0.22"/>
+  <circle cx="1030" cy="120" r="260" fill="#40D6FF" fill-opacity="0.18"/>
+  <circle cx="920" cy="540" r="280" fill="#FF5C8A" fill-opacity="0.14"/>
+  <rect x="68" y="66" width="1064" height="498" rx="44" fill="white" fill-opacity="0.08" stroke="white" stroke-opacity="0.16" stroke-width="2"/>
+  <g transform="translate(92 92)">
+    <rect width="104" height="104" rx="30" fill="#12131A"/>
+    <path d="M24 58C24 39.7746 36.536 25 52 25C67.464 25 80 39.7746 80 58C80 76.2254 67.464 91 52 91C36.536 91 24 76.2254 24 58Z" fill="url(#cat)"/>
+    <path d="M36 34L30 16L48 28L36 34Z" fill="#FFB84D"/>
+    <path d="M68 34L74 16L56 28L68 34Z" fill="#40D6FF"/>
+    <circle cx="42" cy="57" r="5" fill="#12131A"/>
+    <circle cx="62" cy="57" r="5" fill="#12131A"/>
+    <path d="M45 72C49 75 55 75 59 72" stroke="#12131A" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <text x="92" y="265" fill="#FFF8EF" font-family="Arial, sans-serif" font-size="82" font-weight="900" letter-spacing="-4">
+    Creator Universe
+  </text>
+  <text x="96" y="342" fill="#FFE2B1" font-family="Arial, sans-serif" font-size="38" font-weight="700">
+    창작자 협업, 멀티 콘텐츠 유통, 스마트 자동 정산
+  </text>
+  <text x="96" y="420" fill="#F6F0E8" fill-opacity="0.82" font-family="Arial, sans-serif" font-size="30" font-weight="500">
+    소설 · 웹툰 · 만화 · 애니메이션 · 오디오드라마를 하나의 IP 스튜디오로
+  </text>
+  <g transform="translate(96 470)">
+    <rect width="196" height="54" rx="27" fill="#FFB84D"/>
+    <text x="28" y="36" fill="#151313" font-family="Arial, sans-serif" font-size="22" font-weight="900">Team Matching</text>
+    <rect x="214" width="210" height="54" rx="27" fill="#40D6FF"/>
+    <text x="242" y="36" fill="#10151A" font-family="Arial, sans-serif" font-size="22" font-weight="900">Auto Settlement</text>
+    <rect x="442" width="188" height="54" rx="27" fill="#FFF3D9"/>
+    <text x="470" y="36" fill="#151313" font-family="Arial, sans-serif" font-size="22" font-weight="900">Fan Economy</text>
+  </g>
+  <defs>
+    <linearGradient id="cat" x1="24" y1="25" x2="80" y2="91" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF3D9"/>
+      <stop offset="0.5" stop-color="#FFB84D"/>
+      <stop offset="1" stop-color="#40D6FF"/>
+    </linearGradient>
+  </defs>
+</svg>

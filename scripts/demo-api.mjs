@@ -30,6 +30,16 @@ const users = [
     walletBalance: 5000,
   },
   {
+    id: "user-root-admin",
+    email: "root@creator-universe.local",
+    username: "root",
+    displayName: "Root Admin",
+    password: "toor",
+    userType: "ADMIN",
+    isOfficialPartner: true,
+    walletBalance: 100000,
+  },
+  {
     id: "user-yurino",
     email: "yurino@example.com",
     username: "yurino_script",
