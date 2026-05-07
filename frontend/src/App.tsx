@@ -38,7 +38,11 @@ import {
 } from "lucide-react";
 
 const DEFAULT_PRODUCTION_API_URL = "https://creator-universe-api-7qfc.onrender.com";
-const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : "")).replace(/\/$/, "");
+const DEFAULT_LOCAL_API_URL = "http://127.0.0.1:4000";
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : DEFAULT_LOCAL_API_URL)
+).replace(/\/$/, "");
 const PROJECT_ID = "project-midnight-signal";
 
 type User = {
