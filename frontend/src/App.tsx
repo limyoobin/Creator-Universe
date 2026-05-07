@@ -72,6 +72,8 @@ type CreatorChatMessage = {
   text: string;
   time: string;
   createdAt: string;
+  matchRequestId?: string;
+  matchProposal?: MatchProposalPayload | null;
 };
 
 type ChatThread = {
@@ -91,7 +93,21 @@ type ChatThread = {
     body: string;
     createdAt: string;
     from: "me" | "creator";
+    matchRequestId?: string;
+    matchProposal?: MatchProposalPayload | null;
   }>;
+};
+
+type MatchProposalPayload = {
+  id: string;
+  projectTitle: string;
+  projectType: string;
+  memberRole: string;
+  sharePercentage: number;
+  message: string;
+  requesterName?: string;
+  targetName?: string;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
 };
 
 type Creator = {
@@ -829,6 +845,8 @@ function mapChatThreads(threads: ChatThread[]) {
       text: message.body,
       time: formatChatTime(message.createdAt),
       createdAt: message.createdAt,
+      matchRequestId: message.matchRequestId,
+      matchProposal: message.matchProposal,
     }));
     return acc;
   }, {});
@@ -917,33 +935,45 @@ function getCreatorPortfolio(creator: Creator) {
 }
 
 async function request<T>(path: string, token: string | null, options: RequestInit = {}) {
-  let response: Response;
-  try {
-    response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
-    });
-  } catch {
-    throw new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
+  const apiBases = [
+    API_URL,
+    import.meta.env.PROD && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
+  ].filter((baseUrl, index, list) => baseUrl && list.indexOf(baseUrl) === index);
+  let lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
+
+  for (const baseUrl of apiBases) {
+    let response: Response;
+    try {
+      response = await fetch(`${baseUrl}${path}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...options.headers,
+        },
+      });
+    } catch {
+      lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
+      continue;
+    }
+
+    const rawText = await response.text();
+    let payload: { message?: string; data: T };
+    try {
+      payload = rawText ? JSON.parse(rawText) : { success: response.ok, data: null as T };
+    } catch {
+      lastError = new Error("API 응답을 읽을 수 없습니다. 프론트가 백엔드가 아닌 페이지 응답을 받았습니다.");
+      continue;
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.message || "API request failed.");
+    }
+
+    return payload.data as T;
   }
 
-  const rawText = await response.text();
-  let payload: { message?: string; data: T };
-  try {
-    payload = rawText ? JSON.parse(rawText) : { success: response.ok, data: null as T };
-  } catch {
-    throw new Error("API 응답을 읽을 수 없습니다. 프론트 환경변수 VITE_API_URL이 백엔드 주소로 설정됐는지 확인해 주세요.");
-  }
-
-  if (!response.ok) {
-    throw new Error(payload.message || "API request failed.");
-  }
-
-  return payload.data as T;
+  throw lastError;
 }
 
 function getFriendlyError(error: unknown) {
@@ -1407,6 +1437,136 @@ function PaymentModal({
             : "로그인하고 결제하기"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function MatchProposalModal({
+  creator,
+  project,
+  share,
+  message,
+  isSubmitting,
+  onShareChange,
+  onMessageChange,
+  onClose,
+  onSubmit,
+}: {
+  creator: Creator;
+  project: Project | null;
+  share: number;
+  message: string;
+  isSubmitting: boolean;
+  onShareChange: (value: number) => void;
+  onMessageChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const projectTitle = project?.title || "Creator Universe Pilot";
+  const currentRole = roleLabels[creator.primaryRole] || creator.primaryRole;
+
+  return (
+    <div className="modal-backdrop match-proposal-backdrop" role="dialog" aria-modal="true">
+      <div className="match-proposal-modal">
+        <div className="modal-header">
+          <div>
+            <p className="kicker">Collaboration Offer</p>
+            <h2>수익 지분을 제안하고 매칭 보내기</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="매칭 제안 닫기">
+            <X size={19} />
+          </button>
+        </div>
+
+        <section className="match-proposal-hero">
+          <div className="match-proposal-avatar">{creator.displayName.slice(0, 1)}</div>
+          <div>
+            <span>{currentRole} · @{creator.username}</span>
+            <strong>{creator.displayName}</strong>
+            <p>{creator.headline}</p>
+          </div>
+        </section>
+
+        <section className="match-proposal-editor">
+          <div className="proposal-project-card">
+            <span>제안 프로젝트</span>
+            <strong>{projectTitle}</strong>
+            <p>{matchingContentFilters.filter((item) => item !== "전체").slice(0, 3).join(" · ")} 협업 제안으로 전달됩니다.</p>
+          </div>
+
+          <label className="share-proposal-control">
+            <span>제안 수익 지분</span>
+            <strong>{share}%</strong>
+            <input
+              type="range"
+              min={5}
+              max={60}
+              step={5}
+              value={share}
+              onChange={(event) => onShareChange(Number(event.target.value))}
+            />
+          </label>
+
+          <div className="proposal-split-preview">
+            <div>
+              <span>{creator.displayName}</span>
+              <b>{share}%</b>
+            </div>
+            <div>
+              <span>기존 팀원 자동 보정</span>
+              <b>{100 - share}%</b>
+            </div>
+          </div>
+
+          <label className="proposal-message-box">
+            <span>채팅으로 함께 보낼 제안 메시지</span>
+            <textarea
+              value={message}
+              onChange={(event) => onMessageChange(event.target.value)}
+              placeholder="예: 미스터리 웹툰 파일럿의 성우/사운드 파트를 맡아주셨으면 합니다. 수익 지분 25%로 제안드려요."
+            />
+          </label>
+        </section>
+
+        <button className="primary-button match-proposal-submit" onClick={onSubmit} disabled={isSubmitting}>
+          <Send size={18} />
+          {isSubmitting ? "제안 전송 중" : "채팅으로 매칭 제안 보내기"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MatchProposalBubble({
+  proposal,
+  canAccept,
+  onAccept,
+}: {
+  proposal: MatchProposalPayload;
+  canAccept: boolean;
+  onAccept: () => void;
+}) {
+  const roleLabel = roleLabels[proposal.memberRole] || proposal.memberRole;
+
+  return (
+    <div className={`match-proposal-bubble ${proposal.status.toLowerCase()}`}>
+      <span>수익 지분 제안서</span>
+      <strong>{proposal.projectTitle}</strong>
+      <p>{proposal.message}</p>
+      <div>
+        <b>{roleLabel}</b>
+        <b>{proposal.sharePercentage}%</b>
+        <b>{proposal.projectType}</b>
+      </div>
+      {proposal.status === "ACCEPTED" ? (
+        <em>수락 완료 · 팀원으로 합류됨</em>
+      ) : canAccept ? (
+        <button type="button" onClick={onAccept}>
+          <CheckCircle2 size={16} /> 조건 보고 수락하기
+        </button>
+      ) : (
+        <em>상대방 수락 대기 중</em>
+      )}
     </div>
   );
 }
@@ -2153,6 +2313,10 @@ export function App() {
     { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
   ]);
   const [matchingActionMessage, setMatchingActionMessage] = useState("");
+  const [matchProposalCreator, setMatchProposalCreator] = useState<Creator | null>(null);
+  const [matchProposalShare, setMatchProposalShare] = useState(20);
+  const [matchProposalMessage, setMatchProposalMessage] = useState("");
+  const [isMatchProposalSubmitting, setIsMatchProposalSubmitting] = useState(false);
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
   const [isMessengerFullscreen, setIsMessengerFullscreen] = useState(false);
   const [activeChatCreatorId, setActiveChatCreatorId] = useState<string | null>(null);
@@ -2762,6 +2926,68 @@ export function App() {
       }),
     });
     await refreshCreatorChats(token);
+  }
+
+  function openMatchProposal(creator: Creator) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    const suggestedShare = creator.primaryRole === "VOICE_ACTOR" || creator.primaryRole === "SOUND_DIRECTOR" ? 25 : 20;
+    setMatchProposalCreator(creator);
+    setMatchProposalShare(suggestedShare);
+    setMatchProposalMessage(
+      `${creator.displayName}님, 포트폴리오를 보고 함께 협업하고 싶습니다. ${suggestedShare}% 수익 지분 조건으로 매칭을 제안드려요.`,
+    );
+  }
+
+  async function submitMatchProposal() {
+    if (!token || !matchProposalCreator) {
+      setAuthMode("login");
+      return;
+    }
+    setIsMatchProposalSubmitting(true);
+    try {
+      await request("/api/matching/requests", token, {
+        method: "POST",
+        body: JSON.stringify({
+          targetUserId: matchProposalCreator.userId,
+          projectId: PROJECT_ID,
+          projectTitle: project?.title || "Creator Universe Pilot",
+          projectType: matchingFilters.join(", ") || "멀티 콘텐츠 협업",
+          memberRole: matchProposalCreator.primaryRole,
+          sharePercentage: matchProposalShare,
+          message: matchProposalMessage,
+        }),
+      });
+      await refreshCreatorChats(token);
+      setActiveChatCreatorId(matchProposalCreator.userId);
+      setIsMessengerOpen(true);
+      setIsSupportBotOpen(false);
+      setMatchingActionMessage(`${matchProposalCreator.displayName}님에게 ${matchProposalShare}% 수익 지분 조건으로 매칭 제안을 보냈습니다.`);
+      setMatchProposalCreator(null);
+    } finally {
+      setIsMatchProposalSubmitting(false);
+    }
+  }
+
+  async function acceptMatchProposal(proposalId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    const result = await request<{ members: SettlementMemberConfig[] }>(`/api/matching/requests/${proposalId}/accept`, token, {
+      method: "POST",
+    });
+    if (result.members?.length) {
+      setSettlementConfig((current) => ({
+        ...current,
+        members: result.members,
+      }));
+    }
+    await refreshCreatorChats(token);
+    await loadData(token);
+    setMatchingActionMessage("매칭 조건을 수락했습니다. 새 팀원이 정산 팀원 목록에 반영되었습니다.");
   }
 
   async function requestCreatorMatch(creator: Creator) {
@@ -3676,7 +3902,7 @@ export function App() {
                 <div className="creator-card-actions">
                   <button className="portfolio-button" onClick={() => setSelectedCreator(creator)}>프로필 보기</button>
                   <button onClick={() => void sendCreatorChat(creator)}>채팅 보내기</button>
-                  <button onClick={() => void requestCreatorMatch(creator)}>매칭 요청</button>
+                  <button className="match-offer-button" onClick={() => openMatchProposal(creator)}>지분 제안 매칭</button>
                 </div>
               </article>
             ))}
@@ -4134,7 +4360,15 @@ export function App() {
                       {activeChatMessages.map((message, index) => (
                         <div className={message.from === "me" ? "me" : "creator"} key={`${activeChatCreator.userId}-${index}`}>
                           {message.from === "creator" && <span>{activeChatCreator.displayName.slice(0, 1)}</span>}
-                          <p>{message.text}</p>
+                          {message.matchProposal ? (
+                            <MatchProposalBubble
+                              proposal={message.matchProposal}
+                              canAccept={message.from === "creator" && message.matchProposal.status === "PENDING"}
+                              onAccept={() => void acceptMatchProposal(message.matchProposal!.id)}
+                            />
+                          ) : (
+                            <p>{message.text}</p>
+                          )}
                           <small>{message.time}</small>
                         </div>
                       ))}
@@ -4248,6 +4482,19 @@ export function App() {
       </div>
 
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onAuth={completeAuth} />}
+      {matchProposalCreator && (
+        <MatchProposalModal
+          creator={matchProposalCreator}
+          project={project}
+          share={matchProposalShare}
+          message={matchProposalMessage}
+          isSubmitting={isMatchProposalSubmitting}
+          onShareChange={setMatchProposalShare}
+          onMessageChange={setMatchProposalMessage}
+          onClose={() => setMatchProposalCreator(null)}
+          onSubmit={() => void submitMatchProposal()}
+        />
+      )}
       {user && isAccountModalOpen && (
         <AccountModal
           user={user}
