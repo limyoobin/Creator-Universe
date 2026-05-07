@@ -39,10 +39,25 @@ import {
 
 const DEFAULT_PRODUCTION_API_URL = "https://creator-universe-api-7qfc.onrender.com";
 const DEFAULT_LOCAL_API_URL = "http://127.0.0.1:4000";
-const API_URL = (
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : DEFAULT_LOCAL_API_URL)
-).replace(/\/$/, "");
+
+function resolveApiUrl() {
+  const configuredUrl = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
+  if (configuredUrl) {
+    try {
+      const host = new URL(configuredUrl).hostname;
+      const isFrontendDeployment = host.endsWith(".vercel.app") || host.includes("limyoobins-projects");
+      if (!isFrontendDeployment) {
+        return configuredUrl;
+      }
+    } catch {
+      return configuredUrl;
+    }
+  }
+
+  return import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : DEFAULT_LOCAL_API_URL;
+}
+
+const API_URL = resolveApiUrl();
 const PROJECT_ID = "project-midnight-signal";
 
 type User = {
