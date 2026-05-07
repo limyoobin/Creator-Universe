@@ -3136,6 +3136,8 @@ export function App() {
               </span>
               <span className="cat-heart" />
               <span className="cat-yarn" />
+              <span className="cat-sparkle sparkle-one" />
+              <span className="cat-sparkle sparkle-two" />
             </div>
             <strong>크리에이터 유니버스 준비 중</strong>
             <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>
@@ -3216,7 +3218,7 @@ export function App() {
           <div className="home-page page-panel">
             <section className={`intro-hero reveal revealed ${introSlides[activeIntroSlide].tone}`}>
               <div className="intro-copy">
-                <p className="kicker">{status} · Creator Universe</p>
+                <p className="kicker">Creator Universe Studio</p>
                 <div className="slide-copy-stage">
                   {introSlides.map((slide, index) => (
                     <article className={`slide-copy-panel ${activeIntroSlide === index ? "active" : ""}`} key={slide.eyebrow}>
@@ -3251,9 +3253,25 @@ export function App() {
                         <div className="aurora-orb orb-two" />
                         <div className="moon" />
                         <div className="city-lines" />
+                        <div className="studio-orbit-ring" />
+                        <div className="studio-team-card writer-card">
+                          <span>Writer</span>
+                          <strong>대본</strong>
+                        </div>
+                        <div className="studio-team-card voice-card">
+                          <span>Voice</span>
+                          <strong>녹음</strong>
+                        </div>
+                        <div className="studio-team-card illust-card">
+                          <span>Art</span>
+                          <strong>표지</strong>
+                        </div>
                         <div className="character-card">
                           <span>{slide.visualLabel}</span>
                           <strong>{slide.visualTitle}</strong>
+                          <div className="visual-progress">
+                            <i style={{ width: index === 0 ? "72%" : index === 1 ? "88%" : "64%" }} />
+                          </div>
                         </div>
                         <div className="floating-widget widget-left">
                           <span>{slide.stat}</span>
@@ -3307,12 +3325,22 @@ export function App() {
                 <article className="mock-card matching-mock">
                   <span>Matching</span>
                   <strong>성우 · 일러스트 · 작가 매칭</strong>
+                  <div className="matching-preview-grid">
+                    <div><b>작가</b><small>로맨스 판타지</small></div>
+                    <div><b>일러스트</b><small>키비주얼</small></div>
+                    <div><b>성우</b><small>감정 연기</small></div>
+                  </div>
                   <div className="avatar-row"><i /><i /><i /><i /></div>
                 </article>
                 <article className="mock-card settlement-mock">
                   <span>Settlement</span>
                   <strong>결제 즉시 1/N 자동 분배</strong>
                   <div className="mini-donut" />
+                  <div className="settlement-preview-lines">
+                    <div><span>작가</span><b>30%</b></div>
+                    <div><span>일러스트</span><b>30%</b></div>
+                    <div><span>팀장 성우</span><b>40%</b></div>
+                  </div>
                 </article>
                 <article className="mock-card viewer-mock">
                   <span>Access</span>
@@ -3870,7 +3898,7 @@ export function App() {
                 <div className="creator-card-actions">
                   <button className="portfolio-button" onClick={() => setSelectedCreator(creator)}>프로필 보기</button>
                   <button onClick={() => void sendCreatorChat(creator)}>채팅 보내기</button>
-                  <button onClick={() => openMatchProposal(creator)}>지분 제안 매칭</button>
+                  <button className="match-offer-button" onClick={() => openMatchProposal(creator)}>지분 제안 매칭</button>
                 </div>
               </article>
             ))}

@@ -8291,6 +8291,293 @@ h2 {
   border-color: color-mix(in srgb, var(--green) 38%, var(--line));
 }
 
+.studio-orbit-ring {
+  position: absolute;
+  inset: 86px 54px 74px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  transform: rotate(-13deg);
+  background: radial-gradient(circle, transparent 58%, rgba(255, 255, 255, 0.08) 59% 60%, transparent 61%);
+  animation: orbitPulse 4.8s ease-in-out infinite;
+}
+
+.studio-team-card {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  min-width: 112px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 13px 14px;
+  color: #fff;
+  background: rgba(10, 14, 30, 0.58);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+}
+
+.studio-team-card::before {
+  content: "";
+  width: 34px;
+  height: 34px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--slide-accent), var(--cyan));
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--slide-accent) 34%, transparent);
+}
+
+.studio-team-card span {
+  color: #9ff3ff;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.studio-team-card strong {
+  font-size: 16px;
+}
+
+.writer-card {
+  top: 112px;
+  left: 34px;
+  animation: widgetFloat 5.2s ease-in-out infinite;
+}
+
+.voice-card {
+  top: 142px;
+  right: 36px;
+  animation: widgetFloat 5.8s ease-in-out infinite reverse;
+}
+
+.illust-card {
+  right: 104px;
+  bottom: 106px;
+  animation: widgetFloat 6.2s ease-in-out infinite;
+}
+
+.visual-progress {
+  position: relative;
+  height: 10px;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.visual-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #9ff3ff, #fff0b8, #ffc2dc);
+  box-shadow: 0 0 18px rgba(159, 243, 255, 0.45);
+}
+
+.matching-preview-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.matching-preview-grid div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+  border-radius: 18px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-2) 74%, transparent);
+}
+
+.matching-preview-grid b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 64px;
+  border-radius: 999px;
+  padding: 7px 9px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--cyan), var(--violet));
+  font-size: 12px;
+}
+
+.matching-preview-grid small {
+  color: var(--text);
+  font-weight: 850;
+}
+
+.settlement-preview-lines {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.settlement-preview-lines div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+  border-radius: 16px;
+  padding: 9px 11px;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+
+.settlement-preview-lines span {
+  color: var(--muted);
+}
+
+.settlement-preview-lines b {
+  color: var(--cyan);
+  font-size: 17px;
+}
+
+.creator-card-actions .match-offer-button {
+  border-color: color-mix(in srgb, var(--cyan) 36%, var(--line));
+  color: color-mix(in srgb, var(--cyan) 82%, var(--text));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--cyan) 12%, var(--surface-2)), color-mix(in srgb, var(--violet) 8%, var(--surface-2))),
+    var(--surface-2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 14%, transparent);
+}
+
+.match-proposal-bubble {
+  border-color: color-mix(in srgb, var(--cyan) 26%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 62%),
+    var(--surface);
+}
+
+.match-proposal-bubble > span {
+  color: var(--cyan);
+}
+
+.match-proposal-bubble button {
+  background: linear-gradient(135deg, var(--cyan), var(--violet));
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--cyan) 24%, transparent);
+}
+
+.boot-loader-card {
+  border-radius: 38px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.9), transparent 9rem),
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 12rem),
+    var(--surface);
+}
+
+.loader-cat {
+  width: 156px;
+  height: 124px;
+  animation: catTrotting 1.6s ease-in-out infinite;
+}
+
+.cat-body {
+  left: 42px;
+  bottom: 18px;
+  width: 82px;
+  height: 62px;
+  border-radius: 42px 46px 30px 34px;
+  background:
+    radial-gradient(circle at 26% 20%, rgba(255, 255, 255, 0.95), transparent 16px),
+    radial-gradient(circle at 72% 18%, #ffe4f4 0 12px, transparent 13px),
+    linear-gradient(135deg, #fffaf2, #ffd58d 58%, #ffc7e6);
+}
+
+.cat-head {
+  left: 21px;
+  bottom: 44px;
+  width: 66px;
+  height: 58px;
+  border-radius: 30px 30px 26px 26px;
+}
+
+.cat-eye {
+  top: 25px;
+  width: 8px;
+  height: 10px;
+}
+
+.cat-eye::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.cat-tail {
+  right: 14px;
+  bottom: 46px;
+  width: 42px;
+  height: 42px;
+  border-width: 10px;
+}
+
+.cat-yarn {
+  right: 0;
+  width: 26px;
+  height: 26px;
+}
+
+.cat-sparkle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: #fff0b8;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  filter: drop-shadow(0 0 10px rgba(255, 240, 184, 0.72));
+  animation: sparkleBlink 1.45s ease-in-out infinite;
+}
+
+.sparkle-one {
+  left: 6px;
+  top: 16px;
+}
+
+.sparkle-two {
+  right: 18px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  animation-delay: 0.35s;
+}
+
+@keyframes sparkleBlink {
+  0%, 100% { opacity: 0.35; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.14) rotate(20deg); }
+}
+
+@media (max-width: 760px) {
+  .studio-team-card {
+    min-width: 94px;
+    padding: 10px;
+  }
+
+  .studio-team-card::before {
+    width: 28px;
+    height: 28px;
+  }
+
+  .writer-card {
+    top: 92px;
+    left: 22px;
+  }
+
+  .voice-card {
+    top: 126px;
+    right: 22px;
+  }
+
+  .illust-card {
+    right: 72px;
+    bottom: 96px;
+  }
+
+  .matching-preview-grid {
+    margin-top: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
