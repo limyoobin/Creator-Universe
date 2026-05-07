@@ -117,11 +117,12 @@ haruka_voice / demo1234
 
 로그인 후 API는 `Authorization: Bearer <token>` 헤더를 사용합니다.
 
-## 👥 팀원 및 기여 내용
+
 
 ## 👥 팀원 및 기여 내용
 
 | 이름 | 역할 | 기여 내용 | 
+
 | **임유빈** | 팀장, Back-end | 프로젝트 총괄, 시스템 아키텍처 및 DB 설계, Node.js API 개발 | 
 | **이승아** | 기획 & QA | 상세 요구사항 정의, 사용자 테스트 및 버그 리포팅 |
 | **임예원** | Front-end | React Native 기반 UI/UX 구현, 메인 화면 뷰 개발 | 
