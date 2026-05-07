@@ -2679,21 +2679,49 @@ export function App() {
   }, [activePage]);
 
   useEffect(() => {
+    let isCurrent = true;
+
     if (!token) {
       setUser(null);
       void loadData(null).catch((error) => setStatus(error.message));
-      return;
+      return () => {
+        isCurrent = false;
+      };
     }
 
-    request<User | null>("/api/auth/me", token)
-      .then((me) => setUser(me))
-      .then(() => loadData(token))
-      .catch((error) => {
-        setStatus(error.message);
+    async function verifySessionAndLoadData() {
+      try {
+        const me = await request<User | null>("/api/auth/me", token);
+        if (!isCurrent) {
+          return;
+        }
+
+        if (!me) {
+          throw new Error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        }
+
+        setUser(me);
+        await loadData(token).catch((error) => {
+          if (isCurrent) {
+            setStatus(error instanceof Error ? error.message : "데이터를 불러오지 못했습니다.");
+          }
+        });
+      } catch (error) {
+        if (!isCurrent) {
+          return;
+        }
+        setStatus(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
         setUser(null);
         setToken(null);
         localStorage.removeItem("creator-universe-token");
-      });
+      }
+    }
+
+    void verifySessionAndLoadData();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [token, role]);
 
   function openPayment() {
