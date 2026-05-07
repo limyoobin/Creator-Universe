@@ -41,7 +41,12 @@ const DEFAULT_PRODUCTION_API_URL = "https://creator-universe-api-7qfc.onrender.c
 const DEFAULT_LOCAL_API_URL = "http://127.0.0.1:4000";
 
 function resolveApiUrl() {
-  const configuredUrl = String(import.meta.env.VITE_API_URL || "").trim().replace(/\/$/, "");
+  const configuredValue = String(import.meta.env.VITE_API_URL || "").trim();
+  const configuredUrl = configuredValue
+    .replace(/^VITE_API_URL\s*=\s*/i, "")
+    .trim()
+    .replace(/\/$/, "");
+
   if (configuredUrl) {
     try {
       const host = new URL(configuredUrl).hostname;
@@ -50,7 +55,7 @@ function resolveApiUrl() {
         return configuredUrl;
       }
     } catch {
-      return configuredUrl;
+      return import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : DEFAULT_LOCAL_API_URL;
     }
   }
 
