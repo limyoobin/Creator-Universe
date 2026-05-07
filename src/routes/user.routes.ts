@@ -1,7 +1,7 @@
 import { MemberRole, PartnerTier, UserRole } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
-import { createUser, getWalletDetail, getWalletSnapshot } from "../services/user.service.js";
+import { chargeWallet, createUser, getWalletDetail, getWalletSnapshot } from "../services/user.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 
@@ -28,6 +28,12 @@ const createUserSchema = z.object({
   isPartner: z.boolean().optional(),
   partnerTier: z.nativeEnum(PartnerTier).optional(),
   creatorProfile: creatorProfileSchema.optional(),
+});
+
+const chargeWalletSchema = z.object({
+  coinAmount: z.number().int().positive(),
+  paymentAmountKrw: z.number().int().positive(),
+  externalPaymentId: z.string().optional(),
 });
 
 export const userRouter = Router();
@@ -67,6 +73,23 @@ userRouter.get(
     res.json({
       success: true,
       data: wallet,
+    });
+  }),
+);
+
+userRouter.post(
+  "/me/wallet/charge",
+  asyncHandler(async (req, res) => {
+    const userId = await getCurrentUserId(req);
+    const payload = chargeWalletSchema.parse(req.body);
+    const result = await chargeWallet({
+      userId,
+      ...payload,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
     });
   }),
 );

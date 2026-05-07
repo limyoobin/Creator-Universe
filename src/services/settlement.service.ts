@@ -103,6 +103,15 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
     const platformFeeAmount = roundToTwo(grossAmount.mul(appliedFeeRate));
     const netAmount = grossAmount.minus(platformFeeAmount);
 
+    const buyerWallet = await tx.wallet.findUnique({
+      where: { userId: input.buyerId },
+      select: { balance: true },
+    });
+
+    if (!buyerWallet || buyerWallet.balance.lt(grossAmount)) {
+      throw new AppError("보유 코인이 부족합니다. 코인을 충전해 주세요.", 402);
+    }
+
     const transaction = await tx.transaction.create({
       data: {
         buyerId: input.buyerId,
@@ -117,6 +126,15 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
         coinAmount: input.coinAmount,
         externalPaymentId: input.externalPaymentId,
         purchasedAt: new Date(),
+      },
+    });
+
+    await tx.wallet.update({
+      where: { userId: input.buyerId },
+      data: {
+        balance: {
+          decrement: grossAmount,
+        },
       },
     });
 

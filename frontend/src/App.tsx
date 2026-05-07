@@ -581,45 +581,15 @@ const protectedPages = new Set<PageId>(["matching", "wallet", "settlement", "sup
 
 const walletFallback: WalletDetail = {
   balance: 0,
-  monthlySpend: 2400,
+  monthlySpend: 0,
   monthlyEarned: 0,
-  refundableCoins: 1000,
-  bonusCoins: 300,
-  autoChargeEnabled: true,
-  nextChargeDate: "2026-05-15",
-  paymentMethod: "Npay 간편결제 · **** 1428",
-  payoutAccount: "국민은행 · ***-02-9812",
-  transactions: [
-    {
-      id: "wallet-seed-1",
-      type: "CHARGE",
-      title: "코인 5,000 충전",
-      description: "자동 충전 기준 잔액 이하로 내려가 충전 예약이 실행되었습니다.",
-      amount: 5000,
-      status: "완료",
-      createdAt: "2026-05-03T11:20:00.000Z",
-    },
-    {
-      id: "wallet-seed-2",
-      type: "SPEND",
-      title: "미드나잇 시그널 1화 열람",
-      description: "작품 구매 즉시 접근권이 발급되고 팀 정산 큐에 반영됩니다.",
-      amount: -1000,
-      status: "환불 가능",
-      createdAt: "2026-05-03T11:24:00.000Z",
-      projectTitle: "미드나잇 시그널",
-    },
-    {
-      id: "wallet-seed-3",
-      type: "SETTLEMENT",
-      title: "창작자 정산 입금",
-      description: "플랫폼 수수료를 제외한 금액이 내 지분율대로 지급되었습니다.",
-      amount: 3400,
-      status: "완료",
-      createdAt: "2026-05-02T09:00:00.000Z",
-      projectTitle: "비 오는 골목의 라디오",
-    },
-  ],
+  refundableCoins: 0,
+  bonusCoins: 0,
+  autoChargeEnabled: false,
+  nextChargeDate: "-",
+  paymentMethod: "등록된 대표 결제 수단 없음",
+  payoutAccount: "정산 계좌 등록 필요",
+  transactions: [],
 };
 
 const coinProducts = [
@@ -4021,20 +3991,28 @@ export function App() {
               </div>
 
               <div className="wallet-ledger-list">
-                {filteredWalletTransactions.map((item) => (
-                  <article className={item.amount >= 0 ? "plus" : "minus"} key={item.id}>
-                    <div className="wallet-ledger-icon">{item.amount >= 0 ? <Coins size={20} /> : <CreditCard size={20} />}</div>
-                    <div>
-                      <span>{getWalletTypeLabel(item.type)} · {formatDateTime(item.createdAt)}</span>
-                      <strong>{item.title}</strong>
-                      <p>{item.description}</p>
-                    </div>
-                    <div className="wallet-ledger-amount">
-                      <b>{item.amount >= 0 ? "+" : ""}{formatCoins(item.amount)}</b>
-                      <em>{item.status}</em>
-                    </div>
-                  </article>
-                ))}
+                {filteredWalletTransactions.length > 0 ? (
+                  filteredWalletTransactions.map((item) => (
+                    <article className={item.amount >= 0 ? "plus" : "minus"} key={item.id}>
+                      <div className="wallet-ledger-icon">{item.amount >= 0 ? <Coins size={20} /> : <CreditCard size={20} />}</div>
+                      <div>
+                        <span>{getWalletTypeLabel(item.type)} · {formatDateTime(item.createdAt)}</span>
+                        <strong>{item.title}</strong>
+                        <p>{item.description}</p>
+                      </div>
+                      <div className="wallet-ledger-amount">
+                        <b>{item.amount >= 0 ? "+" : ""}{formatCoins(item.amount)}</b>
+                        <em>{item.status}</em>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-matching wallet-empty-state">
+                    <Coins size={24} />
+                    <strong>아직 코인 이용 내역이 없어요</strong>
+                    <p>코인을 충전하거나 작품을 구매하면 이곳에 내역이 쌓입니다.</p>
+                  </div>
+                )}
               </div>
             </section>
 

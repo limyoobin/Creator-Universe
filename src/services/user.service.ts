@@ -1,6 +1,8 @@
-import { MemberRole, PartnerTier, UserRole } from "@prisma/client";
+import { MemberRole, PartnerTier, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
+
+const DEFAULT_CHARGE_PROJECT_ID = "project-midnight-signal";
 
 type CreateUserInput = {
   email: string;
@@ -23,6 +25,13 @@ type CreateUserInput = {
     voiceDemoDurationSeconds?: number;
     voiceWaveform?: number[];
   };
+};
+
+type ChargeWalletInput = {
+  userId: string;
+  coinAmount: number;
+  paymentAmountKrw: number;
+  externalPaymentId?: string;
 };
 
 export async function createUser(input: CreateUserInput) {
@@ -96,7 +105,7 @@ export async function getWalletDetail(userId: string) {
   const refundWindowStart = new Date(now);
   refundWindowStart.setDate(refundWindowStart.getDate() - 7);
 
-  const [wallet, purchases, distributions] = await Promise.all([
+  const [wallet, transactions, distributions] = await Promise.all([
     getWalletSnapshot(userId),
     prisma.transaction.findMany({
       where: {
@@ -133,6 +142,8 @@ export async function getWalletDetail(userId: string) {
     }),
   ]);
 
+  const charges = transactions.filter((item) => item.transactionType === TransactionType.COIN_PURCHASE);
+  const purchases = transactions.filter((item) => item.transactionType !== TransactionType.COIN_PURCHASE);
   const monthlyPurchases = purchases.filter((item) => item.createdAt >= monthStart);
   const monthlyDistributions = distributions.filter((item) => item.createdAt >= monthStart);
   const monthlySpend = monthlyPurchases.reduce((total, item) => total + Number(item.grossAmount), 0);
@@ -148,6 +159,17 @@ export async function getWalletDetail(userId: string) {
     description: "구매 즉시 콘텐츠 접근권이 발급되고 창작팀 정산 큐에 반영되었습니다.",
     amount: -Number(item.coinAmount ?? item.grossAmount),
     status: item.createdAt >= refundWindowStart ? "환불 가능" : "완료",
+    createdAt: item.createdAt.toISOString(),
+    projectTitle: item.project.title,
+  }));
+
+  const chargeLedger = charges.map((item) => ({
+    id: item.id,
+    type: "CHARGE",
+    title: `코인 ${Number(item.coinAmount ?? item.netAmount).toLocaleString("ko-KR")} 충전`,
+    description: `${Number(item.grossAmount).toLocaleString("ko-KR")}원 결제로 코인이 충전되었습니다.`,
+    amount: Number(item.coinAmount ?? item.netAmount),
+    status: "완료",
     createdAt: item.createdAt.toISOString(),
     projectTitle: item.project.title,
   }));
@@ -171,10 +193,84 @@ export async function getWalletDetail(userId: string) {
     bonusCoins: 0,
     autoChargeEnabled: true,
     nextChargeDate: "2026-05-15",
-    paymentMethod: "등록된 대표 결제 수단",
+    paymentMethod: charges.length > 0 ? "최근 코인 충전 결제 수단" : "등록된 대표 결제 수단 없음",
     payoutAccount: "정산 계좌 등록 필요",
-    transactions: [...purchaseLedger, ...settlementLedger].sort(
+    transactions: [...purchaseLedger, ...chargeLedger, ...settlementLedger].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     ),
   };
+}
+
+export async function chargeWallet(input: ChargeWalletInput) {
+  if (!Number.isInteger(input.coinAmount) || input.coinAmount <= 0) {
+    throw new AppError("coinAmount must be a positive integer.", 422);
+  }
+
+  if (!Number.isInteger(input.paymentAmountKrw) || input.paymentAmountKrw <= 0) {
+    throw new AppError("paymentAmountKrw must be a positive integer.", 422);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const [user, project] = await Promise.all([
+      tx.user.findUnique({
+        where: { id: input.userId },
+        select: { id: true },
+      }),
+      tx.project.findUnique({
+        where: { id: DEFAULT_CHARGE_PROJECT_ID },
+        select: { id: true, title: true },
+      }),
+    ]);
+
+    if (!user) {
+      throw new AppError("User not found.", 404);
+    }
+
+    if (!project) {
+      throw new AppError("Default coin charge project not found.", 404);
+    }
+
+    const transaction = await tx.transaction.create({
+      data: {
+        buyerId: input.userId,
+        projectId: project.id,
+        transactionType: TransactionType.COIN_PURCHASE,
+        status: TransactionStatus.PAID,
+        currency: "COIN",
+        grossAmount: input.paymentAmountKrw,
+        appliedFeeRate: 0,
+        platformFeeAmount: 0,
+        netAmount: input.coinAmount,
+        coinAmount: input.coinAmount,
+        externalPaymentId: input.externalPaymentId,
+        purchasedAt: new Date(),
+      },
+    });
+
+    const wallet = await tx.wallet.upsert({
+      where: { userId: input.userId },
+      create: {
+        userId: input.userId,
+        balance: input.coinAmount,
+        currency: "COIN",
+      },
+      update: {
+        balance: {
+          increment: input.coinAmount,
+        },
+      },
+    });
+
+    return {
+      charge: {
+        id: transaction.id,
+        userId: input.userId,
+        coinAmount: input.coinAmount,
+        paymentAmountKrw: input.paymentAmountKrw,
+        externalPaymentId: transaction.externalPaymentId,
+        createdAt: transaction.createdAt.toISOString(),
+      },
+      walletBalance: Number(wallet.balance),
+    };
+  });
 }

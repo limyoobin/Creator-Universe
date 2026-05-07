@@ -477,26 +477,6 @@ function buildWalletDetail(user) {
     status: "완료",
     createdAt: item.createdAt,
   }));
-  const seedLedger = [
-    {
-      id: "wallet-demo-charge",
-      type: "CHARGE",
-      title: "코인 5,000 충전",
-      description: "대표 결제 수단으로 코인이 충전되었습니다.",
-      amount: 5000,
-      status: "완료",
-      createdAt: "2026-05-03T11:20:00.000Z",
-    },
-    {
-      id: "wallet-demo-bonus",
-      type: "BONUS",
-      title: "신규 독자 보너스",
-      description: "첫 작품 구매를 위한 이벤트 보너스 코인이 지급되었습니다.",
-      amount: 300,
-      status: "완료",
-      createdAt: "2026-05-02T09:00:00.000Z",
-    },
-  ];
   const creatorLedger = member
     ? [
         {
@@ -517,12 +497,12 @@ function buildWalletDetail(user) {
     monthlySpend,
     monthlyEarned,
     refundableCoins: myPurchases.length ? project.priceCoins : 0,
-    bonusCoins: 300,
-    autoChargeEnabled: true,
-    nextChargeDate: "2026-05-15",
-    paymentMethod: "Npay 간편결제 · **** 1428",
+    bonusCoins: 0,
+    autoChargeEnabled: false,
+    nextChargeDate: "-",
+    paymentMethod: myCharges.length ? "최근 코인 충전 결제 수단" : "등록된 대표 결제 수단 없음",
     payoutAccount: member ? "국민은행 · ***-02-9812" : "창작자 등록 후 계좌 연결 가능",
-    transactions: [...purchaseLedger, ...chargeLedger, ...creatorLedger, ...seedLedger].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    transactions: [...purchaseLedger, ...chargeLedger, ...creatorLedger].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
   };
 }
 
