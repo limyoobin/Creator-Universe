@@ -6395,10 +6395,33 @@ h2 {
   width: 74px;
   height: 58px;
   border-radius: 34px 42px 28px 30px;
-  background: linear-gradient(135deg, #fff6e7, #ffcf8b 56%, #ffd6f4);
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.9), transparent 14px),
+    linear-gradient(135deg, #fff7eb, #ffd99a 56%, #ffd6f4);
   box-shadow:
     inset 0 -9px 18px rgba(89, 51, 21, 0.1),
     0 18px 34px rgba(255, 184, 77, 0.18);
+}
+
+.cat-body::before,
+.cat-body::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  width: 18px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 151, 91, 0.28);
+  transform: rotate(18deg);
+}
+
+.cat-body::before {
+  left: 23px;
+}
+
+.cat-body::after {
+  right: 18px;
+  transform: rotate(-16deg);
 }
 
 .cat-head {
@@ -6481,6 +6504,52 @@ h2 {
   transform: translateX(-50%);
 }
 
+.cat-cheek {
+  position: absolute;
+  top: 32px;
+  width: 9px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 122, 182, 0.38);
+}
+
+.cat-cheek.cheek-left {
+  left: 9px;
+}
+
+.cat-cheek.cheek-right {
+  right: 9px;
+}
+
+.cat-whisker {
+  position: absolute;
+  top: 34px;
+  width: 17px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: rgba(21, 24, 39, 0.55);
+}
+
+.cat-whisker::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  width: 15px;
+  height: 1.5px;
+  border-radius: inherit;
+  background: inherit;
+}
+
+.cat-whisker.whisker-left {
+  left: -7px;
+  transform: rotate(9deg);
+}
+
+.cat-whisker.whisker-right {
+  right: -7px;
+  transform: rotate(-9deg);
+}
+
 .cat-tail {
   position: absolute;
   right: 14px;
@@ -6528,6 +6597,38 @@ h2 {
     linear-gradient(135deg, #ff7ab6, #8bdcff);
   box-shadow: 0 0 20px rgba(255, 122, 182, 0.34);
   animation: yarnRoll 1.25s ease-in-out infinite;
+}
+
+.cat-heart {
+  position: absolute;
+  right: 16px;
+  top: 9px;
+  width: 17px;
+  height: 17px;
+  background: #ff7ab6;
+  transform: rotate(-45deg);
+  filter: drop-shadow(0 0 12px rgba(255, 122, 182, 0.5));
+  animation: heartPop 1.25s ease-in-out infinite;
+}
+
+.cat-heart::before,
+.cat-heart::after {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: inherit;
+}
+
+.cat-heart::before {
+  top: -8px;
+  left: 0;
+}
+
+.cat-heart::after {
+  left: 8px;
+  top: 0;
 }
 
 .loader-dots {
@@ -6586,6 +6687,11 @@ h2 {
 @keyframes yarnRoll {
   0%, 100% { transform: translateX(0) rotate(0deg); }
   50% { transform: translateX(11px) rotate(120deg); }
+}
+
+@keyframes heartPop {
+  0%, 100% { opacity: 0.42; transform: translateY(0) rotate(-45deg) scale(0.82); }
+  50% { opacity: 1; transform: translateY(-7px) rotate(-45deg) scale(1); }
 }
 
 @keyframes dotPulse {
@@ -7434,6 +7540,55 @@ h2 {
 }
 
 @media (max-width: 560px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  main {
+    width: calc(100% - 18px);
+    padding: 10px 0 104px;
+  }
+
+  .home-page {
+    gap: 18px;
+  }
+
+  .section {
+    padding: 30px 0;
+  }
+
+  .section-head {
+    display: grid;
+    gap: 8px;
+    align-items: start;
+  }
+
+  .section-head h2,
+  .showcase-copy h2,
+  .flow-section h2,
+  .mission-section h2,
+  .final-cta h2,
+  .discover-hero h2,
+  .matching-hero h2,
+  .wallet-hero h2,
+  .settlement-hero h2,
+  .support-hero h2 {
+    font-size: clamp(28px, 9vw, 38px);
+    letter-spacing: -0.055em;
+    line-height: 1.14;
+  }
+
+  .section-head > p,
+  .discover-hero p:not(.kicker),
+  .matching-hero p:not(.kicker),
+  .wallet-hero p,
+  .settlement-hero p,
+  .support-hero p:not(.kicker),
+  .lead {
+    font-size: 14px;
+    line-height: 1.68;
+  }
+
   .brand strong,
   .user-chip {
     display: none;
@@ -7448,8 +7603,26 @@ h2 {
   }
 
   .topbar {
-    width: min(100% - 18px, 1180px);
+    top: 6px;
+    width: min(100% - 12px, 1180px);
     padding: 8px;
+    border-radius: 20px;
+  }
+
+  .brand span {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+  }
+
+  .brand-logo img {
+    transform: scale(1.02);
+  }
+
+  .icon-button,
+  .account-trigger {
+    min-width: 38px;
+    min-height: 38px;
   }
 
   .payment-modal {
@@ -7459,6 +7632,31 @@ h2 {
 
   .intro-actions {
     display: grid;
+  }
+
+  .intro-hero,
+  .discover-hero,
+  .matching-hero,
+  .wallet-hero,
+  .settlement-hero,
+  .support-hero,
+  .universe-premium-card,
+  .final-cta,
+  .reader-toolbar,
+  .ranking-section,
+  .support-center-panel,
+  .wallet-ledger-panel,
+  .team-lead-panel,
+  .settlement-visual-panel {
+    border-radius: 22px;
+  }
+
+  .discover-hero,
+  .matching-hero,
+  .wallet-hero,
+  .settlement-hero,
+  .support-hero {
+    padding: 22px;
   }
 
   .intro-metrics strong {
@@ -7485,6 +7683,60 @@ h2 {
   .final-cta div {
     display: grid;
     width: 100%;
+  }
+
+  .reader-work-card,
+  .creator-card,
+  .work-card,
+  .content-format-card,
+  .overall-ranking-card,
+  .genre-ranking-grid article,
+  .library-shelf article {
+    border-radius: 22px;
+  }
+
+  .reader-cover {
+    min-height: 176px;
+    padding: 14px;
+  }
+
+  .reader-cover strong {
+    max-width: 10ch;
+    font-size: 30px;
+    line-height: 1;
+  }
+
+  .reader-work-body {
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .reader-work-body h3 {
+    font-size: 21px;
+    letter-spacing: -0.04em;
+  }
+
+  .reader-work-body p {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .reader-filter-groups,
+  .matching-filter-groups {
+    gap: 10px;
+  }
+
+  .genre-filter,
+  .role-tabs,
+  .library-tabs {
+    gap: 6px;
+  }
+
+  .genre-filter button,
+  .role-tabs button,
+  .library-tabs button {
+    padding: 8px 10px;
+    font-size: 12px;
   }
 
   .detail-stats {
@@ -7608,6 +7860,63 @@ h2 {
   .support-guide-grid p {
     grid-column: auto;
     grid-row: auto;
+  }
+
+  .mobile-tabs {
+    bottom: 8px;
+    width: calc(100% - 12px);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    border-radius: 20px;
+    padding: 4px;
+  }
+
+  .mobile-tabs button {
+    min-width: 0;
+    padding: 7px 1px;
+    font-size: 10.5px;
+    line-height: 1.1;
+  }
+
+  .mobile-tabs button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .boot-loader {
+    padding: 18px;
+  }
+
+  .boot-loader-card {
+    width: min(320px, 100%);
+    padding: 28px 20px;
+    border-radius: 28px;
+  }
+
+  .loader-cat {
+    transform: scale(0.92);
+    transform-origin: center;
+  }
+}
+
+@media (max-width: 390px) {
+  .mobile-tabs button {
+    font-size: 9.5px;
+  }
+
+  .mobile-tabs button svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .reader-actions,
+  .wallet-hero-actions,
+  .intro-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .account-trigger b {
+    display: none;
   }
 }
 

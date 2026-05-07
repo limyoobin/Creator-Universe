@@ -2915,7 +2915,12 @@ export function App() {
                 <b className="cat-eye eye-left" />
                 <b className="cat-eye eye-right" />
                 <em className="cat-nose" />
+                <small className="cat-cheek cheek-left" />
+                <small className="cat-cheek cheek-right" />
+                <strong className="cat-whisker whisker-left" />
+                <strong className="cat-whisker whisker-right" />
               </span>
+              <span className="cat-heart" />
               <span className="cat-yarn" />
             </div>
             <strong>크리에이터 유니버스 준비 중</strong>
