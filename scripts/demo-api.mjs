@@ -293,7 +293,31 @@ function publicChatUser(user) {
   };
 }
 
+function buildMatchProposal(matchRequest) {
+  if (!matchRequest) {
+    return null;
+  }
+  const requester = users.find((user) => user.id === matchRequest.requesterId);
+  const target = users.find((user) => user.id === matchRequest.targetUserId);
+
+  return {
+    id: matchRequest.id,
+    projectTitle: matchRequest.projectTitle || project.title,
+    projectType: matchRequest.projectType || "Collaboration",
+    memberRole: matchRequest.memberRole || "PRODUCER",
+    sharePercentage: Number(matchRequest.sharePercentage || 20),
+    message: matchRequest.message || "",
+    requesterName: requester?.displayName || "",
+    targetName: target?.displayName || "",
+    status: matchRequest.status || "PENDING",
+  };
+}
+
 function formatChatMessage(viewerId, message) {
+  const matchRequest = message.matchRequestId
+    ? matchRequests.find((request) => request.id === message.matchRequestId)
+    : null;
+
   return {
     id: message.id,
     senderId: message.senderId,
@@ -301,6 +325,8 @@ function formatChatMessage(viewerId, message) {
     body: message.body,
     createdAt: message.createdAt,
     from: message.senderId === viewerId ? "me" : "creator",
+    matchRequestId: message.matchRequestId,
+    matchProposal: buildMatchProposal(matchRequest),
   };
 }
 
@@ -379,6 +405,50 @@ function calculateSettlement(grossAmount, viewerUserId) {
       amount: me?.expectedSettlement || 0,
     },
   };
+}
+
+function normalizeRole(role) {
+  return ["WRITER", "ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR", "PRODUCER", "EDITOR"].includes(role)
+    ? role
+    : "PRODUCER";
+}
+
+function rebalanceMembersForAcceptedMatch(matchRequest) {
+  const targetUser = users.find((user) => user.id === matchRequest.targetUserId);
+  if (!targetUser) {
+    return members;
+  }
+
+  const proposedShare = Math.max(5, Math.min(60, Number(matchRequest.sharePercentage || 20)));
+  const memberRole = normalizeRole(matchRequest.memberRole);
+  const others = members.filter((member) => member.userId !== targetUser.id);
+  const remainingShare = 100 - proposedShare;
+  const currentTotal = others.reduce((sum, member) => sum + Number(member.sharePercentage || 0), 0) || 100;
+
+  let allocated = 0;
+  others.forEach((member, index) => {
+    const nextShare = index === others.length - 1
+      ? Number((remainingShare - allocated).toFixed(2))
+      : Number(((Number(member.sharePercentage || 0) / currentTotal) * remainingShare).toFixed(2));
+    member.sharePercentage = nextShare;
+    allocated += nextShare;
+  });
+
+  const existing = members.find((member) => member.userId === targetUser.id);
+  if (existing) {
+    existing.memberRole = memberRole;
+    existing.sharePercentage = proposedShare;
+  } else {
+    members.push({
+      userId: targetUser.id,
+      displayName: targetUser.displayName,
+      username: targetUser.username,
+      memberRole,
+      sharePercentage: proposedShare,
+    });
+  }
+
+  return members;
 }
 
 function buildWalletDetail(user) {
@@ -872,17 +942,69 @@ app.post("/api/matching/requests", (req, res) => {
     res.status(422).json({ success: false, message: "매칭 요청 대상을 선택해 주세요." });
     return;
   }
+  const target = users.find((user) => user.id === String(req.body.targetUserId));
+  if (!target) {
+    res.status(404).json({ success: false, message: "Matching target not found." });
+    return;
+  }
+  const targetCreator = creators.find((creator) => creator.userId === target.id);
+  const sharePercentage = Math.max(5, Math.min(60, Number(req.body?.sharePercentage || 20)));
   const matchRequest = {
     id: `match-${crypto.randomUUID()}`,
     requesterId: requester.id,
-    targetUserId: String(req.body.targetUserId),
+    targetUserId: target.id,
+    projectId: String(req.body?.projectId || PROJECT_ID),
+    projectTitle: String(req.body?.projectTitle || project.title),
     projectType: String(req.body?.projectType || "협업 프로젝트"),
-    message: String(req.body?.message || "함께 프로젝트를 만들고 싶습니다."),
+    memberRole: normalizeRole(String(req.body?.memberRole || targetCreator?.primaryRole || "PRODUCER")),
+    sharePercentage,
+    message: String(req.body?.message || `I would like to invite you with a ${sharePercentage}% revenue share.`),
     status: "PENDING",
     createdAt: new Date().toISOString(),
   };
   matchRequests.push(matchRequest);
-  json(res, matchRequest, 201);
+  const chatMessage = {
+    id: `chat-${crypto.randomUUID()}`,
+    senderId: requester.id,
+    receiverUserId: target.id,
+    body: `${requester.displayName} proposed a collaboration: ${matchRequest.projectTitle} / ${sharePercentage}% revenue share.`,
+    matchRequestId: matchRequest.id,
+    createdAt: new Date().toISOString(),
+  };
+  chatMessages.push(chatMessage);
+  json(res, { ...matchRequest, chatMessage: formatChatMessage(requester.id, chatMessage) }, 201);
+});
+
+app.post("/api/matching/requests/:requestId/accept", (req, res) => {
+  const receiver = requireUser(req, res);
+  if (!receiver) {
+    return;
+  }
+  const matchRequest = matchRequests.find((request) => request.id === req.params.requestId);
+  if (!matchRequest) {
+    res.status(404).json({ success: false, message: "Matching request not found." });
+    return;
+  }
+  if (matchRequest.targetUserId !== receiver.id) {
+    res.status(403).json({ success: false, message: "Only the invited creator can accept this matching request." });
+    return;
+  }
+
+  matchRequest.status = "ACCEPTED";
+  matchRequest.acceptedAt = new Date().toISOString();
+  const nextMembers = rebalanceMembersForAcceptedMatch(matchRequest);
+  const requester = users.find((user) => user.id === matchRequest.requesterId);
+  if (requester) {
+    chatMessages.push({
+      id: `chat-${crypto.randomUUID()}`,
+      senderId: receiver.id,
+      receiverUserId: requester.id,
+      body: `${receiver.displayName} accepted the ${matchRequest.sharePercentage}% revenue share proposal and joined the team.`,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  json(res, { matchRequest, members: nextMembers });
 });
 
 app.get("/api/projects/:projectId/settlement-dashboard", (req, res) => {
