@@ -6,7 +6,7 @@
 
 - 프론트엔드: https://project-limyoobins-projects.vercel.app
 - 백엔드 상태 확인: https://creator-universe-api-7qfc.onrender.com/health
-- GitHub 저장소: https://github.com/limyoobin/project
+- GitHub 저장소: https://github.com/limyoobin/Creator-Universe
 
 Vercel은 코드가 GitHub `main` 브랜치에 올라가면 같은 프론트엔드 주소에서 자동으로 최신 버전을 다시 배포합니다. 배포 직후 1-3분 정도는 예전 화면이 보일 수 있으니 새로고침하거나 브라우저 캐시를 지워 확인하세요.
 
