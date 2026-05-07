@@ -3253,18 +3253,16 @@ export function App() {
                         <div className="aurora-orb orb-two" />
                         <div className="moon" />
                         <div className="city-lines" />
-                        <div className="studio-orbit-ring" />
-                        <div className="studio-team-card writer-card">
-                          <span>Writer</span>
-                          <strong>대본</strong>
-                        </div>
-                        <div className="studio-team-card voice-card">
-                          <span>Voice</span>
-                          <strong>녹음</strong>
-                        </div>
-                        <div className="studio-team-card illust-card">
-                          <span>Art</span>
-                          <strong>표지</strong>
+                        <div className="visual-media-panel">
+                          <div className="media-cover">
+                            <img src={index === 0 ? "/covers/dragon-archive.svg" : index === 1 ? "/covers/midnight-signal.svg" : "/covers/cafe-orbit.svg"} alt="" />
+                          </div>
+                          <div className="media-info">
+                            <span>{index === 0 ? "Team Board" : index === 1 ? "Split Ready" : "Accessible IP"}</span>
+                            <strong>{index === 0 ? "창작팀 구성 중" : index === 1 ? "정산 규칙 저장됨" : "감상 접근성 준비"}</strong>
+                            <i />
+                            <i />
+                          </div>
                         </div>
                         <div className="character-card">
                           <span>{slide.visualLabel}</span>
@@ -3325,12 +3323,12 @@ export function App() {
                 <article className="mock-card matching-mock">
                   <span>Matching</span>
                   <strong>성우 · 일러스트 · 작가 매칭</strong>
-                  <div className="matching-preview-grid">
-                    <div><b>작가</b><small>로맨스 판타지</small></div>
-                    <div><b>일러스트</b><small>키비주얼</small></div>
-                    <div><b>성우</b><small>감정 연기</small></div>
+                  <div className="avatar-row">
+                    <i><img src="/covers/starlight-contract.svg" alt="" /></i>
+                    <i><img src="/covers/dragon-archive.svg" alt="" /></i>
+                    <i><img src="/covers/midnight-signal.svg" alt="" /></i>
+                    <i><img src="/covers/neon-pulse-zero.svg" alt="" /></i>
                   </div>
-                  <div className="avatar-row"><i /><i /><i /><i /></div>
                 </article>
                 <article className="mock-card settlement-mock">
                   <span>Settlement</span>
