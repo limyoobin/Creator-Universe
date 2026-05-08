@@ -1,8 +1,8 @@
-import { MemberRole, PartnerTier, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
+import { MemberRole, PartnerTier, ProjectStatus, TransactionStatus, TransactionType, UserRole } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 
-const DEFAULT_CHARGE_PROJECT_ID = "project-midnight-signal";
+const COIN_CHARGE_PROJECT_ID = "system-coin-wallet";
 
 type CreateUserInput = {
   email: string;
@@ -211,23 +211,37 @@ export async function chargeWallet(input: ChargeWalletInput) {
   }
 
   return prisma.$transaction(async (tx) => {
-    const [user, project] = await Promise.all([
-      tx.user.findUnique({
-        where: { id: input.userId },
-        select: { id: true },
-      }),
-      tx.project.findUnique({
-        where: { id: DEFAULT_CHARGE_PROJECT_ID },
-        select: { id: true, title: true },
-      }),
-    ]);
+    const user = await tx.user.findUnique({
+      where: { id: input.userId },
+      select: { id: true },
+    });
 
     if (!user) {
       throw new AppError("User not found.", 404);
     }
 
+    let project = await tx.project.findUnique({
+      where: { id: COIN_CHARGE_PROJECT_ID },
+      select: { id: true, title: true },
+    });
+
     if (!project) {
-      throw new AppError("Default coin charge project not found.", 404);
+      project = await tx.project.create({
+        data: {
+          id: COIN_CHARGE_PROJECT_ID,
+          ownerId: user.id,
+          title: "Creator Universe Coin Wallet",
+          slug: "system-coin-wallet",
+          description: "System project used only for coin wallet top-up ledger entries.",
+          status: ProjectStatus.PUBLISHED,
+          isOfficialPartner: true,
+          priceCoins: 0,
+          platformFeeRate: 0,
+          partnerFeeRate: 0,
+          settlementCurrency: "COIN",
+        },
+        select: { id: true, title: true },
+      });
     }
 
     const transaction = await tx.transaction.create({
