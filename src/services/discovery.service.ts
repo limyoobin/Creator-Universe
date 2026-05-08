@@ -137,3 +137,13 @@ export async function upsertCreatorProfile(input: UpsertCreatorProfileInput) {
     };
   });
 }
+
+export async function deleteCreatorProfile(userId: string) {
+  const result = await prisma.creatorProfile.deleteMany({
+    where: { userId },
+  });
+
+  return {
+    deleted: result.count > 0,
+  };
+}

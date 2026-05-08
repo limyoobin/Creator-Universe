@@ -4034,6 +4034,22 @@ h2 {
   min-height: 48px;
 }
 
+.creator-profile-form-actions {
+  display: grid;
+  align-self: end;
+  gap: 9px;
+}
+
+.creator-profile-form-actions button {
+  min-height: 48px;
+}
+
+.creator-profile-delete-button {
+  border-color: color-mix(in srgb, var(--brand) 24%, var(--line));
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 7%, var(--surface));
+}
+
 .matching-search {
   display: flex;
   align-items: center;
@@ -4665,6 +4681,22 @@ h2 {
   font-weight: 900;
   cursor: pointer;
   box-shadow: 0 14px 28px color-mix(in srgb, var(--cyan) 24%, transparent);
+}
+
+.inline-match-accept-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: 8px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 28%, var(--line));
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 8%, var(--surface));
+  font-size: 0.78rem;
+  font-weight: 900;
 }
 
 .match-proposal-bubble.accepted {

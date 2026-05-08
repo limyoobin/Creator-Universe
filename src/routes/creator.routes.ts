@@ -1,7 +1,7 @@
 import { MemberRole } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
-import { listCreatorProfiles, upsertCreatorProfile } from "../services/discovery.service.js";
+import { deleteCreatorProfile, listCreatorProfiles, upsertCreatorProfile } from "../services/discovery.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 
@@ -51,6 +51,19 @@ creatorRouter.post(
     res.status(201).json({
       success: true,
       data: profile,
+    });
+  }),
+);
+
+creatorRouter.delete(
+  "/me",
+  asyncHandler(async (req, res) => {
+    const userId = await getCurrentUserId(req);
+    const result = await deleteCreatorProfile(userId);
+
+    res.json({
+      success: true,
+      data: result,
     });
   }),
 );

@@ -698,6 +698,22 @@ app.post("/api/creators/me", (req, res) => {
   json(res, profile, 201);
 });
 
+app.delete("/api/creators/me", (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) {
+    return;
+  }
+
+  const before = creators.length;
+  for (let index = creators.length - 1; index >= 0; index -= 1) {
+    if (creators[index].userId === user.id) {
+      creators.splice(index, 1);
+    }
+  }
+
+  json(res, { deleted: creators.length !== before });
+});
+
 app.get("/api/projects/:projectId", (req, res) => {
   if (req.params.projectId !== PROJECT_ID) {
     res.status(404).json({ success: false, message: "프로젝트를 찾을 수 없습니다." });

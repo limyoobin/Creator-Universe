@@ -2299,6 +2299,7 @@ export function App() {
   const [matchingActionMessage, setMatchingActionMessage] = useState("");
   const [isCreatorProfileFormOpen, setIsCreatorProfileFormOpen] = useState(false);
   const [isPublishingCreatorProfile, setIsPublishingCreatorProfile] = useState(false);
+  const [isDeletingCreatorProfile, setIsDeletingCreatorProfile] = useState(false);
   const [matchProposalCreator, setMatchProposalCreator] = useState<Creator | null>(null);
   const [matchProposalShare, setMatchProposalShare] = useState(20);
   const [matchProposalMessage, setMatchProposalMessage] = useState("");
@@ -2476,6 +2477,11 @@ export function App() {
       return matchesRole && matchesSearch;
     });
   }, [creators, discoverCreatorRole, discoverCreatorSearch]);
+
+  const myCreatorProfile = useMemo(
+    () => creators.find((creator) => creator.userId === user?.id) ?? null,
+    [creators, user?.id],
+  );
 
   const currentWalletDetail = useMemo<WalletDetail>(() => {
     const source = walletDetail ?? walletFallback;
@@ -2943,6 +2949,31 @@ export function App() {
       setMatchingActionMessage(`매칭 프로필 등록 실패: ${getFriendlyError(error)}`);
     } finally {
       setIsPublishingCreatorProfile(false);
+    }
+  }
+
+  async function deleteMyCreatorProfile() {
+    const authToken = getActiveAuthToken(token);
+    if (!authToken) {
+      setAuthMode("login");
+      return;
+    }
+
+    const confirmed = window.confirm("내 매칭 프로필을 보드에서 내릴까요? 나중에 다시 등록할 수 있습니다.");
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingCreatorProfile(true);
+    try {
+      await request<{ deleted: boolean }>("/api/creators/me", authToken, { method: "DELETE" });
+      await loadData(authToken);
+      setIsCreatorProfileFormOpen(false);
+      setMatchingActionMessage("내 매칭 프로필을 보드에서 내렸습니다. 다시 올리고 싶으면 언제든 재등록할 수 있어요.");
+    } catch (error) {
+      setMatchingActionMessage(`매칭 프로필 삭제 실패: ${getFriendlyError(error)}`);
+    } finally {
+      setIsDeletingCreatorProfile(false);
     }
   }
 
@@ -3898,7 +3929,11 @@ export function App() {
               <div>
                 <p className="kicker">Publish Portfolio</p>
                 <h3>팀원 찾기에 내 프로필 등록</h3>
-                <p>직군과 장르 태그를 올리면 매칭 카드에 바로 노출됩니다. 나중에 다시 등록하면 내용이 수정돼요.</p>
+                <p>
+                  {myCreatorProfile
+                    ? "현재 매칭 보드에 올라간 내 프로필을 수정하거나, 잠시 보드에서 내릴 수 있어요."
+                    : "직군과 장르 태그를 올리면 매칭 카드에 바로 노출됩니다. 나중에 다시 등록하면 내용이 수정돼요."}
+                </p>
               </div>
               <fieldset className="profile-role-picker">
                 <legend>직군 선택</legend>
@@ -3933,9 +3968,21 @@ export function App() {
                 포트폴리오 설명
                 <textarea name="bio" required minLength={5} maxLength={500} placeholder="어떤 장르를 만들 수 있고, 어떤 팀원을 찾는지 적어주세요." />
               </label>
-              <button className="primary-button" type="submit" disabled={isPublishingCreatorProfile}>
-                <Sparkles size={17} /> {isPublishingCreatorProfile ? "등록 중" : "매칭 보드에 등록"}
-              </button>
+              <div className="creator-profile-form-actions">
+                <button className="primary-button" type="submit" disabled={isPublishingCreatorProfile || isDeletingCreatorProfile}>
+                  <Sparkles size={17} /> {isPublishingCreatorProfile ? "등록 중" : myCreatorProfile ? "매칭 프로필 수정" : "매칭 보드에 등록"}
+                </button>
+                {myCreatorProfile && (
+                  <button
+                    className="ghost-button creator-profile-delete-button"
+                    type="button"
+                    onClick={() => void deleteMyCreatorProfile()}
+                    disabled={isPublishingCreatorProfile || isDeletingCreatorProfile}
+                  >
+                    <X size={17} /> {isDeletingCreatorProfile ? "내리는 중" : "내 매칭 내리기"}
+                  </button>
+                )}
+              </div>
             </form>
           )}
 
@@ -4493,14 +4540,15 @@ export function App() {
                       {activeChatMessages.map((message, index) => (
                         <div className={message.from === "me" ? "me" : "creator"} key={`${activeChatCreator.userId}-${index}`}>
                           {message.from === "creator" && <span>{activeChatCreator.displayName.slice(0, 1)}</span>}
-                          {message.matchProposal ? (
-                            <MatchProposalBubble
-                              proposal={message.matchProposal}
-                              canAccept={message.from === "creator" && message.matchProposal.status === "PENDING"}
-                              onAccept={() => void acceptMatchProposal(message.matchProposal!.id)}
-                            />
-                          ) : (
-                            <p>{message.text}</p>
+                          <p>{message.text}</p>
+                          {message.matchProposal && message.from === "creator" && message.matchProposal.status === "PENDING" && (
+                            <button
+                              className="inline-match-accept-button"
+                              type="button"
+                              onClick={() => void acceptMatchProposal(message.matchProposal!.id)}
+                            >
+                              <CheckCircle2 size={15} /> 조건 보고 수락하기
+                            </button>
                           )}
                           <small>{message.time}</small>
                         </div>
