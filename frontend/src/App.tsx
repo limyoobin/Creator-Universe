@@ -2288,6 +2288,8 @@ export function App() {
     { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
   ]);
   const [matchingActionMessage, setMatchingActionMessage] = useState("");
+  const [isCreatorProfileFormOpen, setIsCreatorProfileFormOpen] = useState(false);
+  const [isPublishingCreatorProfile, setIsPublishingCreatorProfile] = useState(false);
   const [matchProposalCreator, setMatchProposalCreator] = useState<Creator | null>(null);
   const [matchProposalShare, setMatchProposalShare] = useState(20);
   const [matchProposalMessage, setMatchProposalMessage] = useState("");
@@ -2885,6 +2887,46 @@ export function App() {
     }
     setIsMessengerOpen(true);
     setIsSupportBotOpen(false);
+  }
+
+  async function submitCreatorProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const data = new FormData(event.currentTarget);
+    const skills = String(data.get("skills") || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (skills.length === 0) {
+      setMatchingActionMessage("태그를 1개 이상 입력해 주세요. 예: 로맨스, 웹툰, 감정연기");
+      return;
+    }
+
+    setIsPublishingCreatorProfile(true);
+    try {
+      await request<Creator>("/api/creators/me", token, {
+        method: "POST",
+        body: JSON.stringify({
+          primaryRole: data.get("primaryRole"),
+          headline: data.get("headline"),
+          bio: data.get("bio"),
+          skills,
+          availabilityNote: data.get("availabilityNote"),
+        }),
+      });
+      await loadData(token);
+      setIsCreatorProfileFormOpen(false);
+      setMatchingActionMessage("내 매칭 프로필이 등록되었습니다. 이제 다른 사용자가 팀원 찾기에서 나를 발견할 수 있어요.");
+    } catch (error) {
+      setMatchingActionMessage(`매칭 프로필 등록 실패: ${getFriendlyError(error)}`);
+    } finally {
+      setIsPublishingCreatorProfile(false);
+    }
   }
 
   async function sendCreatorChat(creator: Creator) {
@@ -3809,6 +3851,23 @@ export function App() {
               <p className="kicker">Creator Match Board</p>
               <h2>같은 세계관을 만들 팀원을 발견하세요</h2>
               <p>글, 그림, 목소리, BGM 창작자의 대표 작업과 협업 가능 상태를 한눈에 보고 포트폴리오까지 확인할 수 있습니다.</p>
+              <div className="matching-hero-actions">
+                <button
+                  className="primary-button compact"
+                  onClick={() => {
+                    if (!token) {
+                      setAuthMode("login");
+                      return;
+                    }
+                    setIsCreatorProfileFormOpen((value) => !value);
+                  }}
+                >
+                  <UserPlus size={16} /> 내 매칭 프로필 올리기
+                </button>
+                <button className="ghost-button compact" onClick={() => openCreatorMessenger()}>
+                  <MessageCircle size={16} /> 내 채팅방 보기
+                </button>
+              </div>
             </div>
             <div className="matching-stats">
               <div><strong>{creators.length}</strong><span>활동 크리에이터</span></div>
@@ -3816,6 +3875,44 @@ export function App() {
               <div><strong>1/N</strong><span>정산 자동화</span></div>
             </div>
           </div>
+
+          {isCreatorProfileFormOpen && (
+            <form className="creator-profile-publisher" onSubmit={(event) => void submitCreatorProfile(event)}>
+              <div>
+                <p className="kicker">Publish Portfolio</p>
+                <h3>팀원 찾기에 내 프로필 등록</h3>
+                <p>직군과 장르 태그를 올리면 매칭 카드에 바로 노출됩니다. 나중에 다시 등록하면 내용이 수정돼요.</p>
+              </div>
+              <label>
+                직군
+                <select name="primaryRole" defaultValue="WRITER">
+                  <option value="WRITER">글 · 작가</option>
+                  <option value="ILLUSTRATOR">그림 · 일러스트</option>
+                  <option value="VOICE_ACTOR">목소리 · 성우</option>
+                  <option value="SOUND_DIRECTOR">BGM · 사운드</option>
+                </select>
+              </label>
+              <label>
+                한 줄 소개
+                <input name="headline" required minLength={2} maxLength={80} placeholder="예: 로맨스 판타지 웹툰 콘티와 대사 작업 가능" />
+              </label>
+              <label>
+                장르/스킬 태그
+                <input name="skills" required placeholder="예: 로맨스, 웹툰, 판타지, 콘티" />
+              </label>
+              <label>
+                협업 가능 상태
+                <input name="availabilityNote" placeholder="예: 주 1회 회의 가능, 단기 프로젝트 가능" />
+              </label>
+              <label className="wide">
+                포트폴리오 설명
+                <textarea name="bio" required minLength={5} maxLength={500} placeholder="어떤 장르를 만들 수 있고, 어떤 팀원을 찾는지 적어주세요." />
+              </label>
+              <button className="primary-button" type="submit" disabled={isPublishingCreatorProfile}>
+                <Sparkles size={17} /> {isPublishingCreatorProfile ? "등록 중" : "매칭 보드에 등록"}
+              </button>
+            </form>
+          )}
 
           <div className="matching-toolbar">
             <div>

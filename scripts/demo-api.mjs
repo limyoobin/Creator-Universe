@@ -643,6 +643,61 @@ app.get("/api/creators", (req, res) => {
   json(res, role === "ALL" ? creators : creators.filter((creator) => creator.primaryRole === role));
 });
 
+app.post("/api/creators/me", (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) {
+    return;
+  }
+
+  const primaryRole = String(req.body?.primaryRole || "");
+  const headline = String(req.body?.headline || "").trim();
+  const bio = String(req.body?.bio || "").trim();
+  const skills = Array.isArray(req.body?.skills)
+    ? req.body.skills.map((item) => String(item).trim()).filter(Boolean).slice(0, 8)
+    : [];
+  const availabilityNote = String(req.body?.availabilityNote || "").trim();
+
+  if (!["WRITER", "ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"].includes(primaryRole) || headline.length < 2 || bio.length < 5 || skills.length === 0) {
+    res.status(422).json({ success: false, message: "직군, 소개, 자기소개, 태그를 확인해 주세요." });
+    return;
+  }
+
+  user.userType = "CREATOR";
+  const existingIndex = creators.findIndex((creator) => creator.userId === user.id);
+  const profile = {
+    id: existingIndex >= 0 ? creators[existingIndex].id : `profile-${user.id}`,
+    userId: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    primaryRole,
+    headline,
+    bio,
+    skills,
+    availabilityNote: availabilityNote || "협업 제안을 기다리는 중",
+    responseRate: 100,
+    followerCount: existingIndex >= 0 ? creators[existingIndex].followerCount : 0,
+    completedProjects: existingIndex >= 0 ? creators[existingIndex].completedProjects : 0,
+    portfolioSummary: bio,
+    portfolioItems: [
+      {
+        title: `${user.displayName} 대표 포트폴리오`,
+        category: `${primaryRole} · ${skills.slice(0, 2).join(" · ")}`,
+        description: headline,
+        tags: skills,
+      },
+    ],
+    voiceDemo: null,
+  };
+
+  if (existingIndex >= 0) {
+    creators[existingIndex] = profile;
+  } else {
+    creators.unshift(profile);
+  }
+
+  json(res, profile, 201);
+});
+
 app.get("/api/projects/:projectId", (req, res) => {
   if (req.params.projectId !== PROJECT_ID) {
     res.status(404).json({ success: false, message: "프로젝트를 찾을 수 없습니다." });

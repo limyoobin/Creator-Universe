@@ -3841,6 +3841,13 @@ h2 {
   line-height: 1.8;
 }
 
+.matching-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
 .matching-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3890,6 +3897,69 @@ h2 {
 
 .matching-toolbar strong {
   font-size: 20px;
+}
+
+.creator-profile-publisher {
+  display: grid;
+  grid-template-columns: 1.1fr repeat(2, minmax(180px, 1fr));
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 28px;
+  padding: clamp(18px, 3vw, 28px);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--brand) 14%, transparent), transparent 20rem),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.creator-profile-publisher > div:first-child {
+  align-self: center;
+}
+
+.creator-profile-publisher h3 {
+  margin: 0 0 8px;
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -0.05em;
+}
+
+.creator-profile-publisher p:not(.kicker) {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.creator-profile-publisher label {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.creator-profile-publisher label.wide {
+  grid-column: span 2;
+}
+
+.creator-profile-publisher input,
+.creator-profile-publisher select,
+.creator-profile-publisher textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 13px 14px;
+  background: var(--soft);
+  color: var(--text);
+  outline: none;
+}
+
+.creator-profile-publisher textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.creator-profile-publisher button[type="submit"] {
+  align-self: end;
+  min-height: 48px;
 }
 
 .matching-search {
@@ -7591,6 +7661,14 @@ h2 {
   .matching-toolbar {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .creator-profile-publisher {
+    grid-template-columns: 1fr;
+  }
+
+  .creator-profile-publisher label.wide {
+    grid-column: auto;
   }
 
   .floating-messenger-panel {
