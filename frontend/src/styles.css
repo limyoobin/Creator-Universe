@@ -3903,6 +3903,7 @@ h2 {
   display: grid;
   grid-template-columns: 1.1fr repeat(2, minmax(180px, 1fr));
   gap: 14px;
+  font-family: "Gowun Dodum", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
   border-radius: 28px;
   padding: clamp(18px, 3vw, 28px);
@@ -3940,8 +3941,76 @@ h2 {
   grid-column: span 2;
 }
 
-.creator-profile-publisher input,
-.creator-profile-publisher select,
+.profile-role-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.profile-role-picker legend {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.profile-role-picker label {
+  position: relative;
+  display: block;
+  min-height: 74px;
+  cursor: pointer;
+}
+
+.profile-role-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.profile-role-picker span {
+  display: grid;
+  height: 100%;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
+  border-radius: 18px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 5rem),
+    var(--surface-2);
+  color: var(--text);
+  transition: 180ms ease;
+}
+
+.profile-role-picker b {
+  font-size: 18px;
+  letter-spacing: -0.05em;
+}
+
+.profile-role-picker small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.profile-role-picker input:checked + span {
+  border-color: color-mix(in srgb, var(--brand) 64%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, var(--surface)), color-mix(in srgb, var(--cyan) 10%, var(--surface))),
+    var(--surface);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand) 14%, transparent);
+  transform: translateY(-1px);
+}
+
+.creator-profile-publisher input:not([type="radio"]),
 .creator-profile-publisher textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -3949,6 +4018,8 @@ h2 {
   padding: 13px 14px;
   background: var(--soft);
   color: var(--text);
+  font-family: "Gowun Dodum", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-size: 15px;
   outline: none;
 }
 
@@ -7501,6 +7572,18 @@ h2 {
 .payment-summary .total b {
   color: var(--brand);
   font-size: 24px;
+}
+
+.payment-error-message {
+  border: 1px solid color-mix(in srgb, #ef4444 30%, var(--line));
+  border-radius: 16px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  color: color-mix(in srgb, #ef4444 78%, var(--text));
+  background: color-mix(in srgb, #ef4444 8%, var(--surface));
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
 }
 
 .payment-balance-preview {

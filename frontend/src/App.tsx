@@ -963,6 +963,10 @@ function isValidEmailAddress(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function getActiveAuthToken(currentToken: string | null) {
+  return currentToken || localStorage.getItem("creator-universe-token");
+}
+
 function AuthModal({
   mode,
   onClose,
@@ -1274,6 +1278,7 @@ function PaymentModal({
 }) {
   const [selectedProductId, setSelectedProductId] = useState("coin-1000");
   const [isPaying, setIsPaying] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState("");
   const selectedProduct = coinProducts.find((item) => item.id === selectedProductId) || coinProducts[0];
   const isChargeMode = mode === "charge";
   const contentPrice = work?.priceCoins || project?.priceCoins || 1000;
@@ -1287,6 +1292,7 @@ function PaymentModal({
     : Math.max(0, currentWallet - contentPrice);
 
   async function submitPayment() {
+    setPaymentMessage("");
     if (!isLoggedIn) {
       onLogin();
       return;
@@ -1305,6 +1311,8 @@ function PaymentModal({
         paymentAmountKrw: isChargeMode ? selectedProduct.priceKrw : undefined,
       });
       onClose();
+    } catch (error) {
+      setPaymentMessage(getFriendlyError(error));
     } finally {
       setIsPaying(false);
     }
@@ -1379,11 +1387,13 @@ function PaymentModal({
 
         <div className="payment-summary">
           <div><span>선택 상품</span><b>{isChargeMode ? selectedProduct.title : work?.title || project?.title}</b></div>
-          <div><span>내 지갑</span><b>{wallet === null ? "로그인 필요" : formatCoins(wallet)}</b></div>
+          <div><span>내 지갑</span><b>{isLoggedIn ? formatCoins(currentWallet) : "로그인 필요"}</b></div>
           <div><span>{isChargeMode ? "충전 코인" : "사용 코인"}</span><b>{isChargeMode ? formatCoins(selectedProduct.coins) : formatCoins(contentPrice)}</b></div>
           <div><span>결제 금액</span><b>{isChargeMode ? formatWon(selectedProduct.priceKrw) : formatCoins(contentPrice)}</b></div>
           <div className="total"><span>최종 결제</span><b>{finalPaymentLabel}</b></div>
         </div>
+
+        {paymentMessage && <p className="payment-error-message">{paymentMessage}</p>}
 
         {isLoggedIn && (
           <div className="payment-balance-preview">
@@ -2712,8 +2722,14 @@ export function App() {
   }
 
   async function handlePaymentConfirm(payload: { mode: "charge" | "content"; coinAmount: number; paymentAmountKrw?: number }) {
+    const authToken = getActiveAuthToken(token);
+    if (!authToken) {
+      setAuthMode("login");
+      throw new Error("로그인이 필요합니다. 다시 로그인한 뒤 결제를 진행해 주세요.");
+    }
+
     if (payload.mode === "charge") {
-      await request("/api/users/me/wallet/charge", token, {
+      const chargeResult = await request<{ walletBalance: string | number }>("/api/users/me/wallet/charge", authToken, {
         method: "POST",
         body: JSON.stringify({
           coinAmount: payload.coinAmount,
@@ -2721,8 +2737,9 @@ export function App() {
           externalPaymentId: `charge_${Date.now()}`,
         }),
       });
+      setWallet(Number(chargeResult.walletBalance));
     } else {
-      await request("/api/settlements/content-purchase", token, {
+      await request("/api/settlements/content-purchase", authToken, {
         method: "POST",
         body: JSON.stringify({
           projectId: PROJECT_ID,
@@ -2736,7 +2753,7 @@ export function App() {
       );
       setActivePage("discover");
     }
-    await loadData(token);
+    await loadData(authToken);
   }
 
   function toggleScrap(workId: string) {
@@ -2891,7 +2908,8 @@ export function App() {
 
   async function submitCreatorProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!token) {
+    const authToken = getActiveAuthToken(token);
+    if (!authToken) {
       setAuthMode("login");
       return;
     }
@@ -2909,7 +2927,7 @@ export function App() {
 
     setIsPublishingCreatorProfile(true);
     try {
-      await request<Creator>("/api/creators/me", token, {
+      await request<Creator>("/api/creators/me", authToken, {
         method: "POST",
         body: JSON.stringify({
           primaryRole: data.get("primaryRole"),
@@ -2919,7 +2937,7 @@ export function App() {
           availabilityNote: data.get("availabilityNote"),
         }),
       });
-      await loadData(token);
+      await loadData(authToken);
       setIsCreatorProfileFormOpen(false);
       setMatchingActionMessage("내 매칭 프로필이 등록되었습니다. 이제 다른 사용자가 팀원 찾기에서 나를 발견할 수 있어요.");
     } catch (error) {
@@ -3883,15 +3901,23 @@ export function App() {
                 <h3>팀원 찾기에 내 프로필 등록</h3>
                 <p>직군과 장르 태그를 올리면 매칭 카드에 바로 노출됩니다. 나중에 다시 등록하면 내용이 수정돼요.</p>
               </div>
-              <label>
-                직군
-                <select name="primaryRole" defaultValue="WRITER">
-                  <option value="WRITER">글 · 작가</option>
-                  <option value="ILLUSTRATOR">그림 · 일러스트</option>
-                  <option value="VOICE_ACTOR">목소리 · 성우</option>
-                  <option value="SOUND_DIRECTOR">BGM · 사운드</option>
-                </select>
-              </label>
+              <fieldset className="profile-role-picker">
+                <legend>직군 선택</legend>
+                {[
+                  { value: "WRITER", title: "글", text: "작가 · 대본" },
+                  { value: "ILLUSTRATOR", title: "그림", text: "일러스트" },
+                  { value: "VOICE_ACTOR", title: "목소리", text: "성우" },
+                  { value: "SOUND_DIRECTOR", title: "BGM", text: "사운드" },
+                ].map((item) => (
+                  <label key={item.value}>
+                    <input name="primaryRole" type="radio" value={item.value} defaultChecked={item.value === "WRITER"} />
+                    <span>
+                      <b>{item.title}</b>
+                      <small>{item.text}</small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
               <label>
                 한 줄 소개
                 <input name="headline" required minLength={2} maxLength={80} placeholder="예: 로맨스 판타지 웹툰 콘티와 대사 작업 가능" />
@@ -4658,7 +4684,7 @@ export function App() {
           project={project}
           work={paymentMode === "content" ? pendingPurchaseWork : null}
           wallet={wallet}
-          isLoggedIn={Boolean(token)}
+          isLoggedIn={Boolean(token || user)}
           onClose={() => setIsPaymentOpen(false)}
           onConfirm={handlePaymentConfirm}
           onSwitchToCharge={() => setPaymentMode("charge")}
