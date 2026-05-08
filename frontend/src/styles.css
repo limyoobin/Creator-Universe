@@ -1,3 +1,4 @@
+@import url("https://cdn.jsdelivr.net/gh/sunn-us/SUIT/fonts/static/woff2/SUIT.css");
 @import url("https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700;900&family=Song+Myung&display=swap");
 
 :root {
@@ -3903,7 +3904,7 @@ h2 {
   display: grid;
   grid-template-columns: 1.1fr repeat(2, minmax(180px, 1fr));
   gap: 14px;
-  font-family: "Gowun Dodum", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-family: "SUIT", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
   border-radius: 28px;
   padding: clamp(18px, 3vw, 28px);
@@ -4018,7 +4019,7 @@ h2 {
   padding: 13px 14px;
   background: var(--soft);
   color: var(--text);
-  font-family: "Gowun Dodum", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+  font-family: "SUIT", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   font-size: 15px;
   outline: none;
 }
