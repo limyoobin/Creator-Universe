@@ -153,3 +153,4 @@ haruka_voice / demo1234
 | **이승아** | 기획 & QA | 상세 요구사항 정의, 사용자 테스트 및 버그 리포팅 |
 
 | **임예원** | Front-end | React Native 기반 UI/UX 구현, 메인 화면 뷰 개발 | 
+123
