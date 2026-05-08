@@ -1,4 +1,4 @@
-import { AccessGrantType, MemberRole, Prisma, TransactionStatus, TransactionType } from "@prisma/client";
+import { AccessGrantType, MemberRole, Prisma, ProjectStatus, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 import { ONE_HUNDRED, decimalToNumber, roundToTwo, toDecimal } from "../utils/decimal.js";
@@ -16,6 +16,8 @@ type MemberSettlement = {
   sharePercentage: Prisma.Decimal;
   settledAmount: Prisma.Decimal;
 };
+
+const DEFAULT_PROJECT_ID = "project-midnight-signal";
 
 function ensureValidCoinAmount(coinAmount: number) {
   if (!Number.isInteger(coinAmount) || coinAmount <= 0) {
@@ -62,7 +64,39 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
       throw new AppError("Buyer not found.", 404);
     }
 
-    const project = await tx.project.findUnique({
+    if (input.projectId === DEFAULT_PROJECT_ID) {
+      const existingProject = await tx.project.findUnique({
+        where: { id: input.projectId },
+        select: { id: true },
+      });
+
+      if (!existingProject) {
+        await tx.project.create({
+          data: {
+            id: DEFAULT_PROJECT_ID,
+            ownerId: buyer.id,
+            title: "너의 이름을 부르는 목소리",
+            slug: "midnight-signal",
+            description: "크리에이터 유니버스 데모 콘텐츠",
+            synopsis: "작가, 일러스트레이터, 성우가 함께 만든 협업형 콘텐츠입니다.",
+            status: ProjectStatus.PUBLISHED,
+            priceCoins: input.coinAmount,
+            platformFeeRate: toDecimal(0.15),
+            partnerFeeRate: toDecimal(0.08),
+            settlementCurrency: "COIN",
+            members: {
+              create: {
+                userId: buyer.id,
+                memberRole: MemberRole.WRITER,
+                sharePercentage: toDecimal(100),
+              },
+            },
+          },
+        });
+      }
+    }
+
+    let project = await tx.project.findUnique({
       where: { id: input.projectId },
       include: {
         members: {
@@ -77,7 +111,39 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
     }
 
     if (project.members.length === 0) {
-      throw new AppError("No active project members found for settlement.", 409);
+      if (input.projectId !== DEFAULT_PROJECT_ID) {
+        throw new AppError("No active project members found for settlement.", 409);
+      }
+
+      await tx.projectMember.upsert({
+        where: {
+          projectId_userId_memberRole: {
+            projectId: project.id,
+            userId: buyer.id,
+            memberRole: MemberRole.WRITER,
+          },
+        },
+        create: {
+          projectId: project.id,
+          userId: buyer.id,
+          memberRole: MemberRole.WRITER,
+          sharePercentage: toDecimal(100),
+        },
+        update: {
+          isActive: true,
+          sharePercentage: toDecimal(100),
+        },
+      });
+
+      project = await tx.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        include: {
+          members: {
+            where: { isActive: true },
+            orderBy: [{ sharePercentage: "asc" }, { joinedAt: "asc" }],
+          },
+        },
+      });
     }
 
     const existingAccess = await tx.contentAccess.findUnique({

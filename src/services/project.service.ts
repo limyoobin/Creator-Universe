@@ -1,7 +1,9 @@
-import { MemberRole, Prisma, TransactionStatus } from "@prisma/client";
+import { MemberRole, Prisma, ProjectStatus, TransactionStatus, UserRole } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 import { ONE_HUNDRED, decimalToNumber, roundToTwo, toDecimal } from "../utils/decimal.js";
+
+const DEFAULT_PROJECT_ID = "project-midnight-signal";
 
 type ProjectMemberInput = {
   userId: string;
@@ -65,6 +67,88 @@ function getMonthRange(baseDate?: string) {
   return { start, end };
 }
 
+async function ensureDefaultProject(ownerId?: string) {
+  if (ownerId) {
+    const owner = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { id: true },
+    });
+
+    if (owner) {
+      return createDefaultProjectIfNeeded(owner.id);
+    }
+  }
+
+  const fallbackOwner =
+    (await prisma.user.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    })) ??
+    (await prisma.user.create({
+      data: {
+        id: "system-demo-owner",
+        email: "system@creator-universe.local",
+        username: "creator_universe_system",
+        displayName: "Creator Universe",
+        role: UserRole.CREATOR,
+        isPartner: true,
+      },
+      select: { id: true },
+    }));
+
+  return createDefaultProjectIfNeeded(fallbackOwner.id);
+}
+
+async function createDefaultProjectIfNeeded(ownerId: string) {
+  const project = await prisma.project.upsert({
+    where: { id: DEFAULT_PROJECT_ID },
+    create: {
+      id: DEFAULT_PROJECT_ID,
+      ownerId,
+      title: "너의 이름을 부르는 목소리",
+      slug: "midnight-signal",
+      description: "크리에이터 유니버스 데모 콘텐츠",
+      synopsis: "작가, 일러스트레이터, 성우가 함께 만든 협업형 콘텐츠입니다.",
+      status: ProjectStatus.PUBLISHED,
+      isOfficialPartner: false,
+      priceCoins: 1000,
+      platformFeeRate: toDecimal(0.15),
+      partnerFeeRate: toDecimal(0.08),
+      settlementCurrency: "COIN",
+    },
+    update: {},
+    select: { id: true },
+  });
+
+  const activeMemberCount = await prisma.projectMember.count({
+    where: { projectId: project.id, isActive: true },
+  });
+
+  if (activeMemberCount === 0) {
+    await prisma.projectMember.upsert({
+      where: {
+        projectId_userId_memberRole: {
+          projectId: project.id,
+          userId: ownerId,
+          memberRole: MemberRole.WRITER,
+        },
+      },
+      create: {
+        projectId: project.id,
+        userId: ownerId,
+        memberRole: MemberRole.WRITER,
+        sharePercentage: toDecimal(100),
+      },
+      update: {
+        isActive: true,
+        sharePercentage: toDecimal(100),
+      },
+    });
+  }
+
+  return project;
+}
+
 export async function createProjectWithMembers(ownerId: string, input: CreateProjectInput) {
   validateMemberShares(input.members, ownerId);
 
@@ -123,6 +207,10 @@ export async function createProjectWithMembers(ownerId: string, input: CreatePro
 }
 
 export async function getProjectDetail(projectId: string, currentUserId?: string) {
+  if (projectId === DEFAULT_PROJECT_ID) {
+    await ensureDefaultProject(currentUserId);
+  }
+
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
@@ -188,6 +276,10 @@ export async function getProjectDetail(projectId: string, currentUserId?: string
 }
 
 export async function getProjectSettlementDashboard(projectId: string, currentUserId: string, baseDate?: string) {
+  if (projectId === DEFAULT_PROJECT_ID) {
+    await ensureDefaultProject(currentUserId);
+  }
+
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
