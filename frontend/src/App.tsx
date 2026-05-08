@@ -1535,7 +1535,6 @@ function MatchProposalBubble({
 
   return (
     <div className={`match-proposal-bubble ${proposal.status.toLowerCase()}`}>
-      <span>수익 지분 제안서</span>
       <strong>{proposal.projectTitle}</strong>
       <p>{proposal.message}</p>
       <div>

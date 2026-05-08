@@ -146,19 +146,6 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
       });
     }
 
-    const existingAccess = await tx.contentAccess.findUnique({
-      where: {
-        userId_projectId: {
-          userId: input.buyerId,
-          projectId: input.projectId,
-        },
-      },
-    });
-
-    if (existingAccess) {
-      throw new AppError("This user already owns access to the project.", 409);
-    }
-
     const shareTotal = project.members.reduce((sum, member) => sum.plus(member.sharePercentage), new Prisma.Decimal(0));
     if (!shareTotal.equals(ONE_HUNDRED)) {
       throw new AppError("Project member share percentages must add up to 100.", 409);
@@ -233,12 +220,23 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
       })),
     });
 
-    await tx.contentAccess.create({
-      data: {
+    await tx.contentAccess.upsert({
+      where: {
+        userId_projectId: {
+          userId: input.buyerId,
+          projectId: input.projectId,
+        },
+      },
+      create: {
         userId: input.buyerId,
         projectId: input.projectId,
         transactionId: transaction.id,
         grantType: AccessGrantType.PURCHASE,
+      },
+      update: {
+        transactionId: transaction.id,
+        grantType: AccessGrantType.PURCHASE,
+        grantedAt: new Date(),
       },
     });
 
