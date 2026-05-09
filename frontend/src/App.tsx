@@ -2136,8 +2136,10 @@ function AccountModal({
               <span>보유 코인</span>
               <b>{wallet === null ? "로그인 필요" : formatCoins(wallet)}</b>
             </div>
-            <button onClick={() => { onClose(); onNavigate("wallet"); }}>지갑 내역 보기</button>
-            <button onClick={() => { onClose(); onNavigate("settlement"); }}>창작팀 정산 보기</button>
+            <div className="account-quick-actions">
+              <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
+              <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
+            </div>
           </section>
 
           <section className="account-panel premium-account-panel">
@@ -2156,6 +2158,11 @@ function AccountModal({
               <span>{premiumSubscription.isActive ? "다음 재결제일" : "구독 시작 시"}</span>
               <strong>{premiumSubscription.isActive ? formatDateOnly(premiumSubscription.nextBillingDate) : "즉시 활성화"}</strong>
               <small>{premiumSubscription.isActive ? "재결제 전 언제든 해지할 수 있어요." : "광고 제거와 보너스 코인이 계정에 적용됩니다."}</small>
+            </div>
+            <div className="premium-benefit-strip" aria-label="프리미엄 핵심 혜택">
+              <span><Coins size={14} /> 매월 1,000 보너스</span>
+              <span><Bell size={14} /> 신작 우선 알림</span>
+              <span><ShieldCheck size={14} /> 광고 없는 감상</span>
             </div>
             {universePremiumBenefits.slice(0, 3).map((benefit) => (
               <p key={benefit}><CheckCircle2 size={15} /> {benefit}</p>

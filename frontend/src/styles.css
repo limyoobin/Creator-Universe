@@ -5188,6 +5188,34 @@ h2 {
   letter-spacing: -0.04em;
 }
 
+.premium-benefit-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.premium-benefit-strip span {
+  display: inline-flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 10px 8px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.premium-benefit-strip svg {
+  flex: 0 0 auto;
+  color: #fde68a;
+}
+
 .account-panel.premium-account-panel p {
   color: rgba(255, 255, 255, 0.78);
 }
@@ -5232,6 +5260,26 @@ h2 {
 .account-wallet b {
   color: var(--brand);
   font-size: 22px;
+}
+
+.account-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.account-quick-actions button {
+  min-height: 38px;
+  padding: 9px 10px !important;
+  border-radius: 13px !important;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 88%, #ffffff), var(--brand-2)) !important;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+.account-quick-actions svg {
+  flex: 0 0 auto;
 }
 
 .account-panel label {
@@ -8191,6 +8239,16 @@ h2 {
   .account-modal {
     padding: 16px;
     border-radius: 22px;
+  }
+
+  .premium-benefit-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .premium-benefit-strip span {
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: 10px 12px;
   }
 
   .site-footer {
