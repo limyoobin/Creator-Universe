@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   BookOpen,
@@ -813,11 +813,71 @@ function formatChatTime(createdAt: string) {
   return new Date(createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function isBrokenDisplayText(value?: string | null) {
+  if (!value) {
+    return true;
+  }
+
+  return (
+    /[�諛援肄踰媛蹂쒓꾩먯좊꾨誘몄젣寃곗愿李梨]/.test(value) ||
+    /\?{2,}/.test(value) ||
+    /API \?/.test(value)
+  );
+}
+
+function cleanDisplayText(value: string | null | undefined, fallback: string) {
+  if (isBrokenDisplayText(value)) {
+    return fallback;
+  }
+
+  return value!.trim();
+}
+
+function normalizeCreator(creator: Creator): Creator {
+  const roleLabel = roleLabels[creator.primaryRole] || "창작자";
+
+  return {
+    ...creator,
+    username: cleanDisplayText(creator.username, creator.id || "creator"),
+    displayName: cleanDisplayText(creator.displayName, `${roleLabel} 크리에이터`),
+    headline: cleanDisplayText(creator.headline, `${roleLabel} 포트폴리오를 준비 중입니다.`),
+    bio: cleanDisplayText(creator.bio, "프로젝트 협업을 위한 창작자 프로필입니다."),
+    availabilityNote: cleanDisplayText(creator.availabilityNote, "협업 가능"),
+    portfolioSummary: cleanDisplayText(creator.portfolioSummary, `${roleLabel} 작업 샘플을 확인해보세요.`),
+    skills: creator.skills?.length ? creator.skills.map((skill) => cleanDisplayText(skill, roleLabel)) : [roleLabel],
+    portfolioItems: creator.portfolioItems?.map((item, index) => ({
+      ...item,
+      title: cleanDisplayText(item.title, `${roleLabel} 포트폴리오 ${index + 1}`),
+      category: cleanDisplayText(item.category, `${roleLabel} 샘플`),
+      description: cleanDisplayText(item.description, "작품 제작과 협업에 활용할 수 있는 포트폴리오입니다."),
+      tags: item.tags?.length ? item.tags.map((tag) => cleanDisplayText(tag, roleLabel)) : [roleLabel],
+    })),
+    voiceDemo: creator.voiceDemo
+      ? {
+          ...creator.voiceDemo,
+          title: cleanDisplayText(creator.voiceDemo.title, "보이스 샘플"),
+        }
+      : creator.voiceDemo,
+  };
+}
+
+function normalizeChatMessageText(text: string, fallback = "협업 상담 메시지입니다.") {
+  return cleanDisplayText(text, fallback);
+}
+
+function normalizeContentReview(review: ContentReview): ContentReview {
+  return {
+    ...review,
+    authorName: cleanDisplayText(review.authorName, "독자"),
+    body: cleanDisplayText(review.body, "작품을 응원하는 리뷰입니다."),
+  };
+}
+
 function mapChatThreads(threads: ChatThread[]) {
   return threads.reduce<Record<string, CreatorChatMessage[]>>((acc, thread) => {
     acc[thread.otherUser.id] = thread.messages.map((message) => ({
       from: message.from,
-      text: message.body,
+      text: normalizeChatMessageText(message.body),
       time: formatChatTime(message.createdAt),
       createdAt: message.createdAt,
       matchRequestId: message.matchRequestId,
@@ -909,12 +969,16 @@ function getCreatorPortfolio(creator: Creator) {
   return fallback[creator.primaryRole] || [];
 }
 
+const apiConnectionErrorMessage = "백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.";
+const apiResponseParseErrorMessage = "API 응답을 읽을 수 없습니다. 프론트가 백엔드가 아닌 페이지 응답을 받았습니다.";
 async function request<T>(path: string, token: string | null, options: RequestInit = {}) {
   const apiBases = [
     API_URL,
     import.meta.env.PROD && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
   ].filter((baseUrl, index, list) => baseUrl && list.indexOf(baseUrl) === index);
   let lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
+
+  lastError = new Error(apiConnectionErrorMessage);
 
   for (const baseUrl of apiBases) {
     let response: Response;
@@ -942,7 +1006,7 @@ async function request<T>(path: string, token: string | null, options: RequestIn
     }
 
     if (!response.ok) {
-      throw new Error(payload.message || "API request failed.");
+      throw new Error(cleanDisplayText(payload.message, "요청 처리에 실패했습니다."));
     }
 
     return payload.data as T;
@@ -952,7 +1016,7 @@ async function request<T>(path: string, token: string | null, options: RequestIn
 }
 
 function getFriendlyError(error: unknown) {
-  return error instanceof Error ? error.message : "요청 처리 중 오류가 발생했습니다.";
+  return error instanceof Error ? cleanDisplayText(error.message, "요청 처리 중 오류가 발생했습니다.") : "요청 처리 중 오류가 발생했습니다.";
 }
 
 function isStrongPassword(password: string) {
@@ -2547,11 +2611,12 @@ export function App() {
         : Promise.resolve(null),
     ]);
 
-    setCreators(creatorData);
+    setCreators(creatorData.map(normalizeCreator));
     setProject(projectData);
     setSettlement(settlementData);
     try {
-      setContentReviews(await request<ContentReview[]>("/api/content/reviews", currentToken));
+      const reviews = await request<ContentReview[]>("/api/content/reviews", currentToken);
+      setContentReviews(reviews.map(normalizeContentReview));
     } catch {
       setContentReviews([]);
     }
@@ -2840,7 +2905,7 @@ export function App() {
       method: "POST",
       body: JSON.stringify({ workId: targetWorkId, rating: reviewRating, body: reviewBody }),
     });
-    setContentReviews((current) => [review, ...current]);
+    setContentReviews((current) => [normalizeContentReview(review), ...current]);
     setReviewBody("");
     setCommunityMessage("리뷰가 등록되었습니다.");
   }
@@ -4611,7 +4676,6 @@ export function App() {
           {!isMessengerOpen && <i />}
         </button>
       </div>
-
       <div className={`floating-help ${isSupportBotOpen ? "open" : ""}`}>
         {isSupportBotOpen && (
           <section className="floating-help-panel" aria-label="크리에이터 유니버스 도움봇">
@@ -4668,7 +4732,6 @@ export function App() {
           {isSupportBotOpen ? <X size={24} /> : <Bot size={24} />}
         </button>
       </div>
-
       {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onAuth={completeAuth} />}
       {matchProposalCreator && (
         <MatchProposalModal
@@ -4752,3 +4815,4 @@ export function App() {
     </div>
   );
 }
+
