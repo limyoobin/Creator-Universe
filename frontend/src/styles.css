@@ -510,7 +510,8 @@ a {
 }
 
 .notification-item.wallet i,
-.notification-item.premium i {
+.notification-item.premium i,
+.notification-item.marketing i {
   background: linear-gradient(135deg, #ffb84d, var(--brand));
 }
 

@@ -569,7 +569,13 @@ const universePremiumBenefits = [
 
 type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support";
 type LibraryViewId = (typeof libraryViewItems)[number]["id"];
-type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium";
+type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
+
+type NotificationPreferences = {
+  newEpisode: boolean;
+  settlement: boolean;
+  marketing: boolean;
+};
 
 type NotificationItem = {
   id: string;
@@ -591,6 +597,30 @@ const navItems: Array<{ id: PageId; label: string; helper: string }> = [
   { id: "settlement", label: "정산", helper: "수익 분배" },
   { id: "support", label: "고객센터", helper: "문의/신고" },
 ];
+
+const marketingAnnouncements = [
+  {
+    id: "marketing-spring-coin",
+    title: "신규 창작팀 응원 코인 이벤트",
+    body: "이번 주 첫 후원 시 보너스 코인과 추천 작품 알림을 받을 수 있어요.",
+    actionLabel: "이벤트 보기",
+  },
+  {
+    id: "marketing-premium-preview",
+    title: "프리미엄 멤버십 선공개 혜택",
+    body: "광고 없는 감상과 월 1,000 보너스 코인을 묶은 구독 혜택을 확인해보세요.",
+    actionLabel: "구독 보기",
+  },
+];
+
+const newEpisodeAlertMap: Record<string, { title: string; episodeLabel: string; publishedAt: string }> = {
+  "midnight-signal": { title: "9화. 끊어진 주파수", episodeLabel: "신규 오디오드라마 회차", publishedAt: "오늘" },
+  "starlight-contract": { title: "13화. 별빛 아래의 계약서", episodeLabel: "신규 웹소설 회차", publishedAt: "오늘" },
+  "dragon-archive": { title: "16화. 용의 문서고", episodeLabel: "신규 웹툰 회차", publishedAt: "어제" },
+  "cafe-orbit": { title: "7화. 새벽 라떼 ASMR", episodeLabel: "신규 믹스미디어 회차", publishedAt: "오늘" },
+  "blue-hour-roommate": { title: "10화. 룸메이트의 고백", episodeLabel: "신규 보이스 특전", publishedAt: "오늘" },
+  "neon-pulse-zero": { title: "5화. 파일럿 컷 공개", episodeLabel: "신규 애니메이션 회차", publishedAt: "오늘" },
+};
 
 const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement", "support"]);
 
@@ -775,6 +805,24 @@ function readStoredIds(key: string, fallback: string[] = []) {
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : fallback;
   } catch {
     return fallback;
+  }
+}
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  newEpisode: true,
+  settlement: true,
+  marketing: false,
+};
+
+function readNotificationPreferences(): NotificationPreferences {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("creator-universe-notification-preferences") || "null");
+    return {
+      ...defaultNotificationPreferences,
+      ...(parsed && typeof parsed === "object" ? parsed : {}),
+    };
+  } catch {
+    return defaultNotificationPreferences;
   }
 }
 
@@ -2251,12 +2299,14 @@ function AccountModal({
   scrappedWorkIds,
   recentWorkIds,
   premiumSubscription,
+  notificationPreferences,
   onClose,
   onLogout,
   onDeleteAccount,
   onOpenPayment,
   onStartPremium,
   onCancelPremium,
+  onToggleNotificationPreference,
   onNavigate,
   onOpenLibrary,
 }: {
@@ -2266,12 +2316,14 @@ function AccountModal({
   scrappedWorkIds: string[];
   recentWorkIds: string[];
   premiumSubscription: PremiumSubscriptionState;
+  notificationPreferences: NotificationPreferences;
   onClose: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
   onOpenPayment: () => void;
   onStartPremium: () => void;
   onCancelPremium: () => void;
+  onToggleNotificationPreference: (key: keyof NotificationPreferences) => void;
   onNavigate: (page: PageId) => void;
   onOpenLibrary: (view: (typeof libraryViewItems)[number]["id"]) => void;
 }) {
@@ -2458,9 +2510,31 @@ function AccountModal({
               <Bell size={20} />
               <strong>알림 설정</strong>
             </div>
-            <label className="account-check"><input type="checkbox" defaultChecked /> 새 회차 알림</label>
-            <label className="account-check"><input type="checkbox" defaultChecked /> 정산 완료 알림</label>
-            <label className="account-check"><input type="checkbox" /> 마케팅 소식</label>
+            <p>스크랩하거나 최근 본 작품의 새 회차, 정산 완료, 이벤트 알림 수신 여부를 직접 설정합니다.</p>
+            <label className="account-check">
+              <input
+                type="checkbox"
+                checked={notificationPreferences.newEpisode}
+                onChange={() => onToggleNotificationPreference("newEpisode")}
+              />
+              새 회차 알림
+            </label>
+            <label className="account-check">
+              <input
+                type="checkbox"
+                checked={notificationPreferences.settlement}
+                onChange={() => onToggleNotificationPreference("settlement")}
+              />
+              정산 완료 알림
+            </label>
+            <label className="account-check">
+              <input
+                type="checkbox"
+                checked={notificationPreferences.marketing}
+                onChange={() => onToggleNotificationPreference("marketing")}
+              />
+              광고/이벤트 알림
+            </label>
           </section>
 
           <section className="account-panel danger">
@@ -2538,6 +2612,7 @@ export function App() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
@@ -2728,6 +2803,14 @@ export function App() {
     [recentWorkIds],
   );
 
+  const followedNewEpisodeWorks = useMemo(() => {
+    const followedIds = Array.from(new Set([...scrappedWorkIds, ...recentWorkIds]));
+    return followedIds
+      .map((workId) => readerWorks.find((work) => work.id === workId))
+      .filter((work): work is ReaderWork => Boolean(work && newEpisodeAlertMap[work.id]))
+      .slice(0, 4);
+  }, [recentWorkIds, scrappedWorkIds]);
+
   const discoverCreators = useMemo(() => {
     const searchTokens = discoverCreatorSearch
       .trim()
@@ -2801,7 +2884,7 @@ export function App() {
       });
     }
 
-    if (acceptedProposal) {
+    if (acceptedProposal && notificationPreferences.settlement) {
       items.push({
         id: `proposal-accepted-${acceptedProposal.proposal.id}`,
         title: "팀원 합류가 완료됐어요",
@@ -2810,6 +2893,22 @@ export function App() {
         page: "settlement",
         tone: "settlement",
         actionLabel: "정산 보기",
+      });
+    }
+
+    if (notificationPreferences.newEpisode) {
+      followedNewEpisodeWorks.forEach((work) => {
+        const alert = newEpisodeAlertMap[work.id];
+        items.push({
+          id: `new-episode-${work.id}-${work.episodes + 1}`,
+          title: `${work.title} 새 회차가 공개됐어요`,
+          body: `${alert.title} · ${alert.episodeLabel}을 이어서 확인해보세요.`,
+          time: alert.publishedAt,
+          page: "discover",
+          tone: "content",
+          actionLabel: "새 회차 보기",
+          libraryView: recentWorkIds.includes(work.id) ? "recent" : "scrapped",
+        });
       });
     }
 
@@ -2876,6 +2975,20 @@ export function App() {
       });
     }
 
+    if (notificationPreferences.marketing) {
+      marketingAnnouncements.forEach((announcement) => {
+        items.push({
+          id: announcement.id,
+          title: announcement.title,
+          body: announcement.body,
+          time: "이벤트",
+          page: "home",
+          tone: "marketing",
+          actionLabel: announcement.actionLabel,
+        });
+      });
+    }
+
     if (myCreatorProfile && !pendingReceivedProposal) {
       items.push({
         id: `studio-profile-${myCreatorProfile.id}`,
@@ -2903,11 +3016,16 @@ export function App() {
     return items.slice(0, 6);
   }, [
     currentWalletDetail.transactions,
+    followedNewEpisodeWorks,
     matchProposalInboxItems,
     myCreatorProfile,
+    notificationPreferences.marketing,
+    notificationPreferences.newEpisode,
+    notificationPreferences.settlement,
     premiumSubscription.isActive,
     premiumSubscription.nextBillingDate,
     purchasedWorks,
+    recentWorkIds,
     recentWorks,
     scrappedWorks,
     token,
@@ -3032,6 +3150,10 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("creator-universe-read-notifications", JSON.stringify(readNotificationIds));
   }, [readNotificationIds]);
+
+  useEffect(() => {
+    localStorage.setItem("creator-universe-notification-preferences", JSON.stringify(notificationPreferences));
+  }, [notificationPreferences]);
 
   useEffect(() => {
     if (!selectedWork) {
@@ -3250,6 +3372,13 @@ export function App() {
       const nextIds = notificationItems.map((item) => item.id);
       return Array.from(new Set([...current, ...nextIds]));
     });
+  }
+
+  function toggleNotificationPreference(key: keyof NotificationPreferences) {
+    setNotificationPreferences((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
   }
 
   function toggleReaderFilter(filter: string) {
@@ -3807,6 +3936,7 @@ export function App() {
                             {item.tone === "studio" && <Rocket size={16} />}
                             {item.tone === "settlement" && <Split size={16} />}
                             {item.tone === "premium" && <Sparkles size={16} />}
+                            {item.tone === "marketing" && <Flame size={16} />}
                           </i>
                           <span>
                             <b>{item.title}</b>
@@ -5484,6 +5614,7 @@ export function App() {
           scrappedWorkIds={scrappedWorkIds}
           recentWorkIds={recentWorkIds}
           premiumSubscription={premiumSubscription}
+          notificationPreferences={notificationPreferences}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
           onDeleteAccount={() => void deleteAccount()}
@@ -5493,6 +5624,7 @@ export function App() {
           }}
           onStartPremium={startPremiumSubscription}
           onCancelPremium={cancelPremiumSubscription}
+          onToggleNotificationPreference={toggleNotificationPreference}
           onNavigate={navigate}
           onOpenLibrary={openReaderLibrary}
         />
