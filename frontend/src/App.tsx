@@ -2469,6 +2469,7 @@ export function App() {
   const [matchProposalShare, setMatchProposalShare] = useState(20);
   const [matchProposalMessage, setMatchProposalMessage] = useState("");
   const [isMatchProposalSubmitting, setIsMatchProposalSubmitting] = useState(false);
+  const [matchInboxFilter, setMatchInboxFilter] = useState<"all" | "received" | "sent" | "pending" | "accepted">("all");
   const [isMessengerOpen, setIsMessengerOpen] = useState(false);
   const [isMessengerFullscreen, setIsMessengerFullscreen] = useState(false);
   const [activeChatCreatorId, setActiveChatCreatorId] = useState<string | null>(null);
@@ -2565,6 +2566,52 @@ export function App() {
 
   const activeChatMessages = activeChatCreator ? creatorChatThreads[activeChatCreator.userId] ?? [] : [];
   const pendingPurchaseWork = readerWorks.find((work) => work.id === pendingPurchaseWorkId) ?? readerWorks[0];
+
+  const matchProposalInboxItems = useMemo(() => {
+    return Object.entries(creatorChatThreads)
+      .flatMap(([creatorUserId, messages]) => {
+        const partner = creators.find((creator) => creator.userId === creatorUserId) ?? null;
+
+        return messages
+          .filter((message) => Boolean(message.matchProposal))
+          .map((message) => ({
+            id: `${message.matchProposal!.id}-${message.createdAt}`,
+            proposal: message.matchProposal!,
+            direction: message.from === "me" ? "sent" as const : "received" as const,
+            partner,
+            createdAt: message.createdAt,
+            time: message.time,
+            canAccept: message.from === "creator" && message.matchProposal!.status === "PENDING",
+          }));
+      })
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+  }, [creatorChatThreads, creators]);
+
+  const matchInboxCounts = useMemo(
+    () => ({
+      all: matchProposalInboxItems.length,
+      received: matchProposalInboxItems.filter((item) => item.direction === "received").length,
+      sent: matchProposalInboxItems.filter((item) => item.direction === "sent").length,
+      pending: matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length,
+      accepted: matchProposalInboxItems.filter((item) => item.proposal.status === "ACCEPTED").length,
+    }),
+    [matchProposalInboxItems],
+  );
+
+  const filteredMatchProposalInboxItems = useMemo(() => {
+    return matchProposalInboxItems.filter((item) => {
+      if (matchInboxFilter === "pending") {
+        return item.proposal.status === "PENDING";
+      }
+      if (matchInboxFilter === "accepted") {
+        return item.proposal.status === "ACCEPTED";
+      }
+      if (matchInboxFilter === "received" || matchInboxFilter === "sent") {
+        return item.direction === matchInboxFilter;
+      }
+      return true;
+    });
+  }, [matchInboxFilter, matchProposalInboxItems]);
 
   const filteredReaderWorks = useMemo(() => {
     const searchTokens = readerSearch
@@ -4320,6 +4367,96 @@ export function App() {
               </div>
             </form>
           )}
+
+          <section className="match-inbox-panel">
+            <div className="section-head compact-head">
+              <div>
+                <p className="kicker">Proposal Inbox</p>
+                <h2>매칭 제안함</h2>
+              </div>
+              <p>채팅으로 보낸 수익 지분 제안을 한곳에서 확인하고, 받은 제안은 바로 수락해 팀원으로 합류할 수 있습니다.</p>
+            </div>
+
+            <div className="match-inbox-tabs" aria-label="매칭 제안함 필터">
+              {[
+                { id: "all", label: "전체" },
+                { id: "received", label: "받은 제안" },
+                { id: "sent", label: "보낸 제안" },
+                { id: "pending", label: "대기 중" },
+                { id: "accepted", label: "합류 완료" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  className={matchInboxFilter === item.id ? "active" : ""}
+                  onClick={() => setMatchInboxFilter(item.id as typeof matchInboxFilter)}
+                  type="button"
+                >
+                  {item.label}
+                  <span>{matchInboxCounts[item.id as keyof typeof matchInboxCounts]}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="match-inbox-list">
+              {filteredMatchProposalInboxItems.length > 0 ? (
+                filteredMatchProposalInboxItems.map((item) => {
+                  const proposalStatusLabel =
+                    item.proposal.status === "ACCEPTED" ? "수락 완료" : item.proposal.status === "DECLINED" ? "거절됨" : "수락 대기";
+                  const partnerName =
+                    item.partner?.displayName ??
+                    (item.direction === "received" ? item.proposal.requesterName : item.proposal.targetName) ??
+                    "창작자";
+                  const partnerRole = item.partner ? roleLabels[item.partner.primaryRole] : roleLabels[item.proposal.memberRole];
+
+                  return (
+                    <article className={`match-inbox-card ${item.direction} ${item.proposal.status.toLowerCase()}`} key={item.id}>
+                      <div className="match-inbox-card-head">
+                        <span>{item.direction === "received" ? "받은 제안" : "보낸 제안"}</span>
+                        <b>{proposalStatusLabel}</b>
+                      </div>
+                      <div className="match-inbox-partner">
+                        <i>{partnerName.slice(0, 1)}</i>
+                        <div>
+                          <strong>{partnerName}</strong>
+                          <small>{partnerRole || "창작자"} · {item.time}</small>
+                        </div>
+                      </div>
+                      <MatchProposalBubble
+                        proposal={item.proposal}
+                        canAccept={item.canAccept}
+                        onAccept={() => void acceptMatchProposal(item.proposal.id)}
+                      />
+                      <div className="match-inbox-actions">
+                        {item.partner && (
+                          <button type="button" onClick={() => setSelectedCreator(item.partner)}>
+                            프로필 보기
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (item.partner) {
+                              setActiveChatCreatorId(item.partner.userId);
+                            }
+                            setIsMessengerOpen(true);
+                            setIsSupportBotOpen(false);
+                          }}
+                        >
+                          채팅 열기
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="match-inbox-empty">
+                  <MessageCircle size={24} />
+                  <strong>아직 매칭 제안이 없어요</strong>
+                  <p>마음에 드는 창작자 카드에서 “수익 지분 제안”을 보내면 이곳에 제안서가 정리됩니다.</p>
+                </div>
+              )}
+            </div>
+          </section>
 
           <div className="matching-toolbar">
             <div>

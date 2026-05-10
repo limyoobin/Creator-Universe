@@ -4708,6 +4708,181 @@ h2 {
   font-weight: 900;
 }
 
+.match-inbox-panel {
+  display: grid;
+  gap: 16px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+  border-radius: 30px;
+  padding: 20px;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 28%),
+    radial-gradient(circle at 92% 12%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 30%),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.match-inbox-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.match-inbox-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.match-inbox-tabs button:hover,
+.match-inbox-tabs button.active {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cyan) 34%, var(--line));
+  color: var(--text);
+}
+
+.match-inbox-tabs span {
+  min-width: 22px;
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 10%, transparent);
+  font-size: 0.75rem;
+}
+
+.match-inbox-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.match-inbox-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  padding: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 76%, transparent), transparent 78%),
+    color-mix(in srgb, var(--surface) 96%, transparent);
+}
+
+.match-inbox-card.received {
+  border-color: color-mix(in srgb, var(--cyan) 24%, var(--line));
+}
+
+.match-inbox-card.accepted {
+  border-color: color-mix(in srgb, var(--green) 32%, var(--line));
+}
+
+.match-inbox-card-head,
+.match-inbox-partner,
+.match-inbox-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.match-inbox-card-head span,
+.match-inbox-partner small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.match-inbox-card-head b {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 9%, transparent);
+  font-size: 0.75rem;
+}
+
+.match-inbox-partner {
+  justify-content: flex-start;
+}
+
+.match-inbox-partner i {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  color: white;
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  font-style: normal;
+  font-weight: 950;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--brand) 20%, transparent);
+}
+
+.match-inbox-partner div {
+  display: grid;
+  gap: 3px;
+}
+
+.match-inbox-partner strong {
+  color: var(--text);
+  font-size: 1.02rem;
+}
+
+.match-inbox-card .match-proposal-bubble {
+  min-width: 0;
+  box-shadow: none;
+}
+
+.match-inbox-actions {
+  justify-content: flex-end;
+}
+
+.match-inbox-actions button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.match-inbox-actions button:last-child {
+  border-color: color-mix(in srgb, var(--cyan) 28%, var(--line));
+  color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 8%, var(--surface));
+}
+
+.match-inbox-empty {
+  grid-column: 1 / -1;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 210px;
+  border: 1px dashed color-mix(in srgb, var(--cyan) 28%, var(--line));
+  border-radius: 24px;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+}
+
+.match-inbox-empty strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.match-inbox-empty p {
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.6;
+}
+
 .creator-card-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -8253,6 +8428,7 @@ h2 {
   .studio-kpi-grid,
   .studio-team-grid,
   .studio-portfolio-grid,
+  .match-inbox-list,
   .settlement-kpis,
   .settlement-preset-grid,
   .setting-grid,
