@@ -4817,6 +4817,42 @@ h2 {
   font-size: 12px;
 }
 
+.work-notice-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.work-notice-panel > div {
+  display: grid;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 24px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 10rem),
+    var(--surface);
+}
+
+.work-notice-panel span {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.work-notice-panel strong {
+  color: var(--text);
+  font-size: 18px;
+  letter-spacing: -0.04em;
+}
+
+.work-notice-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
 .work-audio-panel {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
@@ -4965,6 +5001,111 @@ h2 {
   background: var(--surface);
 }
 
+.episode-section {
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 9%, transparent), transparent 14rem),
+    var(--surface);
+}
+
+.episode-list {
+  display: grid;
+  gap: 10px;
+}
+
+.episode-list article {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 14px;
+  background: var(--surface-2);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.episode-list article:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--brand) 30%, var(--line));
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--brand) 10%, transparent);
+}
+
+.episode-list article.locked {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 88%, #111827), var(--surface-2));
+}
+
+.episode-number {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  width: 54px;
+  height: 60px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+}
+
+.episode-number span {
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
+
+.episode-number small {
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.episode-list strong {
+  color: var(--text);
+  font-size: 17px;
+  letter-spacing: -0.035em;
+}
+
+.episode-list p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.episode-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.episode-meta span {
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.episode-list button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 104px;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 13px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  font-weight: 950;
+}
+
+.episode-list article.unlocked button {
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 25%, var(--line));
+}
+
 .work-detail-creators {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5008,6 +5149,33 @@ h2 {
 .work-detail-creators small {
   color: var(--muted);
   line-height: 1.55;
+}
+
+.production-credit-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.production-credit-strip article {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 13px;
+  background: var(--surface-2);
+}
+
+.production-credit-strip span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.production-credit-strip strong {
+  color: var(--text);
+  font-size: 16px;
+  letter-spacing: -0.035em;
 }
 
 .work-review-form {
@@ -7779,6 +7947,8 @@ h2 {
   .ranking-layout,
   .work-detail-hero,
   .work-audio-panel,
+  .work-notice-panel,
+  .production-credit-strip,
   .support-hero,
   .support-contact-board {
     grid-template-columns: 1fr;
@@ -7926,7 +8096,8 @@ h2 {
 
   .share-row,
   .ledger-list div,
-  .wallet-ledger-list article {
+  .wallet-ledger-list article,
+  .episode-list article {
     grid-template-columns: 1fr;
   }
 

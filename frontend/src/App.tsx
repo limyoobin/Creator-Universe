@@ -873,6 +873,38 @@ function normalizeContentReview(review: ContentReview): ContentReview {
   };
 }
 
+function getWorkEpisodes(work: ReaderWork) {
+  const episodeCount = Math.max(1, Math.min(work.episodes, 12));
+  const episodeTitles = [
+    "프롤로그: 세계관의 문이 열리다",
+    "첫 번째 신호",
+    "낯선 동료의 제안",
+    "감춰진 장면의 목소리",
+    "비밀 파일럿 공개",
+    "팬덤이 움직이는 밤",
+    "반전의 크레딧",
+    "다음 시즌을 향해",
+  ];
+
+  return Array.from({ length: episodeCount }, (_, index) => {
+    const episodeNumber = index + 1;
+    const isFree = episodeNumber === 1;
+    return {
+      id: `${work.id}-episode-${episodeNumber}`,
+      episodeNumber,
+      title: episodeTitles[index] ?? `${episodeNumber}화. ${work.genre} 에피소드`,
+      summary:
+        episodeNumber === 1
+          ? "작품의 분위기와 협업팀의 색깔을 무료로 확인할 수 있는 첫 회차입니다."
+          : `${work.format} 형식에 맞춰 제작된 ${work.genre} 회차입니다. 구매 후 전체 내용을 감상할 수 있습니다.`,
+      priceCoins: isFree ? 0 : work.priceCoins,
+      readingTime: work.format === "오디오드라마" ? `${8 + index}분` : `${5 + Math.min(index, 6)}분`,
+      publishedAt: `2026.05.${String(Math.min(episodeNumber + 2, 28)).padStart(2, "0")}`,
+      isFree,
+    };
+  });
+}
+
 function mapChatThreads(threads: ChatThread[]) {
   return threads.reduce<Record<string, CreatorChatMessage[]>>((acc, thread) => {
     acc[thread.otherUser.id] = thread.messages.map((message) => ({
@@ -1900,6 +1932,7 @@ function WorkDetailModal({
     .filter(Boolean) as Creator[];
   const audioAvailable = hasAudioExperience(work);
   const audioLabel = getAudioExperienceLabel(work);
+  const episodes = getWorkEpisodes(work);
 
   return (
     <div className="modal-backdrop work-detail-backdrop" role="dialog" aria-modal="true">
@@ -1926,10 +1959,29 @@ function WorkDetailModal({
               <b>{work.episodes}화</b>
             </div>
             <div className="reader-actions">
-              <button className="primary-button compact" onClick={onOpenPayment}><Coins size={16} /> {formatCoins(work.priceCoins)} 구매</button>
+              {isPurchased ? (
+                <button className="ghost-button compact purchased-badge"><CheckCircle2 size={16} /> 열람권 보유</button>
+              ) : (
+                <button className="primary-button compact" onClick={onOpenPayment}><Coins size={16} /> {formatCoins(work.priceCoins)} 구매</button>
+              )}
             </div>
           </div>
         </div>
+
+        <section className="work-notice-panel">
+          <div>
+            <span>작품 공지</span>
+            <strong>{work.format} 연재 안내</strong>
+            <p>
+              1화는 무료로 공개됩니다. 구매 후에는 모든 유료 회차와 참여 창작자 크레딧, 리뷰 작성 기능을 같은 상세 화면에서 이용할 수 있어요.
+            </p>
+          </div>
+          <div>
+            <span>열람 상태</span>
+            <strong>{isPurchased ? "전체 열람 가능" : "1화 무료 · 유료 회차 잠금"}</strong>
+            <p>{isPurchased ? "이미 구매한 작품입니다. 회차 목록에서 바로 감상하세요." : "마음에 들면 열람권을 구매해 이어볼 수 있습니다."}</p>
+          </div>
+        </section>
 
         {audioAvailable && (
           <section className="work-audio-panel">
@@ -1965,6 +2017,42 @@ function WorkDetailModal({
           </section>
         )}
 
+        <section className="work-detail-section episode-section">
+          <div className="section-head compact-head">
+            <div>
+              <p className="kicker">Episode List</p>
+              <h3>회차 목록</h3>
+            </div>
+            <p>무료 회차와 구매 후 열리는 회차를 구분해서 보여줍니다.</p>
+          </div>
+          <div className="episode-list">
+            {episodes.map((episode) => {
+              const unlocked = episode.isFree || isPurchased;
+              return (
+                <article className={unlocked ? "unlocked" : "locked"} key={episode.id}>
+                  <div className="episode-number">
+                    <span>{episode.episodeNumber}</span>
+                    <small>{episode.isFree ? "FREE" : unlocked ? "OPEN" : "LOCK"}</small>
+                  </div>
+                  <div>
+                    <strong>{episode.title}</strong>
+                    <p>{episode.summary}</p>
+                    <div className="episode-meta">
+                      <span>{episode.publishedAt}</span>
+                      <span>{episode.readingTime}</span>
+                      <span>{episode.isFree ? "무료" : formatCoins(episode.priceCoins)}</span>
+                    </div>
+                  </div>
+                  <button type="button" onClick={unlocked ? undefined : onOpenPayment}>
+                    {unlocked ? <Play size={16} /> : <Coins size={16} />}
+                    {unlocked ? "감상하기" : "구매 필요"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
         <section className="work-detail-section">
           <div className="section-head compact-head">
             <div>
@@ -1981,6 +2069,11 @@ function WorkDetailModal({
                 <small>{creator.headline}</small>
               </button>
             ))}
+          </div>
+          <div className="production-credit-strip">
+            <article><span>기획/원작</span><strong>{participants.find((creator) => creator.primaryRole === "WRITER")?.displayName ?? "창작팀"}</strong></article>
+            <article><span>비주얼</span><strong>{participants.find((creator) => creator.primaryRole === "ILLUSTRATOR")?.displayName ?? "아트팀"}</strong></article>
+            <article><span>보이스/BGM</span><strong>{participants.find((creator) => ["VOICE_ACTOR", "SOUND_DIRECTOR"].includes(creator.primaryRole))?.displayName ?? "사운드팀"}</strong></article>
           </div>
         </section>
 
