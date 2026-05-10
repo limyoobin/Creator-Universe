@@ -566,18 +566,19 @@ const universePremiumBenefits = [
   "오디오 백그라운드 재생과 오프라인 저장 데모",
 ];
 
-type PageId = "home" | "discover" | "matching" | "wallet" | "settlement" | "support";
+type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support";
 
 const navItems: Array<{ id: PageId; label: string; helper: string }> = [
   { id: "home", label: "홈", helper: "서비스 소개" },
   { id: "discover", label: "작품", helper: "장르 탐색" },
+  { id: "studio", label: "스튜디오", helper: "작품 관리" },
   { id: "matching", label: "매칭", helper: "팀원 찾기" },
   { id: "wallet", label: "지갑", helper: "코인 관리" },
   { id: "settlement", label: "정산", helper: "수익 분배" },
   { id: "support", label: "고객센터", helper: "문의/신고" },
 ];
 
-const protectedPages = new Set<PageId>(["matching", "wallet", "settlement", "support"]);
+const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement", "support"]);
 
 const walletFallback: WalletDetail = {
   balance: 0,
@@ -3312,6 +3313,26 @@ export function App() {
     setSettlementMessage("정산 설정이 저장되었습니다. 플랫폼 수수료는 일반 15%, 공식 파트너 8% 고정 정책으로 적용됩니다.");
   }
 
+  function submitStudioWorkDraft(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const title = String(data.get("title") || "새 작품");
+    setCommunityMessage(`${title} 작품 초안이 스튜디오에 저장되었습니다. 다음 단계에서 팀원 초대와 회차 업로드를 이어가세요.`);
+    event.currentTarget.reset();
+  }
+
+  function submitStudioEpisode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const title = String(data.get("episodeTitle") || "새 회차");
+    setCommunityMessage(`${title} 회차 업로드 초안이 저장되었습니다. 실제 파일 업로드 기능은 다음 단계에서 연결하면 됩니다.`);
+    event.currentTarget.reset();
+  }
+
+  function saveStudioTeamPlan() {
+    setCommunityMessage("팀원 초대와 수익 지분 설정이 저장되었습니다. 매칭 제안함 기능과 연결하면 수락 즉시 팀에 합류시킬 수 있어요.");
+  }
+
   function completeAuth(nextUser: User, nextToken: string) {
     setUser(nextUser);
     setToken(nextToken);
@@ -3466,6 +3487,7 @@ export function App() {
                   <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><UserRound size={17} /> 내 계정</button>
                   <button onClick={() => { openReaderLibrary("purchased"); setIsAccountMenuOpen(false); }}><BookOpen size={17} /> 결제한 작품</button>
                   <button onClick={() => { openReaderLibrary("scrapped"); setIsAccountMenuOpen(false); }}><Heart size={17} /> 스크랩한 작품</button>
+                  <button onClick={() => { navigate("studio"); setIsAccountMenuOpen(false); }}><Rocket size={17} /> 창작자 스튜디오</button>
                   <button onClick={() => { navigate("wallet"); setIsAccountMenuOpen(false); }}><Wallet size={17} /> 내 지갑</button>
                   <button onClick={() => { navigate("settlement"); setIsAccountMenuOpen(false); }}><Split size={17} /> 정산 콘솔</button>
                   <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><Settings size={17} /> 정보 변경</button>
@@ -4058,6 +4080,154 @@ export function App() {
 
         </section>}
 
+        {activePage === "studio" && <section className="section studio-page page-panel">
+          <div className="studio-hero">
+            <div>
+              <p className="kicker">Creator Studio</p>
+              <h2>작품 등록부터 팀원 초대, 회차 업로드까지 한 곳에서 관리하세요</h2>
+              <p>
+                창작자는 작품 초안을 만들고, 필요한 직군을 초대하고, 회차를 업로드하면서 정산 지분율까지 한 번에 관리할 수 있습니다.
+                이 페이지는 실제 앱으로 확장될 창작자 콘솔의 중심 화면입니다.
+              </p>
+              <div className="studio-hero-actions">
+                <button className="primary-button" onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={18} /> 매칭 프로필 준비</button>
+                <button className="ghost-button" onClick={() => navigate("settlement")}><Split size={18} /> 정산 설정으로 이동</button>
+              </div>
+            </div>
+            <div className="studio-status-card">
+              <span>Studio Status</span>
+              <strong>{myCreatorProfile ? "창작자 프로필 공개 중" : "프로필 등록 대기"}</strong>
+              <p>{myCreatorProfile ? myCreatorProfile.headline : "매칭 보드에 프로필을 올리면 팀원이 내 스튜디오로 합류할 수 있어요."}</p>
+            </div>
+          </div>
+
+          <div className="studio-kpi-grid">
+            <article><BookOpen size={22} /><span>작품 초안</span><strong>3개</strong><p>연재 전 기획과 시놉시스를 관리합니다.</p></article>
+            <article><Users size={22} /><span>초대 대기</span><strong>4명</strong><p>작가, 그림, 목소리, BGM 직군별 초대 상태입니다.</p></article>
+            <article><Split size={22} /><span>기본 지분</span><strong>40 · 30 · 30</strong><p>팀장 40%, 팀원 30% 프리셋을 적용할 수 있습니다.</p></article>
+            <article><Rocket size={22} /><span>출시 준비</span><strong>72%</strong><p>표지, 회차, 팀원 동의, 가격 설정 기준입니다.</p></article>
+          </div>
+
+          <div className="studio-layout">
+            <section className="studio-work-form-card">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">New Work</p>
+                  <h3>새 작품 초안 만들기</h3>
+                </div>
+                <p>소설, 웹툰, 오디오드라마 등 어떤 형식으로 확장할지 먼저 정합니다.</p>
+              </div>
+              <form className="studio-form" onSubmit={submitStudioWorkDraft}>
+                <label>작품 제목<input name="title" required placeholder="예: 네온 별자리 탐정단" /></label>
+                <label>콘텐츠 형식
+                  <select name="format" defaultValue="웹툰">
+                    {readerFormatFilters.filter((item) => item !== "전체").map((format) => <option key={format}>{format}</option>)}
+                  </select>
+                </label>
+                <label>대표 장르
+                  <select name="genre" defaultValue="판타지">
+                    {readerGenreFilters.map((genre) => <option key={genre}>{genre}</option>)}
+                  </select>
+                </label>
+                <label className="wide">작품 소개<textarea name="synopsis" required placeholder="작품의 핵심 설정, 독자에게 보여줄 매력, 필요한 팀원을 적어주세요." /></label>
+                <button className="primary-button" type="submit"><Sparkles size={17} /> 작품 초안 저장</button>
+              </form>
+            </section>
+
+            <section className="studio-work-form-card">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">Episode Upload</p>
+                  <h3>회차 업로드 준비</h3>
+                </div>
+                <p>현재는 데모 초안 저장이며, 이후 이미지/원고/오디오 파일 업로드와 연결할 수 있습니다.</p>
+              </div>
+              <form className="studio-form" onSubmit={submitStudioEpisode}>
+                <label>연결 작품
+                  <select name="workId" defaultValue={readerWorks[0].id}>
+                    {readerWorks.slice(0, 6).map((work) => <option value={work.id} key={work.id}>{work.title}</option>)}
+                  </select>
+                </label>
+                <label>회차 제목<input name="episodeTitle" required placeholder="예: 2화. 사라진 목소리" /></label>
+                <label>공개 방식
+                  <select name="accessType" defaultValue="유료">
+                    <option>무료</option>
+                    <option>유료</option>
+                    <option>구독자 선공개</option>
+                  </select>
+                </label>
+                <label className="wide">업로드 메모<textarea name="uploadMemo" placeholder="원고, 콘티, 음성 파일, 대본 싱크 등 업로드할 자료를 적어주세요." /></label>
+                <button className="primary-button" type="submit"><BookOpen size={17} /> 회차 초안 저장</button>
+              </form>
+            </section>
+          </div>
+
+          <section className="studio-team-board">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Team Builder</p>
+                <h2>팀원 초대와 수익 지분 설정</h2>
+              </div>
+              <p>매칭에서 찾은 창작자를 작품 팀으로 초대하고, 30:30:40 같은 지분율을 사전에 합의하는 영역입니다.</p>
+            </div>
+            <div className="studio-team-grid">
+              {[
+                { role: "WRITER", name: "팀장/원작", share: 40, status: "확정" },
+                { role: "ILLUSTRATOR", name: "일러스트", share: 30, status: "초대 가능" },
+                { role: "VOICE_ACTOR", name: "성우", share: 20, status: "상담 중" },
+                { role: "SOUND_DIRECTOR", name: "BGM", share: 10, status: "모집 중" },
+              ].map((member) => (
+                <article key={member.role}>
+                  <span>{roleLabels[member.role]}</span>
+                  <strong>{member.name}</strong>
+                  <div><b>{member.share}%</b><em>{member.status}</em></div>
+                  <button onClick={() => navigate("matching")}><Send size={15} /> 팀원 찾기</button>
+                </article>
+              ))}
+            </div>
+            <div className="studio-share-summary">
+              <div>
+                <span>현재 지분 합계</span>
+                <strong>100%</strong>
+                <p>팀원이 수락하면 이 비율을 정산 콘솔에 그대로 반영할 수 있습니다.</p>
+              </div>
+              <button className="primary-button compact" onClick={saveStudioTeamPlan}><CheckCircle2 size={17} /> 팀 구성 저장</button>
+            </div>
+          </section>
+
+          <section className="studio-portfolio-panel">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Portfolio Manager</p>
+                <h2>내 포트폴리오와 공개 상태</h2>
+              </div>
+              <p>매칭 보드에 노출되는 내 프로필, 작품 참여 이력, 팬 후원 포스트를 스튜디오에서 관리합니다.</p>
+            </div>
+            <div className="studio-portfolio-grid">
+              <article>
+                <UserRound size={22} />
+                <strong>{myCreatorProfile ? "매칭 프로필 공개 중" : "매칭 프로필 없음"}</strong>
+                <p>{myCreatorProfile ? myCreatorProfile.bio : "프로필을 등록하면 팀원 찾기 카드에 표시됩니다."}</p>
+                <button onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}>프로필 관리</button>
+              </article>
+              <article>
+                <BookOpen size={22} />
+                <strong>참여 작품 크레딧</strong>
+                <p>{readerWorks.slice(0, 3).map((work) => work.title).join(" · ")}</p>
+                <button onClick={() => navigate("discover")}>작품 확인</button>
+              </article>
+              <article>
+                <Coins size={22} />
+                <strong>팬 후원/구독 포스트</strong>
+                <p>러프, 짤 이미지팩, 보이스 샘플을 유료 포스트로 확장할 수 있습니다.</p>
+                <button onClick={() => setCommunityMessage("팬 포스트 작성기는 다음 단계에서 이미지 업로드와 함께 연결하면 좋아요.")}>포스트 준비</button>
+              </article>
+            </div>
+          </section>
+
+          {communityMessage && <p className="community-message studio-message">{communityMessage}</p>}
+        </section>}
+
         {activePage === "matching" && <section className="section matching-page page-panel">
           <div className="matching-hero">
             <div>
@@ -4612,6 +4782,7 @@ export function App() {
       <nav className="mobile-tabs">
         <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
         <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>
+        <button className={activePage === "studio" ? "active" : ""} onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
         <button className={activePage === "matching" ? "active" : ""} onClick={() => navigate("matching")}><Search size={18} />매칭</button>
         <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
         <button className={activePage === "settlement" ? "active" : ""} onClick={() => navigate("settlement")}><Wallet size={18} />정산</button>
