@@ -265,6 +265,7 @@ const readerFormatFilters = ["전체", "소설", "웹툰", "만화", "애니메�
 const readerGenreFilters = ["로맨스", "판타지", "미스터리", "스릴러", "일상", "BL", "힐링"];
 const libraryViewItems = [
   { id: "all", label: "전체 작품" },
+  { id: "recent", label: "최근 본 작품" },
   { id: "purchased", label: "결제한 작품" },
   { id: "scrapped", label: "스크랩" },
 ] as const;
@@ -2248,6 +2249,7 @@ function AccountModal({
   wallet,
   purchasedWorkIds,
   scrappedWorkIds,
+  recentWorkIds,
   premiumSubscription,
   onClose,
   onLogout,
@@ -2262,6 +2264,7 @@ function AccountModal({
   wallet: number | null;
   purchasedWorkIds: string[];
   scrappedWorkIds: string[];
+  recentWorkIds: string[];
   premiumSubscription: PremiumSubscriptionState;
   onClose: () => void;
   onLogout: () => void;
@@ -2274,6 +2277,9 @@ function AccountModal({
 }) {
   const purchasedWorks = readerWorks.filter((work) => purchasedWorkIds.includes(work.id));
   const scrappedWorks = readerWorks.filter((work) => scrappedWorkIds.includes(work.id));
+  const recentWorks = recentWorkIds
+    .map((workId) => readerWorks.find((work) => work.id === workId))
+    .filter(Boolean) as ReaderWork[];
 
   return (
     <div className="modal-backdrop account-backdrop" role="dialog" aria-modal="true">
@@ -2412,6 +2418,41 @@ function AccountModal({
             </div>
           </section>
 
+          <section className="account-panel wide recent-account-panel">
+            <div className="account-panel-head">
+              <RefreshCw size={20} />
+              <strong>최근 본 작품</strong>
+            </div>
+            <div className="recent-account-summary">
+              <div>
+                <span>이어보기 큐</span>
+                <b>{recentWorks.length}개</b>
+              </div>
+              <button onClick={() => { onClose(); onOpenLibrary("recent"); }}>최근 본 작품으로 이동</button>
+            </div>
+            <div className="purchase-list compact-purchase-list">
+              {recentWorks.length > 0 ? recentWorks.slice(0, 3).map((work) => (
+                <article key={work.id}>
+                  <div>
+                    <span>{work.format} · {work.genre}</span>
+                    <strong>{work.title}</strong>
+                    <p>{work.subGenre} · 마지막으로 열어본 작품</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("recent"); }}>이어보기</button>
+                </article>
+              )) : (
+                <article>
+                  <div>
+                    <span>아직 없음</span>
+                    <strong>작품 상세를 열면 여기에 쌓여요</strong>
+                    <p>랭킹이나 추천작에서 상세/리뷰를 눌러 최근 본 작품을 만들어보세요.</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("all"); }}>작품 둘러보기</button>
+                </article>
+              )}
+            </div>
+          </section>
+
           <section className="account-panel">
             <div className="account-panel-head">
               <Bell size={20} />
@@ -2450,6 +2491,7 @@ export function App() {
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("all");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState(() => readStoredIds("creator-universe-purchased-works", ["midnight-signal", "starlight-contract"]));
   const [scrappedWorkIds, setScrappedWorkIds] = useState(() => readStoredIds("creator-universe-scrapped-works"));
+  const [recentWorkIds, setRecentWorkIds] = useState(() => readStoredIds("creator-universe-recent-works"));
   const [pendingPurchaseWorkId, setPendingPurchaseWorkId] = useState(readerWorks[0].id);
   const [paymentMode, setPaymentMode] = useState<"charge" | "content">("charge");
   const [discoverCreatorSearch, setDiscoverCreatorSearch] = useState("");
@@ -2641,12 +2683,13 @@ export function App() {
       const matchesSearch = searchTokens.length === 0 || searchTokens.every((token) => searchableText.includes(token));
       const matchesLibrary =
         readerLibraryView === "all" ||
+        (readerLibraryView === "recent" && recentWorkIds.includes(work.id)) ||
         (readerLibraryView === "purchased" && purchasedWorkIds.includes(work.id)) ||
         (readerLibraryView === "scrapped" && scrappedWorkIds.includes(work.id));
 
       return matchesFilters && matchesSearch && matchesLibrary;
     });
-  }, [purchasedWorkIds, readerFilters, readerLibraryView, readerSearch, scrappedWorkIds]);
+  }, [purchasedWorkIds, readerFilters, readerLibraryView, readerSearch, recentWorkIds, scrappedWorkIds]);
 
   const rankedReaderWorks = useMemo(
     () => [...readerWorks].sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left)),
@@ -2675,6 +2718,14 @@ export function App() {
   const scrappedWorks = useMemo(
     () => readerWorks.filter((work) => scrappedWorkIds.includes(work.id)),
     [scrappedWorkIds],
+  );
+
+  const recentWorks = useMemo(
+    () =>
+      recentWorkIds
+        .map((workId) => readerWorks.find((work) => work.id === workId))
+        .filter(Boolean) as ReaderWork[],
+    [recentWorkIds],
   );
 
   const discoverCreators = useMemo(() => {
@@ -2735,6 +2786,7 @@ export function App() {
     const latestWalletTransaction = currentWalletDetail.transactions[0];
     const latestPurchasedWork = purchasedWorks[0];
     const latestScrappedWork = scrappedWorks[0];
+    const latestRecentWork = recentWorks[0];
 
     if (pendingReceivedProposal) {
       const partnerName = pendingReceivedProposal.partner?.displayName ?? pendingReceivedProposal.proposal.requesterName ?? "창작자";
@@ -2783,6 +2835,19 @@ export function App() {
         tone: "content",
         actionLabel: "보관함 이동",
         libraryView: "purchased",
+      });
+    }
+
+    if (latestRecentWork && latestRecentWork.id !== latestPurchasedWork?.id) {
+      items.push({
+        id: `recent-${latestRecentWork.id}`,
+        title: "최근 본 작품을 이어볼까요?",
+        body: `${latestRecentWork.title} 상세를 마지막으로 확인했습니다.`,
+        time: "이어보기",
+        page: "discover",
+        tone: "content",
+        actionLabel: "최근 본 작품",
+        libraryView: "recent",
       });
     }
 
@@ -2843,6 +2908,7 @@ export function App() {
     premiumSubscription.isActive,
     premiumSubscription.nextBillingDate,
     purchasedWorks,
+    recentWorks,
     scrappedWorks,
     token,
   ]);
@@ -2960,8 +3026,20 @@ export function App() {
   }, [scrappedWorkIds]);
 
   useEffect(() => {
+    localStorage.setItem("creator-universe-recent-works", JSON.stringify(recentWorkIds));
+  }, [recentWorkIds]);
+
+  useEffect(() => {
     localStorage.setItem("creator-universe-read-notifications", JSON.stringify(readNotificationIds));
   }, [readNotificationIds]);
+
+  useEffect(() => {
+    if (!selectedWork) {
+      return;
+    }
+
+    setRecentWorkIds((current) => [selectedWork.id, ...current.filter((workId) => workId !== selectedWork.id)].slice(0, 12));
+  }, [selectedWork]);
 
   useEffect(() => {
     if (user?.id) {
@@ -3760,6 +3838,7 @@ export function App() {
               {isAccountMenuOpen && (
                 <div className="account-dropdown">
                   <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><UserRound size={17} /> 내 계정</button>
+                  <button onClick={() => { openReaderLibrary("recent"); setIsAccountMenuOpen(false); }}><RefreshCw size={17} /> 최근 본 작품</button>
                   <button onClick={() => { openReaderLibrary("purchased"); setIsAccountMenuOpen(false); }}><BookOpen size={17} /> 결제한 작품</button>
                   <button onClick={() => { openReaderLibrary("scrapped"); setIsAccountMenuOpen(false); }}><Heart size={17} /> 스크랩한 작품</button>
                   <button onClick={() => { navigate("studio"); setIsAccountMenuOpen(false); }}><Rocket size={17} /> 창작자 스튜디오</button>
@@ -4120,6 +4199,21 @@ export function App() {
             <div className="library-shelf">
               <article>
                 <div>
+                  <span>Continue</span>
+                  <strong>최근 본 작품</strong>
+                  <p>{recentWorks.length > 0 ? `${recentWorks.length}개 작품 이어보기 가능` : "작품 상세를 열면 자동 저장돼요"}</p>
+                </div>
+                <div className="library-cover-stack recent-stack">
+                  {(recentWorks.length > 0 ? recentWorks : readerWorks.slice(1, 4)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => openReaderLibrary("recent")}>
+                  최근 본 작품 보기
+                </button>
+              </article>
+              <article>
+                <div>
                   <span>Purchased</span>
                   <strong>결제한 작품</strong>
                   <p>{purchasedWorks.length > 0 ? `${purchasedWorks.length}개 열람권 보유` : "아직 결제한 작품이 없어요"}</p>
@@ -4165,19 +4259,26 @@ export function App() {
               <div className="library-tabs" aria-label="내 작품 보관함 필터">
                 {libraryViewItems.map((item) => {
                   const count =
-                    item.id === "purchased" ? purchasedWorkIds.length : item.id === "scrapped" ? scrappedWorkIds.length : readerWorks.length;
+                    item.id === "recent"
+                      ? recentWorkIds.length
+                      : item.id === "purchased"
+                        ? purchasedWorkIds.length
+                        : item.id === "scrapped"
+                          ? scrappedWorkIds.length
+                          : readerWorks.length;
                   return (
                     <button
                       key={item.id}
                       className={readerLibraryView === item.id ? "active" : ""}
                       onClick={() => {
-                        if (item.id !== "all" && !token) {
-                          setAuthMode("login");
-                          return;
-                        }
+                      if ((item.id === "purchased" || item.id === "scrapped") && !token) {
+                        setAuthMode("login");
+                        return;
+                      }
                         setReaderLibraryView(item.id);
                       }}
                     >
+                      {item.id === "recent" && <RefreshCw size={15} />}
                       {item.id === "purchased" && <BookOpen size={15} />}
                       {item.id === "scrapped" && <Heart size={15} />}
                       {item.label}
@@ -5381,6 +5482,7 @@ export function App() {
           wallet={wallet}
           purchasedWorkIds={purchasedWorkIds}
           scrappedWorkIds={scrappedWorkIds}
+          recentWorkIds={recentWorkIds}
           premiumSubscription={premiumSubscription}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}

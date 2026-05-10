@@ -2268,7 +2268,7 @@ h2 {
 
 .library-shelf {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -2329,6 +2329,11 @@ h2 {
 
 .heart-stack img {
   border-color: color-mix(in srgb, var(--brand) 16%, var(--surface));
+}
+
+.recent-stack img {
+  border-color: color-mix(in srgb, var(--cyan) 16%, var(--surface));
+  filter: saturate(1.08) contrast(1.03);
 }
 
 .library-shelf button {
@@ -5891,6 +5896,44 @@ h2 {
 
 .account-panel.danger {
   background: color-mix(in srgb, var(--brand) 5%, var(--surface));
+}
+
+.recent-account-panel {
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 11rem),
+    var(--surface);
+}
+
+.recent-account-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--cyan) 20%, var(--line));
+  border-radius: 20px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--cyan) 6%, var(--surface-2));
+}
+
+.recent-account-summary div {
+  display: grid;
+  gap: 4px;
+}
+
+.recent-account-summary span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.recent-account-summary b {
+  color: var(--cyan);
+  font-size: 1.55rem;
+  letter-spacing: -0.06em;
+}
+
+.compact-purchase-list article {
+  grid-template-columns: 1fr auto;
 }
 
 .account-panel .delete-account-button {
