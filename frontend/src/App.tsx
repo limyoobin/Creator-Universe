@@ -567,6 +567,19 @@ const universePremiumBenefits = [
 ];
 
 type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support";
+type LibraryViewId = (typeof libraryViewItems)[number]["id"];
+type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium";
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  time: string;
+  page: PageId;
+  tone: NotificationTone;
+  actionLabel: string;
+  libraryView?: LibraryViewId;
+};
 
 const navItems: Array<{ id: PageId; label: string; helper: string }> = [
   { id: "home", label: "홈", helper: "서비스 소개" },
@@ -2481,6 +2494,8 @@ export function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
@@ -2707,6 +2722,133 @@ export function App() {
     return currentWalletDetail.transactions.filter((item) => walletFilter === "ALL" || item.type === walletFilter);
   }, [currentWalletDetail.transactions, walletFilter]);
 
+  const notificationItems = useMemo<NotificationItem[]>(() => {
+    if (!token) {
+      return [];
+    }
+
+    const items: NotificationItem[] = [];
+    const pendingReceivedProposal = matchProposalInboxItems.find(
+      (item) => item.direction === "received" && item.proposal.status === "PENDING",
+    );
+    const acceptedProposal = matchProposalInboxItems.find((item) => item.proposal.status === "ACCEPTED");
+    const latestWalletTransaction = currentWalletDetail.transactions[0];
+    const latestPurchasedWork = purchasedWorks[0];
+    const latestScrappedWork = scrappedWorks[0];
+
+    if (pendingReceivedProposal) {
+      const partnerName = pendingReceivedProposal.partner?.displayName ?? pendingReceivedProposal.proposal.requesterName ?? "창작자";
+      items.push({
+        id: `proposal-pending-${pendingReceivedProposal.proposal.id}`,
+        title: `${partnerName}님의 매칭 제안`,
+        body: `${pendingReceivedProposal.proposal.projectTitle} · 지분 ${pendingReceivedProposal.proposal.sharePercentage}% 조건을 확인해보세요.`,
+        time: pendingReceivedProposal.time,
+        page: "matching",
+        tone: "match",
+        actionLabel: "제안함 열기",
+      });
+    }
+
+    if (acceptedProposal) {
+      items.push({
+        id: `proposal-accepted-${acceptedProposal.proposal.id}`,
+        title: "팀원 합류가 완료됐어요",
+        body: `${acceptedProposal.proposal.projectTitle} 제안이 수락되어 정산 팀원 목록에 반영됩니다.`,
+        time: acceptedProposal.time,
+        page: "settlement",
+        tone: "settlement",
+        actionLabel: "정산 보기",
+      });
+    }
+
+    if (latestWalletTransaction) {
+      items.push({
+        id: `wallet-${latestWalletTransaction.id}`,
+        title: latestWalletTransaction.title,
+        body: `${getWalletTypeLabel(latestWalletTransaction.type)} ${formatCoins(Math.abs(latestWalletTransaction.amount))} · ${latestWalletTransaction.status}`,
+        time: formatDateTime(latestWalletTransaction.createdAt),
+        page: "wallet",
+        tone: "wallet",
+        actionLabel: "지갑 보기",
+      });
+    }
+
+    if (latestPurchasedWork) {
+      items.push({
+        id: `purchased-${latestPurchasedWork.id}`,
+        title: "결제한 작품을 이어볼 수 있어요",
+        body: `${latestPurchasedWork.title} 열람권이 보관함에 저장되어 있습니다.`,
+        time: "내 작품",
+        page: "discover",
+        tone: "content",
+        actionLabel: "보관함 이동",
+        libraryView: "purchased",
+      });
+    }
+
+    if (latestScrappedWork) {
+      items.push({
+        id: `scrapped-${latestScrappedWork.id}`,
+        title: "스크랩한 작품 업데이트 확인",
+        body: `${latestScrappedWork.title}처럼 저장한 작품을 한곳에서 다시 볼 수 있어요.`,
+        time: "스크랩",
+        page: "discover",
+        tone: "content",
+        actionLabel: "스크랩 보기",
+        libraryView: "scrapped",
+      });
+    }
+
+    if (premiumSubscription.isActive) {
+      items.push({
+        id: `premium-${premiumSubscription.nextBillingDate}`,
+        title: "프리미엄 구독이 활성화되어 있어요",
+        body: `다음 재결제일은 ${formatDateOnly(premiumSubscription.nextBillingDate)}입니다.`,
+        time: "구독",
+        page: "wallet",
+        tone: "premium",
+        actionLabel: "구독 관리",
+      });
+    }
+
+    if (myCreatorProfile && !pendingReceivedProposal) {
+      items.push({
+        id: `studio-profile-${myCreatorProfile.id}`,
+        title: "창작자 프로필이 공개 중입니다",
+        body: "매칭 보드에서 내 프로필을 보고 팀원이 채팅이나 제안을 보낼 수 있어요.",
+        time: "스튜디오",
+        page: "studio",
+        tone: "studio",
+        actionLabel: "스튜디오 보기",
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        id: "welcome-notification",
+        title: "크리에이터 유니버스에 오신 걸 환영해요",
+        body: "작품 스크랩, 코인 충전, 매칭 제안이 생기면 이곳에서 바로 알려드릴게요.",
+        time: "처음 시작",
+        page: "discover",
+        tone: "content",
+        actionLabel: "작품 둘러보기",
+      });
+    }
+
+    return items.slice(0, 6);
+  }, [
+    currentWalletDetail.transactions,
+    matchProposalInboxItems,
+    myCreatorProfile,
+    premiumSubscription.isActive,
+    premiumSubscription.nextBillingDate,
+    purchasedWorks,
+    scrappedWorks,
+    token,
+  ]);
+
+  const unreadNotificationCount = notificationItems.filter((item) => !readNotificationIds.includes(item.id)).length;
+
   const settlementPreview = useMemo(() => {
     const grossAmount = settlement?.grossAmount ?? 100000;
     const platformFeeAmount = Math.floor(grossAmount * (settlementConfig.platformFeeRate / 100));
@@ -2816,6 +2958,10 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("creator-universe-scrapped-works", JSON.stringify(scrappedWorkIds));
   }, [scrappedWorkIds]);
+
+  useEffect(() => {
+    localStorage.setItem("creator-universe-read-notifications", JSON.stringify(readNotificationIds));
+  }, [readNotificationIds]);
 
   useEffect(() => {
     if (user?.id) {
@@ -3006,6 +3152,26 @@ export function App() {
     setActivePage(page);
     setIsMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openNotificationItem(item: NotificationItem) {
+    setReadNotificationIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+    setIsNotificationOpen(false);
+    setIsAccountMenuOpen(false);
+
+    if (item.libraryView) {
+      openReaderLibrary(item.libraryView);
+      return;
+    }
+
+    navigate(item.page);
+  }
+
+  function markAllNotificationsRead() {
+    setReadNotificationIds((current) => {
+      const nextIds = notificationItems.map((item) => item.id);
+      return Array.from(new Set([...current, ...nextIds]));
+    });
   }
 
   function toggleReaderFilter(filter: string) {
@@ -3522,9 +3688,71 @@ export function App() {
           <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="테마 변경">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+          {user && (
+            <div className="notification-wrap">
+              <button
+                className={`icon-button notification-trigger ${unreadNotificationCount > 0 ? "has-unread" : ""}`}
+                onClick={() => {
+                  setIsNotificationOpen((value) => !value);
+                  setIsAccountMenuOpen(false);
+                }}
+                aria-label="알림센터 열기"
+                aria-expanded={isNotificationOpen}
+              >
+                <Bell size={18} />
+                {unreadNotificationCount > 0 && <span>{Math.min(unreadNotificationCount, 9)}</span>}
+              </button>
+              {isNotificationOpen && (
+                <div className="notification-panel">
+                  <div className="notification-panel-head">
+                    <div>
+                      <strong>알림센터</strong>
+                      <small>{unreadNotificationCount > 0 ? `${unreadNotificationCount}개의 새 알림` : "모두 확인했어요"}</small>
+                    </div>
+                    <button type="button" onClick={markAllNotificationsRead}>모두 읽음</button>
+                  </div>
+                  <div className="notification-list">
+                    {notificationItems.map((item) => {
+                      const isUnread = !readNotificationIds.includes(item.id);
+
+                      return (
+                        <button
+                          className={`notification-item ${item.tone} ${isUnread ? "unread" : ""}`}
+                          key={item.id}
+                          onClick={() => openNotificationItem(item)}
+                          type="button"
+                        >
+                          <i>
+                            {item.tone === "match" && <Users size={16} />}
+                            {item.tone === "wallet" && <Coins size={16} />}
+                            {item.tone === "content" && <BookOpen size={16} />}
+                            {item.tone === "studio" && <Rocket size={16} />}
+                            {item.tone === "settlement" && <Split size={16} />}
+                            {item.tone === "premium" && <Sparkles size={16} />}
+                          </i>
+                          <span>
+                            <b>{item.title}</b>
+                            <small>{item.body}</small>
+                            <em>{item.time} · {item.actionLabel}</em>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {user ? (
             <div className="account-menu-wrap">
-              <button className="account-trigger" onClick={() => setIsAccountMenuOpen((value) => !value)} aria-expanded={isAccountMenuOpen}>
+              <button
+                className="account-trigger"
+                onClick={() => {
+                  setIsAccountMenuOpen((value) => !value);
+                  setIsNotificationOpen(false);
+                }}
+                aria-expanded={isAccountMenuOpen}
+              >
                 <span>{user.displayName.slice(0, 1)}</span>
                 <b>{user.displayName}</b>
                 <ChevronDown size={16} />

@@ -362,6 +362,186 @@ a {
   color: var(--brand);
 }
 
+.notification-wrap {
+  position: relative;
+}
+
+.notification-trigger {
+  position: relative;
+}
+
+.notification-trigger.has-unread {
+  border-color: color-mix(in srgb, var(--brand) 32%, var(--line));
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+}
+
+.notification-trigger > span {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  color: white;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  font-size: 0.68rem;
+  font-weight: 950;
+}
+
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: -64px;
+  z-index: 70;
+  display: grid;
+  gap: 12px;
+  width: min(390px, calc(100vw - 24px));
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 36%),
+    radial-gradient(circle at 100% 20%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 32%),
+    color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow-lg);
+}
+
+.notification-panel::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 78px;
+  width: 16px;
+  height: 16px;
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.notification-panel-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 4px 2px;
+}
+
+.notification-panel-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.notification-panel-head strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.notification-panel-head small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.notification-panel-head button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  font-size: 0.74rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.notification-list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+  max-height: min(480px, calc(100vh - 190px));
+  overflow: auto;
+}
+
+.notification-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 11px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  padding: 11px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.notification-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--cyan) 24%, var(--line));
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+}
+
+.notification-item.unread {
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface));
+}
+
+.notification-item i {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  color: white;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  font-style: normal;
+}
+
+.notification-item.match i {
+  background: linear-gradient(135deg, var(--cyan), var(--violet));
+}
+
+.notification-item.wallet i,
+.notification-item.premium i {
+  background: linear-gradient(135deg, #ffb84d, var(--brand));
+}
+
+.notification-item.settlement i,
+.notification-item.studio i {
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+}
+
+.notification-item span {
+  display: grid;
+  gap: 4px;
+}
+
+.notification-item b {
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.notification-item small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.notification-item em {
+  color: color-mix(in srgb, var(--cyan) 80%, var(--text));
+  font-size: 0.73rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .primary-button,
 .ghost-button,
 .icon-button {
@@ -8695,6 +8875,19 @@ h2 {
 
   .header-actions {
     gap: 6px;
+  }
+
+  .notification-panel {
+    position: fixed;
+    top: 76px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100vh - 110px);
+  }
+
+  .notification-panel::before {
+    right: 110px;
   }
 
   .ghost-button {
