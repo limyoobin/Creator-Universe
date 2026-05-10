@@ -5899,6 +5899,19 @@ h2 {
   background: color-mix(in srgb, var(--brand) 5%, var(--surface));
 }
 
+.wallet-account-panel {
+  align-content: start;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 9rem),
+    var(--surface);
+}
+
+.account-summary-panel {
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--violet) 9%, transparent), transparent 10rem),
+    var(--surface);
+}
+
 .recent-account-panel {
   background:
     radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 11rem),
@@ -6084,12 +6097,14 @@ h2 {
 }
 
 .account-wallet {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 18px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 20px;
   padding: 14px;
-  background: var(--surface-2);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, transparent), transparent 64%),
+    var(--surface-2);
 }
 
 .account-wallet span,
@@ -6100,7 +6115,45 @@ h2 {
 
 .account-wallet b {
   color: var(--brand);
-  font-size: 22px;
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: -0.07em;
+}
+
+.account-wallet small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.wallet-mini-grid,
+.account-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wallet-mini-grid div,
+.account-summary-grid div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--surface-2) 74%, transparent);
+}
+
+.wallet-mini-grid span,
+.account-summary-grid span {
+  color: var(--muted);
+  font-size: 0.73rem;
+  font-weight: 900;
+}
+
+.wallet-mini-grid b,
+.account-summary-grid b {
+  color: var(--text);
+  font-size: 1.08rem;
+  letter-spacing: -0.05em;
 }
 
 .account-quick-actions {
@@ -6121,6 +6174,12 @@ h2 {
 
 .account-quick-actions svg {
   flex: 0 0 auto;
+}
+
+.account-summary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .account-panel label {

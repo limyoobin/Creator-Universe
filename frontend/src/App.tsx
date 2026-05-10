@@ -808,6 +808,10 @@ function readStoredIds(key: string, fallback: string[] = []) {
   }
 }
 
+function getUserLibraryStorageKey(userId: string, key: "purchased-works" | "scrapped-works" | "recent-works" | "read-notifications") {
+  return `creator-universe-user-${userId}-${key}`;
+}
+
 const defaultNotificationPreferences: NotificationPreferences = {
   newEpisode: true,
   settlement: true,
@@ -2332,6 +2336,7 @@ function AccountModal({
   const recentWorks = recentWorkIds
     .map((workId) => readerWorks.find((work) => work.id === workId))
     .filter(Boolean) as ReaderWork[];
+  const walletBalance = wallet ?? 0;
 
   return (
     <div className="modal-backdrop account-backdrop" role="dialog" aria-modal="true">
@@ -2356,14 +2361,22 @@ function AccountModal({
         </section>
 
         <div className="account-grid">
-          <section className="account-panel">
+          <section className="account-panel wallet-account-panel">
             <div className="account-panel-head">
               <Wallet size={20} />
               <strong>내 지갑</strong>
             </div>
             <div className="account-wallet">
-              <span>보유 코인</span>
-              <b>{wallet === null ? "로그인 필요" : formatCoins(wallet)}</b>
+              <div>
+                <span>보유 코인</span>
+                <b>{wallet === null ? "로그인 필요" : formatCoins(walletBalance)}</b>
+              </div>
+              <small>작품 열람, 후원, 구독에 사용할 수 있어요.</small>
+            </div>
+            <div className="wallet-mini-grid">
+              <div><span>결제</span><b>{purchasedWorks.length}</b></div>
+              <div><span>스크랩</span><b>{scrappedWorks.length}</b></div>
+              <div><span>최근</span><b>{recentWorks.length}</b></div>
             </div>
             <div className="account-quick-actions">
               <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
@@ -2412,6 +2425,23 @@ function AccountModal({
             <label>닉네임<input defaultValue={user.displayName} /></label>
             <label>이메일<input defaultValue={user.email} /></label>
             <button>변경사항 저장</button>
+          </section>
+
+          <section className="account-panel account-summary-panel">
+            <div className="account-panel-head">
+              <UserRound size={20} />
+              <strong>계정 요약</strong>
+            </div>
+            <p>내 활동을 빠르게 확인하고 바로 이동할 수 있는 개인 허브입니다.</p>
+            <div className="account-summary-grid">
+              <div><span>보관함</span><b>{purchasedWorks.length + scrappedWorks.length + recentWorks.length}</b></div>
+              <div><span>알림</span><b>{notificationPreferences.newEpisode ? "ON" : "OFF"}</b></div>
+              <div><span>프리미엄</span><b>{premiumSubscription.isActive ? "구독중" : "미구독"}</b></div>
+            </div>
+            <div className="account-summary-actions">
+              <button onClick={() => { onClose(); onOpenLibrary("recent"); }}><RefreshCw size={15} /> 이어보기</button>
+              <button onClick={() => { onClose(); onNavigate("support"); }}><ShieldCheck size={15} /> 도움센터</button>
+            </div>
           </section>
 
           <section className="account-panel wide">
@@ -2563,9 +2593,10 @@ export function App() {
   const [readerSearch, setReaderSearch] = useState("");
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("all");
-  const [purchasedWorkIds, setPurchasedWorkIds] = useState(() => readStoredIds("creator-universe-purchased-works", ["midnight-signal", "starlight-contract"]));
-  const [scrappedWorkIds, setScrappedWorkIds] = useState(() => readStoredIds("creator-universe-scrapped-works"));
+  const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
+  const [scrappedWorkIds, setScrappedWorkIds] = useState<string[]>([]);
   const [recentWorkIds, setRecentWorkIds] = useState(() => readStoredIds("creator-universe-recent-works"));
+  const [libraryStorageOwner, setLibraryStorageOwner] = useState("anonymous");
   const [pendingPurchaseWorkId, setPendingPurchaseWorkId] = useState(readerWorks[0].id);
   const [paymentMode, setPaymentMode] = useState<"charge" | "content">("charge");
   const [discoverCreatorSearch, setDiscoverCreatorSearch] = useState("");
@@ -3136,20 +3167,36 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("creator-universe-purchased-works", JSON.stringify(purchasedWorkIds));
-  }, [purchasedWorkIds]);
+    if (!user?.id || libraryStorageOwner !== user.id) {
+      return;
+    }
+    localStorage.setItem(getUserLibraryStorageKey(user.id, "purchased-works"), JSON.stringify(purchasedWorkIds));
+  }, [libraryStorageOwner, purchasedWorkIds, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem("creator-universe-scrapped-works", JSON.stringify(scrappedWorkIds));
-  }, [scrappedWorkIds]);
+    if (!user?.id || libraryStorageOwner !== user.id) {
+      return;
+    }
+    localStorage.setItem(getUserLibraryStorageKey(user.id, "scrapped-works"), JSON.stringify(scrappedWorkIds));
+  }, [libraryStorageOwner, scrappedWorkIds, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem("creator-universe-recent-works", JSON.stringify(recentWorkIds));
-  }, [recentWorkIds]);
+    const owner = user?.id ?? "anonymous";
+    if (libraryStorageOwner !== owner) {
+      return;
+    }
+    const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "recent-works") : "creator-universe-recent-works";
+    localStorage.setItem(storageKey, JSON.stringify(recentWorkIds));
+  }, [libraryStorageOwner, recentWorkIds, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem("creator-universe-read-notifications", JSON.stringify(readNotificationIds));
-  }, [readNotificationIds]);
+    const owner = user?.id ?? "anonymous";
+    if (libraryStorageOwner !== owner) {
+      return;
+    }
+    const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "read-notifications") : "creator-universe-read-notifications";
+    localStorage.setItem(storageKey, JSON.stringify(readNotificationIds));
+  }, [libraryStorageOwner, readNotificationIds, user?.id]);
 
   useEffect(() => {
     localStorage.setItem("creator-universe-notification-preferences", JSON.stringify(notificationPreferences));
@@ -3166,8 +3213,18 @@ export function App() {
   useEffect(() => {
     if (user?.id) {
       setPremiumSubscription(readUserPremiumSubscription(user.id));
+      setPurchasedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "purchased-works")));
+      setScrappedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "scrapped-works")));
+      setRecentWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "recent-works")));
+      setReadNotificationIds(readStoredIds(getUserLibraryStorageKey(user.id, "read-notifications")));
+      setLibraryStorageOwner(user.id);
     } else {
       setPremiumSubscription(createInactivePremiumSubscription());
+      setPurchasedWorkIds([]);
+      setScrappedWorkIds([]);
+      setRecentWorkIds(readStoredIds("creator-universe-recent-works"));
+      setReadNotificationIds(readStoredIds("creator-universe-read-notifications"));
+      setLibraryStorageOwner("anonymous");
     }
   }, [user?.id]);
 
