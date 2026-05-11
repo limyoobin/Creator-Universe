@@ -1,65 +1,84 @@
 # Creator Universe
 
-서브컬처 창작자를 위한 `프론트엔드 + 백엔드 + Prisma DB` 기반 멀티 콘텐츠 협업 플랫폼 MVP입니다. 소설, 웹툰, 만화, 애니메이션, 오디오드라마 창작팀을 연결하고 코인 결제, 지갑, 자동 정산, 후원/구독, 고객센터 흐름까지 한 번에 확인할 수 있습니다.
+서브컬처 창작자를 위한 **멀티 콘텐츠 협업 플랫폼 MVP**입니다.  
+작가, 일러스트레이터, 성우, BGM 크리에이터가 팀을 만들고, 독자는 코인으로 작품을 감상하며, 결제 수익은 프로젝트 지분율에 따라 자동 정산됩니다.
 
-## 배포 주소
+[배포 사이트 열기](https://project-limyoobins-projects.vercel.app) · [백엔드 상태 확인](https://creator-universe-api-7qfc.onrender.com/health) · [GitHub 저장소](https://github.com/limyoobin/Creator-Universe)
 
-- 프론트엔드: https://project-limyoobins-projects.vercel.app
-- 백엔드 상태 확인: https://creator-universe-api-7qfc.onrender.com/health
-- GitHub 저장소: https://github.com/limyoobin/Creator-Universe
+## 핵심 가치
 
-Vercel은 코드가 GitHub `main` 브랜치에 올라가면 같은 프론트엔드 주소에서 자동으로 최신 버전을 다시 배포합니다. 배포 직후 1-3분 정도는 예전 화면이 보일 수 있으니 새로고침하거나 브라우저 캐시를 지워 확인하세요.
+- **창작자 매칭**: 글, 그림, 목소리, BGM 창작자가 포트폴리오를 등록하고 협업 제안을 주고받습니다.
+- **스마트 정산**: 독자 결제 후 플랫폼 수수료를 제외한 금액을 팀원 지분율대로 자동 분배합니다.
+- **멀티 콘텐츠 유통**: 소설, 웹툰, 만화, 애니메이션, 오디오드라마, 믹스미디어 작품을 장르별로 탐색합니다.
+- **팬덤 수익화**: 창작자 후원, 구독, 유료 포스트, 프리미엄 멤버십 흐름을 제공합니다.
+- **운영 도구**: 지갑, 정산 콘솔, 알림센터, 고객센터, 사용자 신고, 댓글/리뷰 기능을 포함합니다.
 
-## 프로젝트 구조
+## 기술 스택
 
-- `frontend/`: Vite React 프론트엔드
-- `src/`: Express 백엔드 API
-- `prisma/schema.prisma`: PostgreSQL 기준 DB 스키마
-- `prisma/seed.ts`: 데모 계정/프로젝트/에피소드 시드 데이터
-- `creator-universe-homepage.html`: 이전 단일 HTML 데모 파일
+| 영역 | 사용 기술 |
+| --- | --- |
+| Frontend | React 19, Vite, TypeScript, CSS |
+| Backend | Node.js, Express, TypeScript |
+| Database | PostgreSQL, Prisma |
+| Deployment | Vercel(frontend), Render(backend), Neon PostgreSQL |
+| UI Assets | SVG cover assets, custom logo/favicon/OG image |
 
-## 핵심 기능
+## 폴더 구조
 
-- 회원가입, 로그인, 로그아웃
-- 아이디 찾기, 비밀번호 재설정
-- 닉네임/아이디 중복 확인, 이메일/비밀번호 검증
-- 계정 탈퇴
-- 창작자 포트폴리오 매칭 조회
-- 창작자 채팅, 매칭 요청
-- 프로젝트 상세 조회
-- 콘텐츠 구매 시 자동 정산
-- 팀원 지갑 잔액 업데이트
-- 월간 정산 대시보드
-- 코인 충전, 결제한 작품, 스크랩한 작품 보관함
-- 창작자 후원/구독, 프리미엄 구독 관리
-- 작품 댓글/리뷰
-- 고객센터 문의, 사용자 신고, 도움봇
+```text
+creator-universe/
+├─ frontend/                 # Vite React 프론트엔드
+│  ├─ public/                 # 로고, 파비콘, OG 이미지, 작품 커버
+│  └─ src/                    # App.tsx, styles.css, 진입점
+├─ src/                       # Express 백엔드 API
+│  ├─ routes/                 # auth, project, settlement, community API
+│  ├─ services/               # 비즈니스 로직
+│  └─ utils/                  # 인증, 토큰, decimal 유틸
+├─ prisma/                    # Prisma schema, migration, seed
+├─ scripts/                   # 로컬 데모 API
+├─ docs/                      # 문서와 이전 프로토타입 보관
+├─ render.yaml                # Render 백엔드 배포 설정
+├─ vercel.json                # Vercel 프론트엔드 배포 설정
+└─ start-creator-universe.cmd # Windows 로컬 실행 스크립트
+```
 
-## 실행 순서
+## 주요 기능
 
-### 1. 로컬에서 바로 보기
+- 회원가입, 로그인, 로그아웃, 아이디 찾기, 비밀번호 재설정, 계정 탈퇴
+- 닉네임/아이디 중복 확인, 이메일 형식 검증, 비밀번호 규칙 검증
+- 작품 탐색, 장르/콘텐츠 형식 다중 필터, 랭킹, 작품 상세, 댓글/리뷰
+- 작품 구매, 스크랩, 최근 본 작품, 내 보관함
+- 코인 충전, 지갑 내역, 프리미엄 구독, 구독 해지
+- 창작자 프로필 등록/삭제, 매칭 제안, 채팅, 지분율 제안 수락
+- 프로젝트 정산 대시보드, 팀원별 예상 정산액, 고정 수수료 정책
+- 고객센터 문의, 사용자 신고, 챗봇 UI, 알림센터
 
-이 폴더를 D 드라이브에서 바로 실행하려면 `start-creator-universe.cmd`를 더블클릭하세요.
+## 로컬 실행
+
+### 빠른 실행
+
+Windows에서 바로 확인하려면 루트 폴더의 `start-creator-universe.cmd`를 실행합니다.
 
 ```text
 Frontend: http://127.0.0.1:5173
 Backend:  http://127.0.0.1:4000/health
 ```
 
-현재 데모 실행은 PostgreSQL 설치 없이도 볼 수 있도록 `scripts/demo-api.mjs` 인메모리 API를 사용합니다.
+이 방식은 PostgreSQL 없이 `scripts/demo-api.mjs` 데모 API를 사용합니다.
 
-### 2. 명령어로 로컬 실행하기
+### 명령어로 실행
 
-터미널에서 직접 실행하려면 아래 순서대로 켜면 됩니다.
+터미널 2개를 열고 아래 명령어를 각각 실행합니다.
 
 ```bash
 npm run dev:demo-api
+```
+
+```bash
 npm run dev:web
 ```
 
-프론트엔드 주소는 `http://127.0.0.1:5173`, 데모 백엔드는 `http://127.0.0.1:4000` 입니다.
-
-### 3. PostgreSQL까지 연결하는 정식 실행
+## 실제 DB 연동 실행
 
 1. 루트 의존성 설치
 
@@ -73,14 +92,14 @@ npm install
 npm --prefix frontend install
 ```
 
-3. `.env.example`을 참고해서 `.env` 생성
+3. `.env.example`을 참고해 `.env` 생성
 
-```bash
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/creator_universe?schema=public"
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
 PORT=4000
 ```
 
-4. Prisma 마이그레이션 및 시드
+4. Prisma 준비
 
 ```bash
 npm run prisma:generate
@@ -94,63 +113,59 @@ npm run prisma:seed
 npm run dev:api
 ```
 
-6. 새 터미널에서 프론트엔드 실행
+6. 프론트엔드 실행
 
 ```bash
 npm run dev:web
 ```
 
-프론트엔드 주소는 기본적으로 `http://127.0.0.1:5173` 입니다.
-
 ## 데모 계정
 
-```text
-아이디: yurino_script
-비밀번호: demo1234
-```
+| 역할 | 아이디 | 비밀번호 |
+| --- | --- | --- |
+| 관리자/테스트 | root | toor |
+| 작가 | yurino_script | demo1234 |
+| 독자 | reader_one | demo1234 |
+| 일러스트레이터 | renka_frame | demo1234 |
+| 성우 | haruka_voice | demo1234 |
 
-정산 대시보드에서 내 지분 30%와 이번 달 예상 정산액을 바로 확인할 수 있는 창작자 계정입니다.
+## 주요 API
 
-```text
-아이디: reader_one
-비밀번호: demo1234
-```
+| Method | Endpoint | 설명 |
+| --- | --- | --- |
+| POST | `/api/auth/signup` | 회원가입 |
+| POST | `/api/auth/login` | 로그인 |
+| GET | `/api/auth/me` | 내 계정 확인 |
+| POST | `/api/auth/logout` | 로그아웃 |
+| POST | `/api/auth/check-username` | 아이디 중복 확인 |
+| POST | `/api/auth/check-display-name` | 닉네임 중복 확인 |
+| GET | `/api/creators` | 창작자 목록 |
+| POST | `/api/creators/me/profile` | 내 매칭 프로필 등록 |
+| DELETE | `/api/creators/me/profile` | 내 매칭 프로필 삭제 |
+| GET | `/api/projects/:projectId` | 프로젝트 상세 |
+| POST | `/api/settlements/content-purchase` | 콘텐츠 구매 및 자동 정산 |
+| GET | `/api/projects/:projectId/settlement-dashboard` | 정산 대시보드 |
+| GET | `/api/users/me/wallet` | 내 지갑 잔액 |
+| POST | `/api/users/me/wallet/charge` | 코인 충전 |
+| POST | `/api/chats/messages` | 채팅 메시지 전송 |
+| POST | `/api/matching/requests` | 매칭 제안 생성 |
 
-구매자 흐름을 테스트할 수 있는 독자 계정입니다.
+로그인이 필요한 API는 `Authorization: Bearer <token>` 헤더를 사용합니다.
 
-창작자 계정도 같은 비밀번호를 사용합니다.
+## 배포
 
-```text
-yurino_script / demo1234
-renka_frame / demo1234
-haruka_voice / demo1234
-```
+- 프론트엔드는 Vercel에서 `main` 브랜치 기준으로 자동 배포됩니다.
+- 백엔드는 Render에서 `render.yaml`을 기준으로 자동 배포됩니다.
+- 데이터베이스는 Neon PostgreSQL을 사용합니다.
 
-## API 요약
+자세한 배포 절차는 [DEPLOYMENT.md](./DEPLOYMENT.md)를 참고하세요.
 
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `POST /api/auth/find-id`
-- `POST /api/auth/reset-password`
-- `GET /api/creators`
-- `GET /api/projects/:projectId`
-- `POST /api/settlements/content-purchase`
-- `GET /api/projects/:projectId/settlement-dashboard`
-- `GET /api/projects/:projectId/viewer`
+## 문서
 
-로그인 후 API는 `Authorization: Bearer <token>` 헤더를 사용합니다.
+- [docs/README.md](./docs/README.md): 문서 인덱스
+- [docs/prototypes](./docs/prototypes): 초기 HTML/TSX 프로토타입 보관
+- [frontend/public](./frontend/public): 이미지와 브랜드 에셋
 
+## 참고
 
-
-## 👥 팀원 및 기여 내용
-
-| 이름 | 역할 | 기여 내용 | 
-
-| **임유빈** | 팀장, Back-end | 프로젝트 총괄, 시스템 아키텍처 및 DB 설계, Node.js API 개발 | 
-
-| **이승아** | 기획 & QA | 상세 요구사항 정의, 사용자 테스트 및 버그 리포팅 |
-
-| **임예원** | Front-end | React Native 기반 UI/UX 구현, 메인 화면 뷰 개발 | 
-
+이 프로젝트는 MVP/프로토타입 단계입니다. 실제 결제 연동, 파일 업로드, 운영자 권한, 결제사 Webhook 검증, 운영 DB 백업 정책은 정식 서비스 단계에서 추가해야 합니다.
