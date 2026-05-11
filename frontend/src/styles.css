@@ -8064,6 +8064,7 @@ h2 {
   display: grid;
   place-items: center;
   padding: 20px;
+  overflow-y: auto;
   background:
     radial-gradient(circle at 18% 12%, rgba(255, 184, 77, 0.16), transparent 26rem),
     radial-gradient(circle at 82% 18%, rgba(64, 214, 255, 0.14), transparent 24rem),
@@ -8073,8 +8074,11 @@ h2 {
 
 .auth-modal {
   width: min(520px, 100%);
+  max-height: min(92dvh, 820px);
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
   border-radius: 32px;
   padding: 24px;
@@ -8345,8 +8349,17 @@ h2 {
 }
 
 @media (max-width: 540px) {
+  .modal-backdrop {
+    align-items: start;
+    padding: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+
   .auth-modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
     padding: 18px;
+    padding-bottom: max(22px, env(safe-area-inset-bottom));
     border-radius: 24px;
   }
 
