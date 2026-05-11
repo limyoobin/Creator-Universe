@@ -1836,18 +1836,23 @@ h2 {
 
 body[data-theme="dark"] .studio-team-grid button,
 body[data-theme="dark"] .studio-portfolio-grid button {
-  border-color: color-mix(in srgb, var(--cyan) 18%, var(--line));
-  color: #f5f7fb;
+  border-color: color-mix(in srgb, var(--cyan) 30%, var(--line));
+  color: #ffffff;
   background:
-    linear-gradient(135deg, #202737, #27314a);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28);
+    linear-gradient(135deg, #31415e, #465d87);
+  box-shadow:
+    0 12px 26px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   text-shadow: none;
 }
 
 body[data-theme="dark"] .studio-team-grid button:hover,
 body[data-theme="dark"] .studio-portfolio-grid button:hover {
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.34);
-  filter: brightness(1.06);
+  border-color: color-mix(in srgb, var(--cyan) 42%, var(--line));
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.13);
+  filter: brightness(1.08);
 }
 
 .studio-share-summary {
