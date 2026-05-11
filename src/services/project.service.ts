@@ -26,6 +26,47 @@ type CreateProjectInput = {
   members: ProjectMemberInput[];
 };
 
+const memberRoleLabels: Record<MemberRole, string> = {
+  WRITER: "작가",
+  ILLUSTRATOR: "일러스트",
+  VOICE_ACTOR: "성우",
+  SOUND_DIRECTOR: "BGM",
+  PRODUCER: "프로듀서",
+  EDITOR: "에디터",
+};
+
+function isUnsafeMemberLabel(value?: string | null) {
+  if (!value) {
+    return true;
+  }
+
+  const normalized = value.trim();
+
+  return (
+    normalized.length === 0 ||
+    normalized.includes("�") ||
+    /\?{2,}/.test(normalized) ||
+    /^deleted[_\s-]/i.test(normalized) ||
+    /^Deleted user/i.test(normalized)
+  );
+}
+
+function getSafeMemberLabel(value: string | null | undefined, memberRole: MemberRole, index: number) {
+  if (isUnsafeMemberLabel(value)) {
+    return `${memberRoleLabels[memberRole] ?? "팀원"} 팀원 ${index + 1}`;
+  }
+
+  return value!.trim();
+}
+
+function getSafeMemberUsername(value: string | null | undefined, index: number) {
+  if (isUnsafeMemberLabel(value)) {
+    return `member-${index + 1}`;
+  }
+
+  return value!.trim();
+}
+
 function validateMemberShares(members: ProjectMemberInput[], ownerId: string) {
   if (members.length === 0) {
     throw new AppError("At least one project member is required.", 422);
@@ -336,10 +377,10 @@ export async function getProjectSettlementDashboard(projectId: string, currentUs
     platformFeeAmount: decimalToNumber(fee),
     netAmount: decimalToNumber(net),
     appliedFeeRate: decimalToNumber(project.isOfficialPartner ? project.partnerFeeRate : project.platformFeeRate),
-    members: project.members.map((member) => ({
+    members: project.members.map((member, index) => ({
       userId: member.userId,
-      displayName: member.user.displayName,
-      username: member.user.username,
+      displayName: getSafeMemberLabel(member.user.displayName, member.memberRole, index),
+      username: getSafeMemberUsername(member.user.username, index),
       memberRole: member.memberRole,
       sharePercentage: decimalToNumber(member.sharePercentage),
       expectedSettlement: decimalToNumber(roundToTwo(net.mul(member.sharePercentage).div(ONE_HUNDRED))),

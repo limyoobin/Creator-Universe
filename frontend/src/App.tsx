@@ -885,10 +885,15 @@ function isBrokenDisplayText(value?: string | null) {
     return true;
   }
 
+  const normalized = value.trim();
+
   return (
-    /[�諛援肄踰媛蹂쒓꾩먯좊꾨誘몄젣寃곗愿李梨]/.test(value) ||
-    /\?{2,}/.test(value) ||
-    /API \?/.test(value)
+    /[�諛援肄踰媛蹂쒓꾩먯좊꾨誘몄젣寃곗愿李梨]/.test(normalized) ||
+    /\?{2,}/.test(normalized) ||
+    /API \?/.test(normalized) ||
+    /^deleted[_\s-]/i.test(normalized) ||
+    /^Deleted user/i.test(normalized) ||
+    /^\?+[a-z0-9-]{6,}$/i.test(normalized)
   );
 }
 
@@ -937,6 +942,22 @@ function normalizeContentReview(review: ContentReview): ContentReview {
     ...review,
     authorName: cleanDisplayText(review.authorName, "독자"),
     body: cleanDisplayText(review.body, "작품을 응원하는 리뷰입니다."),
+  };
+}
+
+function getSettlementMemberFallback(memberRole: string, index: number) {
+  const roleLabel = roleLabels[memberRole] || "팀원";
+  return `${roleLabel} 팀원 ${index + 1}`;
+}
+
+function normalizeSettlementMember(member: SettlementMemberConfig, index: number): SettlementMemberConfig {
+  const fallbackName = getSettlementMemberFallback(member.memberRole, index);
+  const fallbackUsername = `member-${index + 1}`;
+
+  return {
+    ...member,
+    displayName: cleanDisplayText(member.displayName, fallbackName),
+    username: cleanDisplayText(member.username, fallbackUsername),
   };
 }
 
@@ -990,13 +1011,13 @@ function buildSettlementConfig(settlement: SettlementDashboard | null): Settleme
   return {
     platformFeeRate: Math.round((settlement?.appliedFeeRate ?? 0.15) * 100),
     members: settlement?.members.length
-      ? settlement.members.map((member) => ({
+      ? settlement.members.map((member, index) => normalizeSettlementMember({
           userId: member.userId,
           displayName: member.displayName,
           username: member.username,
           memberRole: member.memberRole,
           sharePercentage: member.sharePercentage,
-        }))
+        }, index))
       : defaultSettlementMembers,
   };
 }
@@ -3244,13 +3265,13 @@ export function App() {
       setSettlementConfig((current) => ({
         ...current,
         platformFeeRate: Math.round(settlement.appliedFeeRate * 100),
-        members: settlement.members.map((member) => ({
+        members: settlement.members.map((member, index) => normalizeSettlementMember({
           userId: member.userId,
           displayName: member.displayName,
           username: member.username,
           memberRole: member.memberRole,
           sharePercentage: member.sharePercentage,
-        })),
+        }, index)),
       }));
     }
   }, [settlement?.appliedFeeRate, settlement?.members]);
