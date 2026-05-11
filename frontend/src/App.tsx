@@ -2373,6 +2373,7 @@ function AccountModal({
   const walletUsageHint = walletBalance > 0
     ? `지금 바로 ${Math.min(walletBalance, 1000).toLocaleString("ko-KR")}코인 작품을 열람할 수 있어요.`
     : "첫 충전 후 작품 열람, 창작자 후원, 프리미엄 구독을 시작할 수 있어요.";
+  const latestWalletWork = purchasedWorks[0] ?? recentWorks[0] ?? scrappedWorks[0];
 
   return (
     <div className="modal-backdrop account-backdrop" role="dialog" aria-modal="true">
@@ -2419,6 +2420,20 @@ function AccountModal({
               <div><span>결제 작품</span><b>{purchasedWorks.length}</b></div>
               <div><span>스크랩</span><b>{scrappedWorks.length}</b></div>
               <div><span>이어보기</span><b>{recentWorks.length}</b></div>
+            </div>
+            <div className="wallet-account-feed">
+              <article>
+                <span>최근 활동</span>
+                <strong>{latestWalletWork ? latestWalletWork.title : "아직 작품 활동이 없어요"}</strong>
+              </article>
+              <article>
+                <span>사용 가능</span>
+                <strong>작품 구매 · 후원 · 프리미엄 구독</strong>
+              </article>
+              <article>
+                <span>정산 연결</span>
+                <strong>창작팀 수익은 지갑으로 자동 입금</strong>
+              </article>
             </div>
             <div className="account-quick-actions">
               <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>

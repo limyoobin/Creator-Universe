@@ -10,6 +10,7 @@
   --muted: #687084;
   --line: #e2e5ed;
   --brand: #f05274;
+  --brand-2: #7c3aed;
   --cyan: #0891b2;
   --violet: #6d5dfc;
   --green: #0f9f7a;
@@ -26,6 +27,7 @@ body[data-theme="dark"] {
   --muted: #a7adbc;
   --line: #2a3040;
   --brand: #ff6d93;
+  --brand-2: #c084fc;
   --cyan: #67e8f9;
   --violet: #a78bfa;
   --green: #34d399;
@@ -5936,7 +5938,8 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 }
 
 .wallet-account-panel {
-  align-content: start;
+  grid-template-rows: auto auto auto 1fr auto;
+  align-content: stretch;
   background:
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 9rem),
     radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--cyan) 7%, transparent), transparent 9rem),
@@ -6230,6 +6233,34 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   letter-spacing: -0.05em;
 }
 
+.wallet-account-feed {
+  display: grid;
+  gap: 8px;
+  align-self: stretch;
+}
+
+.wallet-account-feed article {
+  display: grid;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--brand) 12%, var(--line));
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+}
+
+.wallet-account-feed span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.wallet-account-feed strong {
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  letter-spacing: -0.03em;
+}
+
 .account-quick-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6240,10 +6271,11 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   min-height: 38px;
   padding: 9px 10px !important;
   border-radius: 13px !important;
+  color: #fff !important;
   font-size: 13px;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 88%, #ffffff), var(--brand-2)) !important;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--brand) 18%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 86%, #111827), var(--brand-2)) !important;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--brand) 22%, transparent);
 }
 
 .account-quick-actions svg {
