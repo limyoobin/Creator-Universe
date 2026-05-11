@@ -2370,6 +2370,9 @@ function AccountModal({
     .map((workId) => readerWorks.find((work) => work.id === workId))
     .filter(Boolean) as ReaderWork[];
   const walletBalance = wallet ?? 0;
+  const walletUsageHint = walletBalance > 0
+    ? `지금 바로 ${Math.min(walletBalance, 1000).toLocaleString("ko-KR")}코인 작품을 열람할 수 있어요.`
+    : "첫 충전 후 작품 열람, 창작자 후원, 프리미엄 구독을 시작할 수 있어요.";
 
   return (
     <div className="modal-backdrop account-backdrop" role="dialog" aria-modal="true">
@@ -2406,15 +2409,30 @@ function AccountModal({
               </div>
               <small>작품 열람, 후원, 구독에 사용할 수 있어요.</small>
             </div>
+            <div className="wallet-ready-card">
+              <Coins size={18} />
+              <div>
+                <strong>{walletBalance > 0 ? "사용 가능한 코인이 있어요" : "아직 충전 내역이 없어요"}</strong>
+                <p>{walletUsageHint}</p>
+              </div>
+            </div>
             <div className="wallet-mini-grid">
-              <div><span>결제</span><b>{purchasedWorks.length}</b></div>
+              <div><span>결제 작품</span><b>{purchasedWorks.length}</b></div>
               <div><span>스크랩</span><b>{scrappedWorks.length}</b></div>
-              <div><span>최근</span><b>{recentWorks.length}</b></div>
+              <div><span>이어보기</span><b>{recentWorks.length}</b></div>
+            </div>
+            <div className="wallet-usage-strip">
+              <span><BookOpen size={14} /> 작품 구매</span>
+              <span><Heart size={14} /> 후원</span>
+              <span><Sparkles size={14} /> 구독</span>
             </div>
             <div className="account-quick-actions">
-              <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
+              <button onClick={onOpenPayment}><Coins size={15} /> 코인 충전</button>
               <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
             </div>
+            <button className="wallet-ledger-link" onClick={() => { onClose(); onNavigate("wallet"); }}>
+              <Wallet size={15} /> 지갑 내역 자세히 보기
+            </button>
           </section>
 
           <section className="account-panel premium-account-panel">

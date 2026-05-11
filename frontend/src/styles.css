@@ -5939,6 +5939,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   align-content: start;
   background:
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 9rem),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--cyan) 7%, transparent), transparent 9rem),
     var(--surface);
 }
 
@@ -6161,6 +6162,37 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   line-height: 1.45;
 }
 
+.wallet-ready-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--cyan) 22%, var(--line));
+  border-radius: 18px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--cyan) 9%, var(--surface-2)), color-mix(in srgb, var(--brand) 5%, var(--surface-2)));
+}
+
+.wallet-ready-card svg {
+  color: var(--cyan);
+  margin-top: 2px;
+}
+
+.wallet-ready-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.96rem;
+  letter-spacing: -0.03em;
+}
+
+.wallet-ready-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
 .wallet-mini-grid,
 .account-summary-grid {
   display: grid;
@@ -6192,6 +6224,31 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   letter-spacing: -0.05em;
 }
 
+.wallet-usage-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.wallet-usage-strip span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  border: 1px solid color-mix(in srgb, var(--brand) 14%, var(--line));
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.wallet-usage-strip svg {
+  color: var(--brand);
+  flex: 0 0 auto;
+}
+
 .account-quick-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6210,6 +6267,13 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .account-quick-actions svg {
   flex: 0 0 auto;
+}
+
+.wallet-ledger-link {
+  min-height: 40px;
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent) !important;
+  box-shadow: inset 0 0 0 1px var(--line) !important;
 }
 
 .account-summary-actions {
