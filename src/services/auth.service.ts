@@ -107,12 +107,12 @@ export async function login(username: string, password: string) {
   });
 
   if (!user || !user.passwordHash) {
-    throw new AppError("Invalid username or password.", 401);
+    throw new AppError("없는 계정입니다.", 404);
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
-    throw new AppError("Invalid username or password.", 401);
+    throw new AppError("아이디 또는 비밀번호가 잘못 입력되었습니다.", 401);
   }
 
   const session = await issueSession(user.id);

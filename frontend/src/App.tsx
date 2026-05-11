@@ -1118,6 +1118,17 @@ function getFriendlyError(error: unknown) {
   return error instanceof Error ? cleanDisplayText(error.message, "요청 처리 중 오류가 발생했습니다.") : "요청 처리 중 오류가 발생했습니다.";
 }
 
+function getLoginErrorMessage(error: unknown) {
+  const message = getFriendlyError(error);
+  if (message.includes("없는 계정") || message.includes("not found")) {
+    return "없는 계정입니다.";
+  }
+  if (message.includes("Invalid username or password") || message.includes("password") || message.includes("비밀번호")) {
+    return "아이디 또는 비밀번호가 잘못 입력되었습니다.";
+  }
+  return message;
+}
+
 function isStrongPassword(password: string) {
   return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
 }
@@ -1161,7 +1172,7 @@ function AuthModal({
       onAuth(result.user, result.token);
       onClose();
     } catch (error) {
-      setMessage(`로그인 실패: ${getFriendlyError(error)}`);
+      setMessage(getLoginErrorMessage(error));
     }
   }
 
