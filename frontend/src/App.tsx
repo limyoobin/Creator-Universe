@@ -2403,36 +2403,27 @@ function AccountModal({
               <strong>내 지갑</strong>
             </div>
             <div className="account-wallet">
-              <div>
-                <span>보유 코인</span>
-                <b>{wallet === null ? "로그인 필요" : formatCoins(walletBalance)}</b>
+              <div className="account-wallet-main">
+                <div>
+                  <span>보유 코인</span>
+                  <b>{wallet === null ? "로그인 필요" : formatCoins(walletBalance)}</b>
+                </div>
+                <button type="button" onClick={onOpenPayment}><Coins size={15} /> 충전</button>
               </div>
-              <small>작품 열람, 후원, 구독에 사용할 수 있어요.</small>
-            </div>
-            <div className="wallet-ready-card">
-              <Coins size={18} />
-              <div>
-                <strong>{walletBalance > 0 ? "사용 가능한 코인이 있어요" : "아직 충전 내역이 없어요"}</strong>
-                <p>{walletUsageHint}</p>
+              <div className="wallet-balance-meter" aria-hidden="true">
+                <span style={{ width: `${Math.min(100, Math.max(8, walletBalance / 100))}%` }} />
               </div>
+              <small>{walletUsageHint}</small>
             </div>
             <div className="wallet-mini-grid">
               <div><span>결제 작품</span><b>{purchasedWorks.length}</b></div>
               <div><span>스크랩</span><b>{scrappedWorks.length}</b></div>
               <div><span>이어보기</span><b>{recentWorks.length}</b></div>
             </div>
-            <div className="wallet-usage-strip">
-              <span><BookOpen size={14} /> 작품 구매</span>
-              <span><Heart size={14} /> 후원</span>
-              <span><Sparkles size={14} /> 구독</span>
-            </div>
             <div className="account-quick-actions">
-              <button onClick={onOpenPayment}><Coins size={15} /> 코인 충전</button>
+              <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
               <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
             </div>
-            <button className="wallet-ledger-link" onClick={() => { onClose(); onNavigate("wallet"); }}>
-              <Wallet size={15} /> 지갑 내역 자세히 보기
-            </button>
           </section>
 
           <section className="account-panel premium-account-panel">

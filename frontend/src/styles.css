@@ -6135,13 +6135,36 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .account-wallet {
   display: grid;
-  gap: 7px;
-  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
-  border-radius: 20px;
-  padding: 14px;
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand) 20%, var(--line));
+  border-radius: 22px;
+  padding: 16px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, transparent), transparent 64%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 8rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 9%, transparent), color-mix(in srgb, var(--cyan) 5%, transparent)),
     var(--surface-2);
+}
+
+.account-wallet-main {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.account-wallet-main > div {
+  min-width: 0;
+}
+
+.account-wallet-main button {
+  flex: 0 0 auto;
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  padding: 8px 11px !important;
+  background: color-mix(in srgb, var(--brand) 92%, var(--violet)) !important;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--brand) 18%, transparent) !important;
+  font-size: 0.78rem;
 }
 
 .account-wallet span,
@@ -6152,7 +6175,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .account-wallet b {
   color: var(--brand);
-  font-size: 26px;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
   line-height: 1.05;
   letter-spacing: -0.07em;
 }
@@ -6162,35 +6185,18 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   line-height: 1.45;
 }
 
-.wallet-ready-card {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: start;
-  border: 1px solid color-mix(in srgb, var(--cyan) 22%, var(--line));
-  border-radius: 18px;
-  padding: 12px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--cyan) 9%, var(--surface-2)), color-mix(in srgb, var(--brand) 5%, var(--surface-2)));
+.wallet-balance-meter {
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 52%, transparent);
 }
 
-.wallet-ready-card svg {
-  color: var(--cyan);
-  margin-top: 2px;
-}
-
-.wallet-ready-card strong {
+.wallet-balance-meter span {
   display: block;
-  color: var(--text);
-  font-size: 0.96rem;
-  letter-spacing: -0.03em;
-}
-
-.wallet-ready-card p {
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-  line-height: 1.55;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), var(--cyan));
 }
 
 .wallet-mini-grid,
@@ -6224,31 +6230,6 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   letter-spacing: -0.05em;
 }
 
-.wallet-usage-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.wallet-usage-strip span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  min-height: 34px;
-  border: 1px solid color-mix(in srgb, var(--brand) 14%, var(--line));
-  border-radius: 999px;
-  color: var(--muted);
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-  font-size: 0.76rem;
-  font-weight: 900;
-}
-
-.wallet-usage-strip svg {
-  color: var(--brand);
-  flex: 0 0 auto;
-}
-
 .account-quick-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6267,13 +6248,6 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .account-quick-actions svg {
   flex: 0 0 auto;
-}
-
-.wallet-ledger-link {
-  min-height: 40px;
-  color: var(--text) !important;
-  background: color-mix(in srgb, var(--surface-2) 78%, transparent) !important;
-  box-shadow: inset 0 0 0 1px var(--line) !important;
 }
 
 .account-summary-actions {
