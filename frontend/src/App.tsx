@@ -2932,6 +2932,14 @@ export function App() {
     [creators, user?.id],
   );
 
+  const myStudioWorks = useMemo(() => {
+    if (!myCreatorProfile) {
+      return [];
+    }
+
+    return readerWorks.filter((work) => work.participantUserIds.includes(myCreatorProfile.userId));
+  }, [myCreatorProfile]);
+
   const currentWalletDetail = useMemo<WalletDetail>(() => {
     const source = walletDetail ?? walletFallback;
     return {
@@ -3143,6 +3151,23 @@ export function App() {
       mySettlementAmount: mySettlement?.expectedSettlement ?? 0,
     };
   }, [settlement?.grossAmount, settlementConfig, user?.id]);
+
+  const studioProfileCompletion = useMemo(() => {
+    const items = [
+      { label: "매칭 프로필 공개", done: Boolean(myCreatorProfile) },
+      { label: "소개 문구 작성", done: Boolean(myCreatorProfile?.headline && myCreatorProfile.bio) },
+      { label: "스킬 태그 3개 이상", done: Boolean(myCreatorProfile?.skills && myCreatorProfile.skills.length >= 3) },
+      { label: "포트폴리오 샘플 등록", done: Boolean(myCreatorProfile && getCreatorPortfolio(myCreatorProfile).length > 0) },
+      { label: "대표 작품 연결", done: myStudioWorks.length > 0 },
+    ];
+    const doneCount = items.filter((item) => item.done).length;
+
+    return {
+      items,
+      percent: Math.round((doneCount / items.length) * 100),
+      doneCount,
+    };
+  }, [myCreatorProfile, myStudioWorks.length]);
 
   const settlementDonutStyle = useMemo(() => {
     const colors = ["var(--brand)", "var(--cyan)", "var(--violet)", "var(--green)", "#ffb84d"];
@@ -4711,10 +4736,10 @@ export function App() {
           <div className="studio-hero">
             <div>
               <p className="kicker">Creator Studio</p>
-              <h2>작품 등록부터 팀원 초대, 회차 업로드까지 한 곳에서 관리하세요</h2>
+              <h2>내 채널, 작품, 팀원, 수익을 한눈에 관리하는 창작자 작업실</h2>
               <p>
-                창작자는 작품 초안을 만들고, 필요한 직군을 초대하고, 회차를 업로드하면서 정산 지분율까지 한 번에 관리할 수 있습니다.
-                이 페이지는 실제 앱으로 확장될 창작자 콘솔의 중심 화면입니다.
+                창작자는 프로필을 공개하고, 대표작을 정리하고, 팀원을 초대하고, 멤버십과 정산 상태까지 한 화면에서 관리할 수 있습니다.
+                이 페이지는 Creator Universe의 창작자 홈이자 작품 운영 콘솔입니다.
               </p>
               <div className="studio-hero-actions">
                 <button className="primary-button" onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={18} /> 매칭 프로필 준비</button>
@@ -4728,12 +4753,91 @@ export function App() {
             </div>
           </div>
 
+          <section className="studio-command-center">
+            <article className="studio-profile-score">
+              <div className="studio-score-ring" style={{ "--score": `${studioProfileCompletion.percent}%` } as never}>
+                <strong>{studioProfileCompletion.percent}%</strong>
+                <span>Profile</span>
+              </div>
+              <div>
+                <p className="kicker">Creator Readiness</p>
+                <h3>프로필 완성도</h3>
+                <p>팀원이 신뢰하고 제안할 수 있도록 공개 정보와 대표작을 채워주세요.</p>
+                <div className="studio-checklist">
+                  {studioProfileCompletion.items.map((item) => (
+                    <span className={item.done ? "done" : ""} key={item.label}>
+                      <CheckCircle2 size={14} /> {item.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </article>
+
+            <article className="studio-channel-preview">
+              <div className="studio-channel-avatar">{(myCreatorProfile?.displayName ?? user?.displayName ?? "C").slice(0, 1)}</div>
+              <div>
+                <span>{myCreatorProfile ? roleLabels[myCreatorProfile.primaryRole] : "창작자"}</span>
+                <strong>{myCreatorProfile?.displayName ?? user?.displayName ?? "내 창작자 채널"}</strong>
+                <p>{myCreatorProfile?.portfolioSummary ?? "대표작, 포트폴리오, 멤버십을 연결하면 독자와 팀원이 보는 창작자 채널이 완성됩니다."}</p>
+              </div>
+              <div className="studio-channel-stats">
+                <b>{myCreatorProfile?.followerCount.toLocaleString("ko-KR") ?? 0}</b><span>팔로워</span>
+                <b>{myCreatorProfile?.responseRate ?? 0}%</b><span>응답률</span>
+                <b>{myStudioWorks.length}</b><span>대표작</span>
+              </div>
+            </article>
+
+            <article className="studio-revenue-snapshot">
+              <p className="kicker">Revenue Snapshot</p>
+              <h3>이번 달 창작 수익 흐름</h3>
+              <div>
+                <span>예상 정산</span>
+                <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+              </div>
+              <div>
+                <span>지갑 잔액</span>
+                <strong>{formatCoins(wallet ?? 0)}</strong>
+              </div>
+              <button onClick={() => navigate("wallet")}><Wallet size={15} /> 지갑으로 이동</button>
+            </article>
+          </section>
+
           <div className="studio-kpi-grid">
-            <article><BookOpen size={22} /><span>작품 초안</span><strong>3개</strong><p>연재 전 기획과 시놉시스를 관리합니다.</p></article>
-            <article><Users size={22} /><span>초대 대기</span><strong>4명</strong><p>작가, 그림, 목소리, BGM 직군별 초대 상태입니다.</p></article>
+            <article><BookOpen size={22} /><span>대표 작품</span><strong>{myStudioWorks.length || 3}개</strong><p>창작자 채널에 보여줄 대표작과 참여작을 관리합니다.</p></article>
+            <article><Users size={22} /><span>매칭 제안</span><strong>{matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length}건</strong><p>지분율 조건을 확인하고 팀 합류 여부를 결정합니다.</p></article>
             <article><Split size={22} /><span>기본 지분</span><strong>40 · 30 · 30</strong><p>팀장 40%, 팀원 30% 프리셋을 적용할 수 있습니다.</p></article>
-            <article><Rocket size={22} /><span>출시 준비</span><strong>72%</strong><p>표지, 회차, 팀원 동의, 가격 설정 기준입니다.</p></article>
+            <article><Rocket size={22} /><span>채널 준비</span><strong>{studioProfileCompletion.percent}%</strong><p>프로필, 대표작, 포트폴리오 기준의 준비 상태입니다.</p></article>
           </div>
+
+          <section className="studio-channel-dashboard">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Creator Channel</p>
+                <h2>내 창작자 홈 구성</h2>
+              </div>
+              <p>픽시브식 포트폴리오, 포스타입식 멤버십, 팀 프로젝트 정산을 한 화면으로 묶은 창작자 채널 영역입니다.</p>
+            </div>
+            <div className="studio-channel-grid">
+              <article className="studio-feature-work">
+                <span>대표작</span>
+                <strong>{myStudioWorks[0]?.title ?? "대표작을 아직 연결하지 않았어요"}</strong>
+                <p>{myStudioWorks[0]?.tagline ?? "작품 상세에서 참여 창작자로 연결되면 이 영역에 대표작이 표시됩니다."}</p>
+                <button onClick={() => navigate("discover")}><BookOpen size={15} /> 작품 관리</button>
+              </article>
+              <article>
+                <span>멤버십</span>
+                <strong>{premiumSubscription.isActive ? "프리미엄 구독중" : "팬 멤버십 설계 필요"}</strong>
+                <p>러프, 짧은 글, 보이스 샘플, BGM 루프를 구독자 전용 포스트로 묶을 수 있습니다.</p>
+                <button onClick={() => setIsAccountModalOpen(true)}><Sparkles size={15} /> 구독 관리</button>
+              </article>
+              <article>
+                <span>다음 할 일</span>
+                <strong>{studioProfileCompletion.items.find((item) => !item.done)?.label ?? "채널 기본 준비 완료"}</strong>
+                <p>완성도가 높을수록 매칭 보드와 작품 상세에서 더 신뢰감 있게 보입니다.</p>
+                <button onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={15} /> 프로필 보강</button>
+              </article>
+            </div>
+          </section>
 
           <div className="studio-layout">
             <section className="studio-work-form-card">
