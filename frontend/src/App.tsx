@@ -586,6 +586,7 @@ type NotificationItem = {
   tone: NotificationTone;
   actionLabel: string;
   libraryView?: LibraryViewId;
+  openAccount?: boolean;
 };
 
 const navItems: Array<{ id: PageId; label: string; helper: string }> = [
@@ -3032,9 +3033,10 @@ export function App() {
         title: "프리미엄 구독이 활성화되어 있어요",
         body: `다음 재결제일은 ${formatDateOnly(premiumSubscription.nextBillingDate)}입니다.`,
         time: "구독",
-        page: "wallet",
+        page: "home",
         tone: "premium",
         actionLabel: "구독 관리",
+        openAccount: true,
       });
     }
 
@@ -3048,6 +3050,7 @@ export function App() {
           page: "home",
           tone: "marketing",
           actionLabel: announcement.actionLabel,
+          openAccount: announcement.id === "marketing-premium-preview",
         });
       });
     }
@@ -3447,6 +3450,11 @@ export function App() {
     setReadNotificationIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
     setIsNotificationOpen(false);
     setIsAccountMenuOpen(false);
+
+    if (item.openAccount) {
+      setIsAccountModalOpen(true);
+      return;
+    }
 
     if (item.libraryView) {
       openReaderLibrary(item.libraryView);
