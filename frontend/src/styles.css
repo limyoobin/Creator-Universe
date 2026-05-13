@@ -11328,11 +11328,72 @@ body.cu-android-app .mobile-quick-sheet button {
 }
 
 body.cu-android-app .floating-help {
-  bottom: calc(134px + env(safe-area-inset-bottom));
+  bottom: calc(92px + env(safe-area-inset-bottom));
 }
 
 body.cu-android-app .floating-messenger {
-  bottom: calc(192px + env(safe-area-inset-bottom));
+  bottom: calc(150px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help,
+body.cu-android-app .floating-messenger {
+  transition: bottom 180ms ease, transform 180ms ease, opacity 180ms ease;
+}
+
+body.cu-android-app .floating-help.open,
+body.cu-android-app .floating-messenger.open {
+  bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .account-backdrop {
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: clip;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+body.cu-android-app .account-modal {
+  width: calc(100vw - 16px);
+  max-width: 430px;
+  overflow-x: clip;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+body.cu-android-app .account-modal *,
+body.cu-android-app .account-grid,
+body.cu-android-app .account-panel,
+body.cu-android-app .account-hero-card,
+body.cu-android-app .purchase-list,
+body.cu-android-app .purchase-list article,
+body.cu-android-app .wallet-account-feed,
+body.cu-android-app .wallet-account-feed article {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.cu-android-app .account-panel,
+body.cu-android-app .account-wallet,
+body.cu-android-app .premium-account-panel,
+body.cu-android-app .purchase-list article {
+  overflow: hidden;
+}
+
+body.cu-android-app .account-panel input,
+body.cu-android-app .account-panel button,
+body.cu-android-app .purchase-list button {
+  width: 100%;
+}
+
+body.cu-android-app .account-panel p,
+body.cu-android-app .account-panel strong,
+body.cu-android-app .account-wallet small,
+body.cu-android-app .purchase-list strong,
+body.cu-android-app .purchase-list p,
+body.cu-android-app .wallet-account-feed strong {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 
 @keyframes drawerDrop {
