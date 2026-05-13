@@ -1616,6 +1616,7 @@ h2 {
 .studio-publish-editor p,
 .studio-fan-commerce p,
 .studio-growth-analytics p,
+.studio-accessibility-lab p,
 .studio-team-board p,
 .studio-portfolio-panel p {
   color: var(--muted);
@@ -1861,6 +1862,7 @@ h2 {
 .studio-publish-editor,
 .studio-fan-commerce,
 .studio-growth-analytics,
+.studio-accessibility-lab,
 .studio-team-board,
 .studio-portfolio-panel {
   border: 1px solid var(--line);
@@ -2515,6 +2517,152 @@ h2 {
   color: #fff;
   background: linear-gradient(135deg, var(--brand), var(--brand-2));
   font-weight: 950;
+}
+
+.studio-accessibility-lab {
+  display: grid;
+  gap: 18px;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 16rem),
+    radial-gradient(circle at 100% 18%, color-mix(in srgb, var(--green) 10%, transparent), transparent 15rem),
+    var(--surface);
+}
+
+.accessibility-lab-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.68fr) minmax(0, 1fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.accessibility-score-card,
+.accessibility-audit-form {
+  display: grid;
+  gap: 13px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+  border-radius: 24px;
+  padding: 17px;
+  background: color-mix(in srgb, var(--surface) 84%, var(--surface-2));
+}
+
+.accessibility-score-card span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cyan);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.accessibility-score-card strong {
+  color: var(--text);
+  font-size: 48px;
+  letter-spacing: -0.08em;
+}
+
+.accessibility-ring {
+  display: grid;
+  place-items: center;
+  width: min(100%, 180px);
+  aspect-ratio: 1;
+  justify-self: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--surface) 0 52%, transparent 53%),
+    conic-gradient(var(--cyan) 0 var(--accessibility-score), color-mix(in srgb, var(--line) 78%, transparent) 0 100%);
+}
+
+.accessibility-ring b {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.accessibility-check-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.accessibility-check-grid article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 13px;
+  background: var(--soft);
+}
+
+.accessibility-check-grid article.done {
+  border-color: color-mix(in srgb, var(--green) 38%, var(--line));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--green) 12%, transparent), transparent 6rem),
+    var(--soft);
+}
+
+.accessibility-check-grid svg {
+  color: color-mix(in srgb, var(--muted) 72%, transparent);
+}
+
+.accessibility-check-grid article.done svg {
+  color: var(--green);
+}
+
+.accessibility-check-grid strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.accessibility-check-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.accessibility-audit-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.accessibility-audit-form input,
+.accessibility-audit-form select,
+.accessibility-audit-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 13px 14px;
+  color: var(--text);
+  background: var(--soft);
+  font: inherit;
+}
+
+.accessibility-audit-form input[type="range"] {
+  accent-color: var(--cyan);
+}
+
+.accessibility-audit-form label em {
+  justify-self: end;
+  color: var(--cyan);
+  font-style: normal;
+  font-weight: 950;
+}
+
+.accessibility-audit-form textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.accessibility-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .studio-team-board,
@@ -9604,6 +9752,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .studio-editor-workspace,
   .fan-commerce-grid,
   .growth-analytics-layout,
+  .accessibility-lab-layout,
   .studio-channel-grid,
   .studio-share-summary,
   .wallet-hero,
@@ -9646,6 +9795,8 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .fan-editor-row,
   .fan-tier-preview,
   .growth-metric-grid,
+  .accessibility-check-grid,
+  .accessibility-form-row,
   .studio-team-grid,
   .studio-portfolio-grid,
   .match-inbox-list,

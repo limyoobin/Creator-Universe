@@ -595,6 +595,16 @@ type StudioFanPostDraftState = {
   releaseNote: string;
 };
 
+type StudioAccessibilityAuditState = {
+  transcriptSync: number;
+  contrastMode: string;
+  screenReader: string;
+  audioLevel: string;
+  keyboardFlow: string;
+  altTextStatus: string;
+  qaMemo: string;
+};
+
 type NotificationPreferences = {
   newEpisode: boolean;
   settlement: boolean;
@@ -2720,6 +2730,15 @@ export function App() {
     summary: "본편 공개 전 러프 이미지, 캐릭터 표정 차이, 녹음 비하인드를 팬에게 먼저 공개합니다.",
     releaseNote: "스포일러가 포함된 컷은 접어서 제공하고, 후원자 댓글에 다음 특전 투표를 연결합니다.",
   });
+  const [studioAccessibilityAudit, setStudioAccessibilityAudit] = useState<StudioAccessibilityAuditState>({
+    transcriptSync: 94,
+    contrastMode: "고대비 통과",
+    screenReader: "검수 완료",
+    audioLevel: "권장 범위",
+    keyboardFlow: "전체 가능",
+    altTextStatus: "보강 필요",
+    qaMemo: "대본 하이라이트 싱크는 안정적입니다. 표지와 주요 컷의 대체 텍스트만 공개 전 보강하면 좋습니다.",
+  });
   const [supportChatInput, setSupportChatInput] = useState("");
   const [supportChatMessages, setSupportChatMessages] = useState([
     { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
@@ -3276,6 +3295,25 @@ export function App() {
       ],
     };
   }, [myCreatorProfile, myStudioWorks, premiumSubscription.isActive, studioFanPostChecklist.percent, studioPublishChecklist.percent]);
+
+  const studioAccessibilityChecklist = useMemo(() => {
+    const items = [
+      { label: "대본-오디오 싱크", done: studioAccessibilityAudit.transcriptSync >= 90, detail: `${studioAccessibilityAudit.transcriptSync}% 일치` },
+      { label: "고대비 표시", done: studioAccessibilityAudit.contrastMode.includes("통과"), detail: studioAccessibilityAudit.contrastMode },
+      { label: "스크린리더 구조", done: studioAccessibilityAudit.screenReader.includes("완료"), detail: studioAccessibilityAudit.screenReader },
+      { label: "오디오 음량", done: studioAccessibilityAudit.audioLevel.includes("권장"), detail: studioAccessibilityAudit.audioLevel },
+      { label: "키보드/제스처 이동", done: studioAccessibilityAudit.keyboardFlow.includes("가능"), detail: studioAccessibilityAudit.keyboardFlow },
+      { label: "이미지 대체 텍스트", done: studioAccessibilityAudit.altTextStatus.includes("완료"), detail: studioAccessibilityAudit.altTextStatus },
+    ];
+    const doneCount = items.filter((item) => item.done).length;
+
+    return {
+      items,
+      doneCount,
+      percent: Math.round((doneCount / items.length) * 100),
+      status: doneCount === items.length ? "발행 가능" : "보강 필요",
+    };
+  }, [studioAccessibilityAudit]);
 
   const settlementDonutStyle = useMemo(() => {
     const colors = ["var(--brand)", "var(--cyan)", "var(--violet)", "var(--green)", "#ffb84d"];
@@ -4001,6 +4039,16 @@ export function App() {
     }));
   }
 
+  function updateStudioAccessibilityAudit<K extends keyof StudioAccessibilityAuditState>(
+    key: K,
+    value: StudioAccessibilityAuditState[K],
+  ) {
+    setStudioAccessibilityAudit((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   function submitStudioWorkDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -4015,6 +4063,10 @@ export function App() {
     const title = String(data.get("fanPostTitle") || "팬 포스트");
     const accessType = String(data.get("fanPostAccess") || "구독자 전용");
     setCommunityMessage(`${title} 팬 포스트 초안이 저장되었습니다. ${accessType} 상품으로 창작자 채널에 노출할 수 있어요.`);
+  }
+
+  function saveAccessibilityAudit() {
+    setCommunityMessage(`접근성 검수 리포트가 저장되었습니다. 현재 상태는 ${studioAccessibilityChecklist.status}, 준비도는 ${studioAccessibilityChecklist.percent}%입니다.`);
   }
 
   function submitStudioEpisode(event: React.FormEvent<HTMLFormElement>) {
@@ -5360,6 +5412,103 @@ export function App() {
                 </p>
                 <button onClick={() => setIsNotificationOpen(true)}>알림/팬 반응 보기</button>
               </article>
+            </div>
+          </section>
+
+          <section className="studio-accessibility-lab">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Barrier-free QA</p>
+                <h2>배리어프리 접근성 검수 센터</h2>
+              </div>
+              <p>오디오드라마, 웹툰, 소설을 발행하기 전에 대본 싱크, 고대비, 스크린리더, 대체 텍스트를 점검해 모두가 감상 가능한 상태로 만듭니다.</p>
+            </div>
+
+            <div className="accessibility-lab-layout">
+              <article className="accessibility-score-card">
+                <span><ShieldCheck size={18} /> Accessibility Score</span>
+                <strong>{studioAccessibilityChecklist.percent}%</strong>
+                <p>{studioAccessibilityChecklist.status} · {studioAccessibilityChecklist.doneCount}/{studioAccessibilityChecklist.items.length}개 항목 통과</p>
+                <div className="accessibility-ring" style={{ "--accessibility-score": `${studioAccessibilityChecklist.percent}%` } as never}>
+                  <b>{studioAccessibilityChecklist.status}</b>
+                </div>
+              </article>
+
+              <div className="accessibility-check-grid">
+                {studioAccessibilityChecklist.items.map((item) => (
+                  <article className={item.done ? "done" : ""} key={item.label}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>{item.label}</strong>
+                      <span>{item.detail}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <form className="accessibility-audit-form" onSubmit={(event) => { event.preventDefault(); saveAccessibilityAudit(); }}>
+                <div className="fan-editor-head">
+                  <span><Headphones size={18} /> QA Controls</span>
+                  <strong>발행 전 검수 입력</strong>
+                </div>
+                <label>대본 싱크 정확도
+                  <input
+                    max={100}
+                    min={0}
+                    type="range"
+                    value={studioAccessibilityAudit.transcriptSync}
+                    onChange={(event) => updateStudioAccessibilityAudit("transcriptSync", Number(event.target.value))}
+                  />
+                  <em>{studioAccessibilityAudit.transcriptSync}%</em>
+                </label>
+                <div className="accessibility-form-row">
+                  <label>고대비 모드
+                    <select
+                      value={studioAccessibilityAudit.contrastMode}
+                      onChange={(event) => updateStudioAccessibilityAudit("contrastMode", event.target.value)}
+                    >
+                      <option>고대비 통과</option>
+                      <option>색 대비 보강 필요</option>
+                    </select>
+                  </label>
+                  <label>스크린리더
+                    <select
+                      value={studioAccessibilityAudit.screenReader}
+                      onChange={(event) => updateStudioAccessibilityAudit("screenReader", event.target.value)}
+                    >
+                      <option>검수 완료</option>
+                      <option>레이블 보강 필요</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="accessibility-form-row">
+                  <label>오디오 음량
+                    <select
+                      value={studioAccessibilityAudit.audioLevel}
+                      onChange={(event) => updateStudioAccessibilityAudit("audioLevel", event.target.value)}
+                    >
+                      <option>권장 범위</option>
+                      <option>노멀라이징 필요</option>
+                    </select>
+                  </label>
+                  <label>대체 텍스트
+                    <select
+                      value={studioAccessibilityAudit.altTextStatus}
+                      onChange={(event) => updateStudioAccessibilityAudit("altTextStatus", event.target.value)}
+                    >
+                      <option>보강 필요</option>
+                      <option>작성 완료</option>
+                    </select>
+                  </label>
+                </div>
+                <label>검수 메모
+                  <textarea
+                    value={studioAccessibilityAudit.qaMemo}
+                    onChange={(event) => updateStudioAccessibilityAudit("qaMemo", event.target.value)}
+                  />
+                </label>
+                <button className="primary-button" type="submit"><CheckCircle2 size={17} /> 검수 리포트 저장</button>
+              </form>
             </div>
           </section>
 
