@@ -1613,6 +1613,7 @@ h2 {
 .studio-hero p,
 .studio-kpi-grid p,
 .studio-work-form-card p,
+.studio-publish-editor p,
 .studio-team-board p,
 .studio-portfolio-panel p {
   color: var(--muted);
@@ -1855,6 +1856,7 @@ h2 {
 
 .studio-kpi-grid article,
 .studio-work-form-card,
+.studio-publish-editor,
 .studio-team-board,
 .studio-portfolio-panel {
   border: 1px solid var(--line);
@@ -1896,6 +1898,29 @@ h2 {
   gap: 16px;
 }
 
+.compact-studio-card {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 8rem),
+    var(--surface);
+}
+
+.studio-publish-editor {
+  display: grid;
+  gap: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--cyan) 11%, transparent), transparent 15rem),
+    radial-gradient(circle at 100% 8%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 16rem),
+    var(--surface);
+}
+
+.studio-editor-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
 .studio-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1930,6 +1955,154 @@ h2 {
 .studio-form textarea {
   min-height: 118px;
   resize: vertical;
+}
+
+.studio-publish-form {
+  align-content: start;
+}
+
+.studio-form-section {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--brand) 13%, var(--line));
+  border-radius: 24px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--surface) 78%, var(--surface-2));
+}
+
+.studio-form-section > span {
+  grid-column: 1 / -1;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-publish-preview {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 26px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 84%, var(--surface-2)), var(--surface));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.publish-preview-cover {
+  display: grid;
+  align-content: end;
+  gap: 8px;
+  min-height: 220px;
+  border-radius: 22px;
+  padding: 18px;
+  color: #fff;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.28), transparent 5rem),
+    radial-gradient(circle at 92% 0%, rgba(92, 232, 255, 0.32), transparent 8rem),
+    linear-gradient(145deg, #101828, #2c3f8f 52%, #f26d99);
+}
+
+.publish-preview-cover span,
+.publish-preview-cover em {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  font-weight: 950;
+  font-style: normal;
+  backdrop-filter: blur(12px);
+}
+
+.publish-preview-cover strong {
+  max-width: 16rem;
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: -0.07em;
+}
+
+.publish-preview-copy,
+.publish-preview-script,
+.publish-checklist {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 14px;
+  background: var(--soft);
+}
+
+.publish-preview-copy span,
+.publish-preview-script span {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.publish-preview-copy h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  letter-spacing: -0.055em;
+}
+
+.publish-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.publish-preview-meta b {
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.publish-checklist > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.publish-checklist strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.publish-checklist b {
+  color: var(--brand);
+  font-size: 24px;
+  letter-spacing: -0.06em;
+}
+
+.publish-checklist p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.publish-checklist p svg {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+.publish-checklist p.done {
+  color: var(--text);
+}
+
+.publish-checklist p.done svg {
+  color: var(--green);
 }
 
 .studio-team-board,
@@ -9016,6 +9189,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .studio-hero,
   .studio-layout,
   .studio-command-center,
+  .studio-editor-workspace,
   .studio-channel-grid,
   .studio-share-summary,
   .wallet-hero,
@@ -9053,6 +9227,8 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .work-review-list,
   .wallet-kpis,
   .studio-kpi-grid,
+  .studio-form,
+  .studio-form-section,
   .studio-team-grid,
   .studio-portfolio-grid,
   .match-inbox-list,

@@ -571,6 +571,20 @@ type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settleme
 type LibraryViewId = (typeof libraryViewItems)[number]["id"];
 type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
 
+type StudioDraftState = {
+  title: string;
+  format: string;
+  genre: string;
+  synopsis: string;
+  episodeTitle: string;
+  accessType: string;
+  priceCoins: number;
+  publishMode: string;
+  scheduledAt: string;
+  previewText: string;
+  uploadMemo: string;
+};
+
 type NotificationPreferences = {
   newEpisode: boolean;
   settlement: boolean;
@@ -2674,6 +2688,19 @@ export function App() {
   const [reportTargetUserId, setReportTargetUserId] = useState("");
   const [reportReason, setReportReason] = useState("");
   const [communityMessage, setCommunityMessage] = useState("");
+  const [studioDraft, setStudioDraft] = useState<StudioDraftState>({
+    title: "네온 별자리 탐정단",
+    format: "웹툰",
+    genre: "판타지",
+    synopsis: "밤마다 별자리가 사라지는 도시에서 작가, 일러스트레이터, 성우가 함께 확장하는 미스터리 판타지 프로젝트입니다.",
+    episodeTitle: "1화. 별빛이 켜지는 골목",
+    accessType: "코인 열람",
+    priceCoins: 700,
+    publishMode: "예약 발행",
+    scheduledAt: "2026-05-15 20:00",
+    previewText: "무료 미리보기에서는 첫 장면의 분위기와 주인공의 목표가 선명하게 보이도록 구성합니다.",
+    uploadMemo: "원고, 콘티, 표지 이미지, 접근성 대본, 오디오 큐시트를 발행 전까지 연결합니다.",
+  });
   const [supportChatInput, setSupportChatInput] = useState("");
   const [supportChatMessages, setSupportChatMessages] = useState([
     { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
@@ -3168,6 +3195,23 @@ export function App() {
       doneCount,
     };
   }, [myCreatorProfile, myStudioWorks.length]);
+
+  const studioPublishChecklist = useMemo(() => {
+    const items = [
+      { label: "작품 제목", done: studioDraft.title.trim().length >= 2 },
+      { label: "작품 소개", done: studioDraft.synopsis.trim().length >= 20 },
+      { label: "무료 미리보기", done: studioDraft.previewText.trim().length >= 20 },
+      { label: "가격/공개 방식", done: studioDraft.accessType === "무료 공개" || Number(studioDraft.priceCoins) > 0 },
+      { label: "정산 지분 100%", done: settlementPreview.shareTotal === 100 },
+      { label: "접근성 대본 메모", done: studioDraft.uploadMemo.includes("대본") || studioDraft.uploadMemo.trim().length >= 12 },
+    ];
+
+    return {
+      items,
+      doneCount: items.filter((item) => item.done).length,
+      percent: Math.round((items.filter((item) => item.done).length / items.length) * 100),
+    };
+  }, [settlementPreview.shareTotal, studioDraft]);
 
   const settlementDonutStyle = useMemo(() => {
     const colors = ["var(--brand)", "var(--cyan)", "var(--violet)", "var(--green)", "#ffb84d"];
@@ -3879,12 +3923,19 @@ export function App() {
     setSettlementMessage("정산 설정이 저장되었습니다. 플랫폼 수수료는 일반 15%, 공식 파트너 8% 고정 정책으로 적용됩니다.");
   }
 
+  function updateStudioDraft<K extends keyof StudioDraftState>(key: K, value: StudioDraftState[K]) {
+    setStudioDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   function submitStudioWorkDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") || "새 작품");
-    setCommunityMessage(`${title} 작품 초안이 스튜디오에 저장되었습니다. 다음 단계에서 팀원 초대와 회차 업로드를 이어가세요.`);
-    event.currentTarget.reset();
+    const episodeTitle = String(data.get("episodeTitle") || "새 회차");
+    setCommunityMessage(`${title} · ${episodeTitle} 발행 초안이 저장되었습니다. 체크리스트를 모두 채우면 예약 발행으로 넘길 수 있어요.`);
   }
 
   function submitStudioEpisode(event: React.FormEvent<HTMLFormElement>) {
@@ -4839,14 +4890,168 @@ export function App() {
             </div>
           </section>
 
+          <section className="studio-publish-editor">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Publishing Editor</p>
+                <h2>작품/회차 발행 에디터</h2>
+              </div>
+              <p>작품 기본 정보, 회차 제목, 가격, 공개 방식, 접근성 대본 메모를 한 번에 정리하고 독자에게 보일 화면을 바로 확인합니다.</p>
+            </div>
+
+            <div className="studio-editor-workspace">
+              <form className="studio-form studio-publish-form" onSubmit={submitStudioWorkDraft}>
+                <div className="studio-form-section">
+                  <span>작품 정보</span>
+                  <label>작품 제목
+                    <input
+                      name="title"
+                      required
+                      value={studioDraft.title}
+                      onChange={(event) => updateStudioDraft("title", event.target.value)}
+                    />
+                  </label>
+                  <label>콘텐츠 형식
+                    <select
+                      name="format"
+                      value={studioDraft.format}
+                      onChange={(event) => updateStudioDraft("format", event.target.value)}
+                    >
+                      {readerFormatFilters.filter((item) => item !== "전체").map((format) => <option key={format}>{format}</option>)}
+                    </select>
+                  </label>
+                  <label>대표 장르
+                    <select
+                      name="genre"
+                      value={studioDraft.genre}
+                      onChange={(event) => updateStudioDraft("genre", event.target.value)}
+                    >
+                      {readerGenreFilters.map((genre) => <option key={genre}>{genre}</option>)}
+                    </select>
+                  </label>
+                  <label>회차 제목
+                    <input
+                      name="episodeTitle"
+                      required
+                      value={studioDraft.episodeTitle}
+                      onChange={(event) => updateStudioDraft("episodeTitle", event.target.value)}
+                    />
+                  </label>
+                  <label className="wide">작품 소개
+                    <textarea
+                      name="synopsis"
+                      required
+                      value={studioDraft.synopsis}
+                      onChange={(event) => updateStudioDraft("synopsis", event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <div className="studio-form-section">
+                  <span>발행 설정</span>
+                  <label>공개 방식
+                    <select
+                      name="accessType"
+                      value={studioDraft.accessType}
+                      onChange={(event) => updateStudioDraft("accessType", event.target.value)}
+                    >
+                      <option>무료 공개</option>
+                      <option>코인 열람</option>
+                      <option>구독자 선공개</option>
+                      <option>멤버십 전용</option>
+                    </select>
+                  </label>
+                  <label>열람 가격
+                    <input
+                      name="priceCoins"
+                      min={0}
+                      step={100}
+                      type="number"
+                      value={studioDraft.priceCoins}
+                      onChange={(event) => updateStudioDraft("priceCoins", Number(event.target.value))}
+                    />
+                  </label>
+                  <label>발행 상태
+                    <select
+                      name="publishMode"
+                      value={studioDraft.publishMode}
+                      onChange={(event) => updateStudioDraft("publishMode", event.target.value)}
+                    >
+                      <option>초안 저장</option>
+                      <option>예약 발행</option>
+                      <option>즉시 공개</option>
+                      <option>팀 검수 대기</option>
+                    </select>
+                  </label>
+                  <label>예약 시간
+                    <input
+                      name="scheduledAt"
+                      value={studioDraft.scheduledAt}
+                      onChange={(event) => updateStudioDraft("scheduledAt", event.target.value)}
+                    />
+                  </label>
+                  <label className="wide">무료 미리보기 문구
+                    <textarea
+                      name="previewText"
+                      value={studioDraft.previewText}
+                      onChange={(event) => updateStudioDraft("previewText", event.target.value)}
+                    />
+                  </label>
+                  <label className="wide">업로드/접근성 메모
+                    <textarea
+                      name="uploadMemo"
+                      value={studioDraft.uploadMemo}
+                      onChange={(event) => updateStudioDraft("uploadMemo", event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <button className="primary-button" type="submit"><Sparkles size={17} /> 발행 초안 저장</button>
+              </form>
+
+              <aside className="studio-publish-preview">
+                <div className="publish-preview-cover">
+                  <span>{studioDraft.format}</span>
+                  <strong>{studioDraft.title || "작품 제목"}</strong>
+                  <em>{studioDraft.genre}</em>
+                </div>
+                <div className="publish-preview-copy">
+                  <span>{studioDraft.publishMode} · {studioDraft.accessType}</span>
+                  <h3>{studioDraft.episodeTitle || "회차 제목"}</h3>
+                  <p>{studioDraft.synopsis || "작품 소개를 입력하면 독자 카드에 보일 문장이 표시됩니다."}</p>
+                  <div className="publish-preview-meta">
+                    <b>{studioDraft.accessType === "무료 공개" ? "무료" : formatCoins(studioDraft.priceCoins)}</b>
+                    <b>{studioDraft.scheduledAt}</b>
+                  </div>
+                </div>
+                <div className="publish-preview-script">
+                  <span>무료 미리보기</span>
+                  <p>{studioDraft.previewText}</p>
+                </div>
+                <div className="publish-checklist">
+                  <div>
+                    <strong>발행 준비도</strong>
+                    <b>{studioPublishChecklist.percent}%</b>
+                  </div>
+                  {studioPublishChecklist.items.map((item) => (
+                    <p className={item.done ? "done" : ""} key={item.label}>
+                      <CheckCircle2 size={16} />
+                      {item.label}
+                    </p>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          </section>
+
           <div className="studio-layout">
-            <section className="studio-work-form-card">
+            <section className="studio-work-form-card compact-studio-card">
               <div className="section-head compact-head">
                 <div>
-                  <p className="kicker">New Work</p>
-                  <h3>새 작품 초안 만들기</h3>
+                  <p className="kicker">Quick Work</p>
+                  <h3>빠른 작품 초안</h3>
                 </div>
-                <p>소설, 웹툰, 오디오드라마 등 어떤 형식으로 확장할지 먼저 정합니다.</p>
+                <p>간단한 초안만 빠르게 남기고 싶을 때 사용하는 축약 폼입니다.</p>
               </div>
               <form className="studio-form" onSubmit={submitStudioWorkDraft}>
                 <label>작품 제목<input name="title" required placeholder="예: 네온 별자리 탐정단" /></label>
@@ -4865,13 +5070,13 @@ export function App() {
               </form>
             </section>
 
-            <section className="studio-work-form-card">
+            <section className="studio-work-form-card compact-studio-card">
               <div className="section-head compact-head">
                 <div>
-                  <p className="kicker">Episode Upload</p>
-                  <h3>회차 업로드 준비</h3>
+                  <p className="kicker">Quick Episode</p>
+                  <h3>빠른 회차 메모</h3>
                 </div>
-                <p>현재는 데모 초안 저장이며, 이후 이미지/원고/오디오 파일 업로드와 연결할 수 있습니다.</p>
+                <p>작품별 회차 아이디어나 업로드 준비물을 짧게 저장합니다.</p>
               </div>
               <form className="studio-form" onSubmit={submitStudioEpisode}>
                 <label>연결 작품
