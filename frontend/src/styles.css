@@ -10627,6 +10627,507 @@ body.cu-android-app .studio-accessibility-lab {
   border-radius: 22px;
 }
 
+body.cu-android-app {
+  font-size: 14px;
+  background: var(--bg);
+}
+
+body.cu-android-app .app {
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app main {
+  width: calc(100% - 14px);
+  padding-top: 7px;
+  padding-bottom: calc(118px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .topbar {
+  grid-template-columns: auto 1fr;
+  min-height: 54px;
+  padding: 6px;
+  border-radius: 19px;
+}
+
+body.cu-android-app .desktop-nav {
+  display: none;
+}
+
+body.cu-android-app .header-actions {
+  justify-self: end;
+}
+
+body.cu-android-app .nav-pay-button {
+  display: none;
+}
+
+body.cu-android-app .icon-button,
+body.cu-android-app .account-trigger {
+  min-width: 38px;
+  min-height: 38px;
+}
+
+body.cu-android-app .account-trigger {
+  max-width: 88px;
+  padding: 4px;
+}
+
+body.cu-android-app .account-trigger b {
+  display: none;
+}
+
+body.cu-android-app .account-trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+body.cu-android-app .mobile-drawer {
+  top: 66px;
+  right: 7px;
+  left: 7px;
+}
+
+body.cu-android-app .mobile-drawer-card {
+  max-height: calc(100dvh - 92px);
+  overflow-y: auto;
+  border-radius: 22px;
+  padding: 12px;
+}
+
+body.cu-android-app .intro-hero {
+  padding: 21px 18px 18px;
+}
+
+body.cu-android-app .slide-copy-stage {
+  min-height: 198px;
+}
+
+body.cu-android-app .slide-copy-panel h1 {
+  max-width: 10.8ch;
+  font-size: clamp(37px, 11.2vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.058em;
+}
+
+body.cu-android-app .lead {
+  max-width: 29ch;
+  font-size: 13.5px;
+  line-height: 1.78;
+}
+
+body.cu-android-app .intro-actions button {
+  min-height: 48px;
+  border-radius: 16px;
+  font-size: 14px;
+}
+
+body.cu-android-app .visual-stage {
+  min-height: 244px;
+}
+
+body.cu-android-app .visual-artwork {
+  min-height: 224px;
+}
+
+body.cu-android-app .mobile-tabs {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  width: calc(100% - 14px);
+  min-height: 64px;
+  padding: 5px;
+  border-radius: 21px;
+}
+
+body.cu-android-app .mobile-tabs button {
+  gap: 4px;
+  padding: 7px 0 6px;
+  font-size: 10px;
+}
+
+body.cu-android-app .mobile-tabs button svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.cu-android-app .floating-help {
+  right: 10px;
+  bottom: calc(82px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-messenger {
+  right: 10px;
+  bottom: calc(138px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help-button,
+body.cu-android-app .floating-messenger-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+}
+
+body.cu-android-app .floating-help.open,
+body.cu-android-app .floating-messenger.open {
+  bottom: calc(84px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help-panel,
+body.cu-android-app .floating-messenger-panel {
+  width: min(342px, calc(100vw - 20px));
+  max-height: calc(100dvh - 176px);
+  overflow-y: auto;
+  border-radius: 24px;
+}
+
+body.cu-android-app .floating-help-panel {
+  padding: 10px;
+}
+
+body.cu-android-app .floating-messenger.fullscreen-mode {
+  inset: 7px;
+  bottom: calc(7px + env(safe-area-inset-bottom));
+  right: 7px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  grid-template-rows: auto 1fr;
+  border-radius: 24px;
+  padding: 10px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .floating-messenger-head {
+  padding: 4px 4px 9px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .floating-messenger-head > span {
+  width: 40px;
+  height: 40px;
+  border-radius: 15px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .floating-messenger-head strong {
+  font-size: 18px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .floating-messenger-head small {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-window-actions button {
+  width: 34px;
+  height: 34px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 74px;
+  max-height: 86px;
+  border-radius: 18px;
+  padding: 7px;
+  scroll-snap-type: x proximity;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-inbox-title {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list button {
+  flex: 0 0 138px;
+  grid-template-columns: auto minmax(0, 1fr);
+  scroll-snap-align: start;
+  padding: 8px;
+  border-radius: 16px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list button > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 13px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list button i {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-pane {
+  min-height: 0;
+  border-radius: 20px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-title {
+  padding: 11px 12px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-title strong {
+  font-size: 17px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-title small {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-title button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-messages {
+  min-height: 0;
+  max-height: none;
+  align-content: end;
+  padding: 13px 11px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-messages > div:not(.messenger-day-divider) {
+  max-width: 90%;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-messages p {
+  max-width: 100%;
+  padding: 10px 12px;
+  border-radius: 18px 18px 18px 7px;
+  font-size: 12.5px;
+  line-height: 1.52;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-messages .me p {
+  border-radius: 18px 18px 7px 18px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-input {
+  margin: 0 10px 10px;
+  border-radius: 20px;
+  padding: 7px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-input input {
+  min-height: 38px;
+  padding: 0 9px;
+  font-size: 13px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-input button {
+  width: 40px;
+  height: 40px;
+  border-radius: 16px;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-profile-panel {
+  display: none;
+}
+
+body.cu-android-app .modal-backdrop,
+body.cu-android-app .account-backdrop,
+body.cu-android-app .payment-backdrop,
+body.cu-android-app .creator-detail-backdrop,
+body.cu-android-app .work-detail-backdrop,
+body.cu-android-app .policy-backdrop {
+  place-items: start center;
+  padding: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .account-modal {
+  width: min(100%, 430px);
+  max-height: calc(100dvh - 18px);
+  border-radius: 23px;
+  padding: 14px;
+  scrollbar-gutter: stable;
+}
+
+body.cu-android-app .account-modal .modal-header {
+  gap: 10px;
+}
+
+body.cu-android-app .account-modal .modal-header h2 {
+  font-size: 24px;
+}
+
+body.cu-android-app .account-hero-card {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  margin: 10px 0;
+  border-radius: 19px;
+  padding: 12px;
+}
+
+body.cu-android-app .account-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 17px;
+  font-size: 20px;
+}
+
+body.cu-android-app .account-hero-card strong {
+  font-size: 19px;
+}
+
+body.cu-android-app .account-hero-card span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+body.cu-android-app .account-hero-card .ghost-button {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 40px;
+  border-radius: 14px;
+}
+
+body.cu-android-app .account-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+body.cu-android-app .account-panel,
+body.cu-android-app .account-panel.wide {
+  grid-column: auto;
+  gap: 10px;
+  border-radius: 19px;
+  padding: 13px;
+}
+
+body.cu-android-app .account-panel-head strong {
+  font-size: 15px;
+}
+
+body.cu-android-app .wallet-account-panel {
+  grid-template-rows: auto;
+}
+
+body.cu-android-app .account-wallet {
+  gap: 10px;
+  border-radius: 18px;
+  padding: 13px;
+}
+
+body.cu-android-app .account-wallet-main {
+  align-items: center;
+}
+
+body.cu-android-app .account-wallet b {
+  font-size: 28px;
+}
+
+body.cu-android-app .account-wallet small {
+  font-size: 12px;
+}
+
+body.cu-android-app .wallet-mini-grid,
+body.cu-android-app .account-summary-grid {
+  gap: 6px;
+}
+
+body.cu-android-app .wallet-mini-grid div,
+body.cu-android-app .account-summary-grid div {
+  border-radius: 13px;
+  padding: 8px;
+}
+
+body.cu-android-app .wallet-mini-grid span,
+body.cu-android-app .account-summary-grid span {
+  font-size: 10.5px;
+}
+
+body.cu-android-app .wallet-mini-grid b,
+body.cu-android-app .account-summary-grid b {
+  font-size: 15px;
+}
+
+body.cu-android-app .wallet-account-feed {
+  gap: 6px;
+}
+
+body.cu-android-app .wallet-account-feed article {
+  border-radius: 13px;
+  padding: 8px 10px;
+}
+
+body.cu-android-app .wallet-account-feed strong {
+  font-size: 12px;
+}
+
+body.cu-android-app .account-quick-actions,
+body.cu-android-app .account-summary-actions {
+  gap: 7px;
+}
+
+body.cu-android-app .account-quick-actions button,
+body.cu-android-app .account-summary-actions button,
+body.cu-android-app .account-panel button,
+body.cu-android-app .purchase-list button {
+  min-height: 38px;
+  border-radius: 13px;
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+body.cu-android-app .premium-mini-price,
+body.cu-android-app .premium-billing-card {
+  border-radius: 15px;
+  padding: 11px;
+}
+
+body.cu-android-app .premium-mini-price b,
+body.cu-android-app .premium-billing-card strong {
+  font-size: 18px;
+}
+
+body.cu-android-app .premium-benefit-strip {
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+body.cu-android-app .premium-benefit-strip span {
+  min-height: 38px;
+  justify-content: flex-start;
+  border-radius: 13px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+}
+
+body.cu-android-app .purchase-list article,
+body.cu-android-app .compact-purchase-list article {
+  grid-template-columns: 1fr;
+  gap: 9px;
+  border-radius: 15px;
+  padding: 11px;
+}
+
+body.cu-android-app .purchase-list article button {
+  width: 100%;
+}
+
+body.cu-android-app .payment-modal,
+body.cu-android-app .creator-detail-modal,
+body.cu-android-app .work-detail-modal,
+body.cu-android-app .policy-modal,
+body.cu-android-app .auth-modal {
+  width: min(100%, 430px);
+  max-height: calc(100dvh - 18px);
+  border-radius: 23px;
+  padding: 15px;
+}
+
 @keyframes drawerDrop {
   from {
     opacity: 0;
