@@ -1,4 +1,4 @@
-import { MemberRole, Prisma } from "@prisma/client";
+import { MatchRequestStatus, MemberRole, Prisma, ProjectStatus } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
@@ -7,29 +7,12 @@ import { getCurrentUserId } from "../utils/request-context.js";
 
 const communityRouter = Router();
 
-type MatchRequestRecord = {
-  id: string;
-  requesterId: string;
-  targetUserId: string;
-  projectId: string;
-  projectTitle: string;
-  projectType: string;
-  memberRole: MemberRole;
-  sharePercentage: number;
-  message: string;
-  status: "PENDING" | "ACCEPTED" | "DECLINED";
-  createdAt: string;
-  acceptedAt?: string;
-};
-
-type ChatMessageRecord = {
-  id: string;
-  senderId: string;
-  receiverUserId: string;
-  body: string;
-  createdAt: string;
-  matchRequestId?: string;
-};
+type MatchRequestWithUsers = Prisma.MatchRequestGetPayload<{
+  include: {
+    requester: { select: { displayName: true } };
+    targetUser: { select: { displayName: true } };
+  };
+}>;
 
 const donations: unknown[] = [];
 const subscriptions: unknown[] = [];
@@ -37,8 +20,6 @@ const unlocks: unknown[] = [];
 const reviews: unknown[] = [];
 const tickets: unknown[] = [];
 const reports: unknown[] = [];
-const chatMessages: ChatMessageRecord[] = [];
-const matchRequests: MatchRequestRecord[] = [];
 
 const donationSchema = z.object({
   amount: z.number().int().min(100).max(100000),
@@ -86,7 +67,7 @@ const matchRequestSchema = z.object({
   message: z.string().optional(),
 });
 
-function buildMatchProposal(matchRequest?: MatchRequestRecord) {
+function buildMatchProposal(matchRequest?: MatchRequestWithUsers | null) {
   if (!matchRequest) {
     return null;
   }
@@ -96,16 +77,29 @@ function buildMatchProposal(matchRequest?: MatchRequestRecord) {
     projectTitle: matchRequest.projectTitle,
     projectType: matchRequest.projectType,
     memberRole: matchRequest.memberRole,
-    sharePercentage: matchRequest.sharePercentage,
+    sharePercentage: Number(matchRequest.sharePercentage),
     message: matchRequest.message,
     status: matchRequest.status,
+    requesterName: matchRequest.requester.displayName,
+    targetName: matchRequest.targetUser.displayName,
   };
 }
 
 async function buildChatThreads(viewerId: string) {
-  const relevantMessages = chatMessages
-    .filter((message) => message.senderId === viewerId || message.receiverUserId === viewerId)
-    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+  const relevantMessages = await prisma.chatMessage.findMany({
+    where: {
+      OR: [{ senderId: viewerId }, { receiverUserId: viewerId }],
+    },
+    include: {
+      matchRequest: {
+        include: {
+          requester: { select: { displayName: true } },
+          targetUser: { select: { displayName: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "asc" },
+  });
   const otherUserIds = [
     ...new Set(relevantMessages.map((message) => (message.senderId === viewerId ? message.receiverUserId : message.senderId))),
   ];
@@ -137,18 +131,15 @@ async function buildChatThreads(viewerId: string) {
       });
     }
 
-    const matchRequest = message.matchRequestId
-      ? matchRequests.find((request) => request.id === message.matchRequestId)
-      : undefined;
     threadMap.get(otherUserId)?.messages.push({
       id: message.id,
       senderId: message.senderId,
       receiverUserId: message.receiverUserId,
       body: message.body,
-      createdAt: message.createdAt,
+      createdAt: message.createdAt.toISOString(),
       from: message.senderId === viewerId ? "me" : "creator",
-      matchRequestId: message.matchRequestId,
-      matchProposal: buildMatchProposal(matchRequest),
+      matchRequestId: message.matchRequestId ?? undefined,
+      matchProposal: buildMatchProposal(message.matchRequest),
     });
   }
 
@@ -156,6 +147,40 @@ async function buildChatThreads(viewerId: string) {
     const leftMessages = left.messages as Array<{ createdAt: string }>;
     const rightMessages = right.messages as Array<{ createdAt: string }>;
     return new Date(rightMessages.at(-1)?.createdAt ?? "").getTime() - new Date(leftMessages.at(-1)?.createdAt ?? "").getTime();
+  });
+}
+
+async function ensureMatchingProject(projectId: string, ownerId: string, projectTitle?: string) {
+  const existingProject = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true },
+  });
+
+  if (existingProject) {
+    return;
+  }
+
+  await prisma.project.create({
+    data: {
+      id: projectId,
+      ownerId,
+      title: projectTitle || "크리에이터 유니버스 협업 프로젝트",
+      slug: projectId === "project-midnight-signal" ? "midnight-signal" : `collaboration-${Date.now()}`,
+      description: "매칭 제안으로 생성된 협업 프로젝트입니다.",
+      synopsis: "팀원이 제안을 수락하면 정산 멤버와 지분율에 자동 반영됩니다.",
+      status: ProjectStatus.IN_PRODUCTION,
+      priceCoins: 1000,
+      platformFeeRate: new Prisma.Decimal(0.15),
+      partnerFeeRate: new Prisma.Decimal(0.08),
+      settlementCurrency: "COIN",
+      members: {
+        create: {
+          userId: ownerId,
+          memberRole: MemberRole.WRITER,
+          sharePercentage: new Prisma.Decimal(100),
+        },
+      },
+    },
   });
 }
 
@@ -341,13 +366,13 @@ communityRouter.post(
   asyncHandler(async (req, res) => {
     const senderId = await getCurrentUserId(req);
     const payload = chatMessageSchema.parse(req.body);
-    const message = {
-      id: `chat-${Date.now()}`,
-      senderId,
-      ...payload,
-      createdAt: new Date().toISOString(),
-    };
-    chatMessages.push(message);
+    const message = await prisma.chatMessage.create({
+      data: {
+        senderId,
+        receiverUserId: payload.receiverUserId,
+        body: payload.body,
+      },
+    });
     res.status(201).json({ success: true, data: { message, thread: (await buildChatThreads(senderId)).find((thread) => (thread as { otherUser: { id: string } }).otherUser.id === payload.receiverUserId) ?? null } });
   }),
 );
@@ -374,26 +399,34 @@ communityRouter.post(
       res.status(404).json({ success: false, message: "Matching target not found." });
       return;
     }
-    const matchRequest = {
-      id: `match-${Date.now()}`,
-      requesterId,
-      status: "PENDING",
-      ...payload,
-      projectTitle: payload.projectTitle || project?.title || "Creator Universe Pilot",
-      projectType: payload.projectType || "Collaboration",
-      message: payload.message || `I would like to invite you with a ${payload.sharePercentage}% revenue share.`,
-      createdAt: new Date().toISOString(),
-    } satisfies MatchRequestRecord;
-    matchRequests.push(matchRequest);
-    const chatMessage = {
-      id: `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      senderId: requesterId,
-      receiverUserId: payload.targetUserId,
-      body: `${requester?.displayName ?? "A creator"} proposed a collaboration: ${matchRequest.projectTitle} / ${payload.sharePercentage}% revenue share.`,
-      matchRequestId: matchRequest.id,
-      createdAt: new Date().toISOString(),
-    };
-    chatMessages.push(chatMessage);
+    const projectTitle = payload.projectTitle || project?.title || "크리에이터 유니버스 협업 프로젝트";
+    await ensureMatchingProject(payload.projectId, requesterId, projectTitle);
+
+    const matchRequest = await prisma.matchRequest.create({
+      data: {
+        requesterId,
+        targetUserId: payload.targetUserId,
+        projectId: payload.projectId,
+        projectTitle,
+        projectType: payload.projectType || "멀티 콘텐츠 협업",
+        memberRole: payload.memberRole,
+        sharePercentage: new Prisma.Decimal(payload.sharePercentage),
+        message: payload.message || `${payload.sharePercentage}% 수익 지분 조건으로 협업을 제안합니다.`,
+        status: MatchRequestStatus.PENDING,
+      },
+      include: {
+        requester: { select: { displayName: true } },
+        targetUser: { select: { displayName: true } },
+      },
+    });
+    const chatMessage = await prisma.chatMessage.create({
+      data: {
+        senderId: requesterId,
+        receiverUserId: payload.targetUserId,
+        body: `${requester?.displayName ?? "창작자"}님이 '${matchRequest.projectTitle}' 프로젝트에 ${payload.sharePercentage}% 수익 지분 조건으로 매칭을 제안했습니다.`,
+        matchRequestId: matchRequest.id,
+      },
+    });
     res.status(201).json({ success: true, data: { ...matchRequest, chatMessage } });
   }),
 );
@@ -402,7 +435,13 @@ communityRouter.post(
   "/matching/requests/:requestId/accept",
   asyncHandler(async (req, res) => {
     const receiverId = await getCurrentUserId(req);
-    const matchRequest = matchRequests.find((request) => request.id === String(req.params.requestId));
+    const matchRequest = await prisma.matchRequest.findUnique({
+      where: { id: String(req.params.requestId) },
+      include: {
+        requester: { select: { displayName: true } },
+        targetUser: { select: { displayName: true } },
+      },
+    });
     if (!matchRequest) {
       res.status(404).json({ success: false, message: "Matching request not found." });
       return;
@@ -411,24 +450,55 @@ communityRouter.post(
       res.status(403).json({ success: false, message: "Only the invited creator can accept this matching request." });
       return;
     }
+    if (matchRequest.status === MatchRequestStatus.ACCEPTED) {
+      const members = await rebalanceProjectMembers(
+        matchRequest.projectId,
+        matchRequest.targetUserId,
+        matchRequest.memberRole,
+        Number(matchRequest.sharePercentage),
+      );
+      res.json({ success: true, data: { matchRequest, members } });
+      return;
+    }
 
-    matchRequest.status = "ACCEPTED";
-    matchRequest.acceptedAt = new Date().toISOString();
     const members = await rebalanceProjectMembers(
       matchRequest.projectId,
       matchRequest.targetUserId,
       matchRequest.memberRole,
-      matchRequest.sharePercentage,
+      Number(matchRequest.sharePercentage),
     );
-    const receiver = await prisma.user.findUnique({ where: { id: receiverId }, select: { displayName: true } });
-    chatMessages.push({
-      id: `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      senderId: receiverId,
-      receiverUserId: matchRequest.requesterId,
-      body: `${receiver?.displayName ?? "Invited creator"} accepted the ${matchRequest.sharePercentage}% revenue share proposal and joined the team.`,
-      createdAt: new Date().toISOString(),
+    const acceptedRequest = await prisma.matchRequest.update({
+      where: { id: matchRequest.id },
+      data: {
+        status: MatchRequestStatus.ACCEPTED,
+        acceptedAt: new Date(),
+      },
+      include: {
+        requester: { select: { displayName: true } },
+        targetUser: { select: { displayName: true } },
+      },
     });
-    res.json({ success: true, data: { matchRequest, members } });
+    const receiver = await prisma.user.findUnique({ where: { id: receiverId }, select: { displayName: true } });
+    const acceptanceMessage = await prisma.chatMessage.create({
+      data: {
+        senderId: receiverId,
+        receiverUserId: matchRequest.requesterId,
+        body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 제안을 수락했고 팀 정산 멤버에 합류했습니다.`,
+      },
+    });
+    await prisma.chatMessage.update({
+      where: { id: acceptanceMessage.id },
+      data: {
+        body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 제안을 수락했고 팀 정산 멤버에 합류했습니다.`,
+      },
+    });
+    await prisma.chatMessage.update({
+      where: { id: acceptanceMessage.id },
+      data: {
+        body: `${receiver?.displayName ?? "\uCD08\uB300\uBC1B\uC740 \uCC3D\uC791\uC790"}\uB2D8\uC774 ${Number(matchRequest.sharePercentage)}% \uC218\uC775 \uC9C0\uBD84 \uC81C\uC548\uC744 \uC218\uB77D\uD588\uACE0 \uD300 \uC815\uC0B0 \uBA64\uBC84\uC5D0 \uD569\uB958\uD588\uC2B5\uB2C8\uB2E4.`,
+      },
+    });
+    res.json({ success: true, data: { matchRequest: acceptedRequest, members } });
   }),
 );
 

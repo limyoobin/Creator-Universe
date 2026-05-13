@@ -1037,7 +1037,16 @@ function mapChatThreads(threads: ChatThread[]) {
       time: formatChatTime(message.createdAt),
       createdAt: message.createdAt,
       matchRequestId: message.matchRequestId,
-      matchProposal: message.matchProposal,
+      matchProposal: message.matchProposal
+        ? {
+            ...message.matchProposal,
+            projectTitle: cleanDisplayText(message.matchProposal.projectTitle, "크리에이터 유니버스 협업 프로젝트"),
+            projectType: cleanDisplayText(message.matchProposal.projectType, "멀티 콘텐츠 협업"),
+            message: cleanDisplayText(message.matchProposal.message, "수익 지분 조건을 확인하고 팀 합류 여부를 결정해 주세요."),
+            requesterName: cleanDisplayText(message.matchProposal.requesterName, "제안한 창작자"),
+            targetName: cleanDisplayText(message.matchProposal.targetName, "초대받은 창작자"),
+          }
+        : message.matchProposal,
     }));
     return acc;
   }, {});

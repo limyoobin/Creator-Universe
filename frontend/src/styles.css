@@ -11386,6 +11386,22 @@ body.cu-android-app .purchase-list button {
   width: 100%;
 }
 
+body.cu-android-app .account-wallet-main button {
+  width: auto;
+  min-width: 78px;
+  max-width: 112px;
+  white-space: nowrap;
+}
+
+body.cu-android-app .account-wallet-main > div {
+  flex: 1 1 auto;
+}
+
+body.cu-android-app .account-wallet-main {
+  display: flex;
+  grid-template-columns: none;
+}
+
 body.cu-android-app .account-panel p,
 body.cu-android-app .account-panel strong,
 body.cu-android-app .account-wallet small,

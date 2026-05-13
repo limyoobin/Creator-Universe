@@ -16,6 +16,8 @@ function seedPassword(password: string) {
 }
 
 async function main() {
+  await prisma.chatMessage.deleteMany();
+  await prisma.matchRequest.deleteMany();
   await prisma.settlementDistribution.deleteMany();
   await prisma.contentAccess.deleteMany();
   await prisma.transcriptCue.deleteMany();
