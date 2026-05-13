@@ -1174,6 +1174,11 @@ function getFriendlyError(error: unknown) {
   return error instanceof Error ? cleanDisplayText(error.message, "요청 처리 중 오류가 발생했습니다.") : "요청 처리 중 오류가 발생했습니다.";
 }
 
+function isApiConnectionError(error: unknown) {
+  const message = getFriendlyError(error);
+  return message.includes("백엔드 서버에 연결") || message.includes("API 응답을 읽을 수 없습니다");
+}
+
 function getLoginErrorMessage(error: unknown) {
   const message = getFriendlyError(error);
   if (message.includes("없는 계정") || message.includes("not found")) {
@@ -3527,7 +3532,9 @@ export function App() {
 
     if (!token) {
       setUser(null);
-      void loadData(null).catch((error) => setStatus(error.message));
+      void loadData(null).catch((error) => {
+        setStatus(isApiConnectionError(error) ? "데모 모드로 표시 중" : getFriendlyError(error));
+      });
       return () => {
         isCurrent = false;
       };
@@ -3547,14 +3554,18 @@ export function App() {
         setUser(me);
         await loadData(token).catch((error) => {
           if (isCurrent) {
-            setStatus(error instanceof Error ? error.message : "데이터를 불러오지 못했습니다.");
+            setStatus(isApiConnectionError(error) ? "일부 데이터 동기화 대기 중" : getFriendlyError(error));
           }
         });
       } catch (error) {
         if (!isCurrent) {
           return;
         }
-        setStatus(error instanceof Error ? error.message : "로그인 상태를 확인하지 못했습니다.");
+        if (isApiConnectionError(error)) {
+          setStatus("서버 연결 대기 중");
+          return;
+        }
+        setStatus(getFriendlyError(error));
         setUser(null);
         setToken(null);
         localStorage.removeItem("creator-universe-token");
