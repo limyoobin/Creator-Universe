@@ -3248,6 +3248,35 @@ export function App() {
     };
   }, [studioFanPostDraft]);
 
+  const studioGrowthInsights = useMemo(() => {
+    const works = myStudioWorks.length > 0 ? myStudioWorks : readerWorks.slice(0, 3);
+    const totalAudience = works.reduce((sum, work) => sum + parseAudienceCount(work.listeners), 0);
+    const averageRating = works.reduce((sum, work) => sum + work.rating, 0) / Math.max(works.length, 1);
+    const estimatedCoinSales = works.reduce((sum, work) => sum + work.priceCoins * Math.max(work.episodes, 1), 0);
+    const fanPostReadiness = studioFanPostChecklist.percent;
+    const publishReadiness = studioPublishChecklist.percent;
+
+    return {
+      metrics: [
+        { label: "누적 감상", value: `${Math.round(totalAudience / 1000).toLocaleString("ko-KR")}K`, detail: "참여 작품 기준", icon: <Users size={20} /> },
+        { label: "평균 평점", value: averageRating.toFixed(1), detail: "독자 만족도", icon: <Star size={20} /> },
+        { label: "예상 판매 풀", value: formatCoins(estimatedCoinSales), detail: "회차 가격 합산", icon: <Coins size={20} /> },
+        { label: "팬 수익화 준비", value: `${fanPostReadiness}%`, detail: "유료 포스트 체크", icon: <Heart size={20} /> },
+      ],
+      funnel: [
+        { label: "작품 발견", rate: 82, caption: "추천/랭킹 진입" },
+        { label: "상세 진입", rate: 64, caption: "참여 창작자 클릭" },
+        { label: "코인 결제", rate: 41, caption: "열람권 구매" },
+        { label: "팬 구독", rate: premiumSubscription.isActive ? 36 : 24, caption: "멤버십 전환" },
+      ],
+      actions: [
+        publishReadiness < 100 ? "발행 체크리스트를 완성해 예약 공개 상태로 바꾸기" : "이번 주 대표작을 홈 추천 후보로 올리기",
+        fanPostReadiness < 100 ? "구독자 전용 포스트 설명과 가격을 마무리하기" : "팬 포스트를 작품 상세 하단에 연결하기",
+        myCreatorProfile ? "포트폴리오 상단에 가장 반응 좋은 작품을 고정하기" : "매칭 프로필을 공개해 작품 크레딧과 연결하기",
+      ],
+    };
+  }, [myCreatorProfile, myStudioWorks, premiumSubscription.isActive, studioFanPostChecklist.percent, studioPublishChecklist.percent]);
+
   const settlementDonutStyle = useMemo(() => {
     const colors = ["var(--brand)", "var(--cyan)", "var(--violet)", "var(--green)", "#ffb84d"];
     let cursor = 0;
@@ -5263,6 +5292,74 @@ export function App() {
                   ))}
                 </div>
               </aside>
+            </div>
+          </section>
+
+          <section className="studio-growth-analytics">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Growth Analytics</p>
+                <h2>창작자 성장 인사이트</h2>
+              </div>
+              <p>작품 반응, 팬 구독 준비도, 코인 판매 흐름을 한 화면에서 보고 다음 운영 액션을 결정합니다.</p>
+            </div>
+
+            <div className="growth-metric-grid">
+              {studioGrowthInsights.metrics.map((metric) => (
+                <article key={metric.label}>
+                  <span>{metric.icon}</span>
+                  <div>
+                    <small>{metric.label}</small>
+                    <strong>{metric.value}</strong>
+                    <p>{metric.detail}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="growth-analytics-layout">
+              <article className="growth-funnel-card">
+                <div className="growth-card-head">
+                  <span><Flame size={17} /> Reader Funnel</span>
+                  <strong>독자 전환 흐름</strong>
+                </div>
+                <div className="growth-funnel-list">
+                  {studioGrowthInsights.funnel.map((item) => (
+                    <div key={item.label}>
+                      <div>
+                        <b>{item.label}</b>
+                        <span>{item.rate}%</span>
+                      </div>
+                      <i><em style={{ width: `${item.rate}%` }} /></i>
+                      <small>{item.caption}</small>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="growth-action-card">
+                <div className="growth-card-head">
+                  <span><Rocket size={17} /> Next Actions</span>
+                  <strong>이번 주 추천 액션</strong>
+                </div>
+                <div className="growth-action-list">
+                  {studioGrowthInsights.actions.map((action, index) => (
+                    <button key={action} onClick={() => setCommunityMessage(action)}>
+                      <b>{String(index + 1).padStart(2, "0")}</b>
+                      <span>{action}</span>
+                    </button>
+                  ))}
+                </div>
+              </article>
+
+              <article className="growth-signal-card">
+                <span><Bell size={17} /> Signal</span>
+                <strong>{premiumSubscription.isActive ? "구독 혜택 운영 중" : "팬 구독 상품을 더 노출해보세요"}</strong>
+                <p>
+                  작품 상세에서 창작자 프로필 클릭, 스크랩, 결제 흐름을 묶으면 포스타입형 팬덤과 크몽형 협업 문의를 동시에 키울 수 있습니다.
+                </p>
+                <button onClick={() => setIsNotificationOpen(true)}>알림/팬 반응 보기</button>
+              </article>
             </div>
           </section>
 

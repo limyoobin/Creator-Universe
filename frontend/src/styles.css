@@ -1615,6 +1615,7 @@ h2 {
 .studio-work-form-card p,
 .studio-publish-editor p,
 .studio-fan-commerce p,
+.studio-growth-analytics p,
 .studio-team-board p,
 .studio-portfolio-panel p {
   color: var(--muted);
@@ -1859,6 +1860,7 @@ h2 {
 .studio-work-form-card,
 .studio-publish-editor,
 .studio-fan-commerce,
+.studio-growth-analytics,
 .studio-team-board,
 .studio-portfolio-panel {
   border: 1px solid var(--line);
@@ -2322,6 +2324,197 @@ h2 {
 
 .fan-commerce-checklist p.done svg {
   color: var(--green);
+}
+
+.studio-growth-analytics {
+  display: grid;
+  gap: 18px;
+  background:
+    radial-gradient(circle at 0% 8%, color-mix(in srgb, var(--green) 10%, transparent), transparent 14rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 16rem),
+    var(--surface);
+}
+
+.growth-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.growth-metric-grid article {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  border: 1px solid color-mix(in srgb, var(--brand) 12%, var(--line));
+  border-radius: 22px;
+  padding: 15px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--surface-2));
+}
+
+.growth-metric-grid article > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 11%, transparent);
+}
+
+.growth-metric-grid small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.growth-metric-grid strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 24px;
+  letter-spacing: -0.06em;
+}
+
+.growth-metric-grid p {
+  margin: 3px 0 0;
+  font-size: 12px;
+}
+
+.growth-analytics-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.85fr) minmax(260px, 0.7fr);
+  gap: 12px;
+}
+
+.growth-funnel-card,
+.growth-action-card,
+.growth-signal-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand) 14%, var(--line));
+  border-radius: 24px;
+  padding: 17px;
+  background: color-mix(in srgb, var(--surface) 84%, var(--surface-2));
+}
+
+.growth-card-head {
+  display: grid;
+  gap: 7px;
+}
+
+.growth-card-head span,
+.growth-signal-card > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.growth-card-head strong,
+.growth-signal-card strong {
+  color: var(--text);
+  font-size: 22px;
+  letter-spacing: -0.06em;
+}
+
+.growth-funnel-list {
+  display: grid;
+  gap: 13px;
+}
+
+.growth-funnel-list > div {
+  display: grid;
+  gap: 7px;
+}
+
+.growth-funnel-list div div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.growth-funnel-list i {
+  display: block;
+  height: 11px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--soft);
+}
+
+.growth-funnel-list em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), var(--cyan));
+}
+
+.growth-funnel-list small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.growth-action-list {
+  display: grid;
+  gap: 9px;
+}
+
+.growth-action-list button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  padding: 11px;
+  color: var(--text);
+  background: var(--soft);
+  text-align: left;
+  font: inherit;
+  font-weight: 850;
+}
+
+.growth-action-list button:hover {
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--line));
+  transform: translateY(-1px);
+}
+
+.growth-action-list b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  font-size: 12px;
+}
+
+.growth-signal-card {
+  align-content: start;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--green) 15%, transparent), transparent 8rem),
+    color-mix(in srgb, var(--surface) 84%, var(--surface-2));
+}
+
+.growth-signal-card button {
+  width: fit-content;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 13px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  font-weight: 950;
 }
 
 .studio-team-board,
@@ -9410,6 +9603,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .studio-command-center,
   .studio-editor-workspace,
   .fan-commerce-grid,
+  .growth-analytics-layout,
   .studio-channel-grid,
   .studio-share-summary,
   .wallet-hero,
@@ -9451,6 +9645,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .studio-form-section,
   .fan-editor-row,
   .fan-tier-preview,
+  .growth-metric-grid,
   .studio-team-grid,
   .studio-portfolio-grid,
   .match-inbox-list,
