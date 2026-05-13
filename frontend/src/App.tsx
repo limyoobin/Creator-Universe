@@ -585,6 +585,16 @@ type StudioDraftState = {
   uploadMemo: string;
 };
 
+type StudioFanPostDraftState = {
+  title: string;
+  postType: string;
+  accessType: string;
+  tierName: string;
+  priceCoins: number;
+  summary: string;
+  releaseNote: string;
+};
+
 type NotificationPreferences = {
   newEpisode: boolean;
   settlement: boolean;
@@ -2701,6 +2711,15 @@ export function App() {
     previewText: "무료 미리보기에서는 첫 장면의 분위기와 주인공의 목표가 선명하게 보이도록 구성합니다.",
     uploadMemo: "원고, 콘티, 표지 이미지, 접근성 대본, 오디오 큐시트를 발행 전까지 연결합니다.",
   });
+  const [studioFanPostDraft, setStudioFanPostDraft] = useState<StudioFanPostDraftState>({
+    title: "1화 러프 컷과 성우 코멘터리",
+    postType: "이미지팩",
+    accessType: "구독자 전용",
+    tierName: "Studio Fan",
+    priceCoins: 700,
+    summary: "본편 공개 전 러프 이미지, 캐릭터 표정 차이, 녹음 비하인드를 팬에게 먼저 공개합니다.",
+    releaseNote: "스포일러가 포함된 컷은 접어서 제공하고, 후원자 댓글에 다음 특전 투표를 연결합니다.",
+  });
   const [supportChatInput, setSupportChatInput] = useState("");
   const [supportChatMessages, setSupportChatMessages] = useState([
     { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
@@ -3212,6 +3231,22 @@ export function App() {
       percent: Math.round((items.filter((item) => item.done).length / items.length) * 100),
     };
   }, [settlementPreview.shareTotal, studioDraft]);
+
+  const studioFanPostChecklist = useMemo(() => {
+    const items = [
+      { label: "포스트 제목", done: studioFanPostDraft.title.trim().length >= 2 },
+      { label: "유료/구독 공개 설정", done: Boolean(studioFanPostDraft.accessType) },
+      { label: "구독 티어 연결", done: studioFanPostDraft.accessType !== "구독자 전용" || Boolean(studioFanPostDraft.tierName) },
+      { label: "코인 가격", done: studioFanPostDraft.accessType === "무료 공개" || Number(studioFanPostDraft.priceCoins) > 0 },
+      { label: "팬에게 보일 설명", done: studioFanPostDraft.summary.trim().length >= 20 },
+    ];
+
+    return {
+      items,
+      doneCount: items.filter((item) => item.done).length,
+      percent: Math.round((items.filter((item) => item.done).length / items.length) * 100),
+    };
+  }, [studioFanPostDraft]);
 
   const settlementDonutStyle = useMemo(() => {
     const colors = ["var(--brand)", "var(--cyan)", "var(--violet)", "var(--green)", "#ffb84d"];
@@ -3930,12 +3965,27 @@ export function App() {
     }));
   }
 
+  function updateStudioFanPostDraft<K extends keyof StudioFanPostDraftState>(key: K, value: StudioFanPostDraftState[K]) {
+    setStudioFanPostDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
   function submitStudioWorkDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const title = String(data.get("title") || "새 작품");
     const episodeTitle = String(data.get("episodeTitle") || "새 회차");
     setCommunityMessage(`${title} · ${episodeTitle} 발행 초안이 저장되었습니다. 체크리스트를 모두 채우면 예약 발행으로 넘길 수 있어요.`);
+  }
+
+  function submitStudioFanPost(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const title = String(data.get("fanPostTitle") || "팬 포스트");
+    const accessType = String(data.get("fanPostAccess") || "구독자 전용");
+    setCommunityMessage(`${title} 팬 포스트 초안이 저장되었습니다. ${accessType} 상품으로 창작자 채널에 노출할 수 있어요.`);
   }
 
   function submitStudioEpisode(event: React.FormEvent<HTMLFormElement>) {
@@ -5097,6 +5147,124 @@ export function App() {
               </form>
             </section>
           </div>
+
+          <section className="studio-fan-commerce">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Fan Commerce</p>
+                <h2>팬 멤버십과 유료 포스트 운영</h2>
+              </div>
+              <p>픽시브 FANBOX처럼 러프, 이미지팩, 보이스 샘플, 제작노트를 코인 열람 또는 구독자 전용 콘텐츠로 발행하는 수익화 콘솔입니다.</p>
+            </div>
+
+            <div className="fan-commerce-grid">
+              <form className="fan-post-editor-card" onSubmit={submitStudioFanPost}>
+                <div className="fan-editor-head">
+                  <span><Heart size={18} /> Fan Post Editor</span>
+                  <strong>팬 전용 포스트 초안</strong>
+                </div>
+                <label>포스트 제목
+                  <input
+                    name="fanPostTitle"
+                    value={studioFanPostDraft.title}
+                    onChange={(event) => updateStudioFanPostDraft("title", event.target.value)}
+                  />
+                </label>
+                <div className="fan-editor-row">
+                  <label>콘텐츠 유형
+                    <select
+                      value={studioFanPostDraft.postType}
+                      onChange={(event) => updateStudioFanPostDraft("postType", event.target.value)}
+                    >
+                      <option>이미지팩</option>
+                      <option>작업노트</option>
+                      <option>보이스 샘플</option>
+                      <option>BGM 루프</option>
+                      <option>외전 원고</option>
+                    </select>
+                  </label>
+                  <label>공개 방식
+                    <select
+                      name="fanPostAccess"
+                      value={studioFanPostDraft.accessType}
+                      onChange={(event) => updateStudioFanPostDraft("accessType", event.target.value)}
+                    >
+                      <option>무료 공개</option>
+                      <option>코인 열람</option>
+                      <option>구독자 전용</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="fan-editor-row">
+                  <label>연결 티어
+                    <select
+                      value={studioFanPostDraft.tierName}
+                      onChange={(event) => updateStudioFanPostDraft("tierName", event.target.value)}
+                    >
+                      {creatorMembershipPlans.map((plan) => <option key={plan.name}>{plan.name}</option>)}
+                    </select>
+                  </label>
+                  <label>개별 열람 가격
+                    <input
+                      min={0}
+                      step={100}
+                      type="number"
+                      value={studioFanPostDraft.priceCoins}
+                      onChange={(event) => updateStudioFanPostDraft("priceCoins", Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+                <label>팬에게 보일 설명
+                  <textarea
+                    value={studioFanPostDraft.summary}
+                    onChange={(event) => updateStudioFanPostDraft("summary", event.target.value)}
+                  />
+                </label>
+                <label>운영 메모
+                  <textarea
+                    value={studioFanPostDraft.releaseNote}
+                    onChange={(event) => updateStudioFanPostDraft("releaseNote", event.target.value)}
+                  />
+                </label>
+                <button className="primary-button" type="submit"><Sparkles size={17} /> 팬 포스트 초안 저장</button>
+              </form>
+
+              <aside className="fan-commerce-preview">
+                <article className="fan-post-preview-card">
+                  <span>{studioFanPostDraft.postType} · {studioFanPostDraft.accessType}</span>
+                  <strong>{studioFanPostDraft.title}</strong>
+                  <p>{studioFanPostDraft.summary}</p>
+                  <div>
+                    <b>{studioFanPostDraft.accessType === "무료 공개" ? "무료" : formatCoins(studioFanPostDraft.priceCoins)}</b>
+                    <em>{studioFanPostDraft.tierName}</em>
+                  </div>
+                </article>
+
+                <div className="fan-tier-preview">
+                  {creatorMembershipPlans.map((plan) => (
+                    <article className={studioFanPostDraft.tierName === plan.name ? "active" : ""} key={plan.name}>
+                      <span>{plan.name}</span>
+                      <strong>{formatCoins(plan.price)} / 월</strong>
+                      <p>{plan.benefits.slice(0, 2).join(" · ")}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="fan-commerce-checklist">
+                  <div>
+                    <strong>수익화 준비도</strong>
+                    <b>{studioFanPostChecklist.percent}%</b>
+                  </div>
+                  {studioFanPostChecklist.items.map((item) => (
+                    <p className={item.done ? "done" : ""} key={item.label}>
+                      <CheckCircle2 size={16} />
+                      {item.label}
+                    </p>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          </section>
 
           <section className="studio-team-board">
             <div className="section-head">
