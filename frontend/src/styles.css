@@ -11128,6 +11128,50 @@ body.cu-android-app .auth-modal {
   padding: 15px;
 }
 
+body.cu-android-app .mobile-tabs {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 55px;
+  padding: 4px;
+  border-radius: 18px;
+}
+
+body.cu-android-app .mobile-tabs button {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 45px;
+  padding: 0 1px;
+  font-size: 9.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+body.cu-android-app .mobile-tabs button svg {
+  width: 14px;
+  height: 14px;
+}
+
+body.cu-android-app .floating-help {
+  bottom: calc(122px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-messenger {
+  bottom: calc(180px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help.open,
+body.cu-android-app .floating-messenger.open {
+  bottom: calc(116px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help-panel,
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
+  max-height: calc(100dvh - 220px);
+}
+
 @keyframes drawerDrop {
   from {
     opacity: 0;

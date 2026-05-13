@@ -6325,7 +6325,16 @@ export function App() {
                         <strong>{activeChatCreator.displayName}</strong>
                         <small>{roleLabels[activeChatCreator.primaryRole]} · 평균 응답률 {activeChatCreator.responseRate}%</small>
                       </div>
-                      <button type="button" onClick={() => setSelectedCreator(activeChatCreator)}>프로필</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMessengerOpen(false);
+                          setIsMessengerFullscreen(false);
+                          setSelectedCreator(activeChatCreator);
+                        }}
+                      >
+                        프로필
+                      </button>
                     </div>
                     <div className="messenger-messages">
                       {activeChatMessages.length === 0 && (
@@ -6392,7 +6401,16 @@ export function App() {
                     <b>응답률 {activeChatCreator.responseRate}%</b>
                     <b>{activeChatCreator.completedProjects}개 협업</b>
                   </div>
-                  <button type="button" onClick={() => setSelectedCreator(activeChatCreator)}>프로필 자세히 보기</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMessengerOpen(false);
+                      setIsMessengerFullscreen(false);
+                      setSelectedCreator(activeChatCreator);
+                    }}
+                  >
+                    프로필 자세히 보기
+                  </button>
                 </aside>
               )}
             </div>
