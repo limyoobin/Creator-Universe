@@ -10426,6 +10426,207 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   }
 }
 
+html.cu-android-webview,
+body.cu-android-app {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-text-size-adjust: 100%;
+  touch-action: pan-y;
+}
+
+body.cu-android-app .app {
+  min-height: auto;
+  overflow-x: hidden;
+  padding-bottom: max(118px, env(safe-area-inset-bottom));
+}
+
+body.cu-android-app main {
+  width: calc(100% - 16px);
+  padding-top: 8px;
+  padding-bottom: 136px;
+}
+
+body.cu-android-app .topbar {
+  top: max(6px, env(safe-area-inset-top));
+  width: calc(100% - 16px);
+  margin-top: 8px;
+  padding: 7px;
+  border-radius: 19px;
+  gap: 6px;
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--nav-glow) 52%, transparent);
+}
+
+body.cu-android-app .brand {
+  gap: 0;
+}
+
+body.cu-android-app .brand span {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+}
+
+body.cu-android-app .brand strong,
+body.cu-android-app .brand em {
+  display: none;
+}
+
+body.cu-android-app .header-actions {
+  gap: 5px;
+}
+
+body.cu-android-app .icon-button,
+body.cu-android-app .account-trigger {
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 15px;
+}
+
+body.cu-android-app .account-trigger {
+  padding: 4px 7px 4px 4px;
+  gap: 5px;
+}
+
+body.cu-android-app .account-trigger span {
+  width: 30px;
+  height: 30px;
+}
+
+body.cu-android-app .section,
+body.cu-android-app .page-panel {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+body.cu-android-app .intro-hero {
+  margin-top: 6px;
+  padding: 22px 18px;
+  border-radius: 22px;
+}
+
+body.cu-android-app .slide-copy-stage {
+  min-height: 236px;
+}
+
+body.cu-android-app .slide-copy-panel h1 {
+  max-width: 11ch;
+  font-size: clamp(46px, 15vw, 66px);
+  line-height: 1.03;
+  letter-spacing: -0.075em;
+}
+
+body.cu-android-app .lead {
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+body.cu-android-app .intro-actions {
+  gap: 10px;
+}
+
+body.cu-android-app .intro-actions button {
+  min-height: 54px;
+  border-radius: 18px;
+  font-size: 16px;
+}
+
+body.cu-android-app .studio-visual {
+  margin-top: 18px;
+}
+
+body.cu-android-app .visual-stage {
+  min-height: 300px;
+}
+
+body.cu-android-app .visual-artwork {
+  min-height: 260px;
+}
+
+body.cu-android-app .floating-help {
+  right: 12px;
+  bottom: calc(104px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-messenger {
+  right: 12px;
+  bottom: calc(166px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help-button,
+body.cu-android-app .floating-messenger-button {
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+}
+
+body.cu-android-app .floating-help-panel,
+body.cu-android-app .floating-messenger-panel {
+  right: 0;
+  width: min(330px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+}
+
+body.cu-android-app .mobile-tabs {
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  width: calc(100% - 16px);
+  max-width: 520px;
+  padding: 5px;
+  overflow: hidden;
+  border-radius: 22px;
+}
+
+body.cu-android-app .mobile-tabs button {
+  min-width: 0;
+  padding: 7px 0 6px;
+  font-size: 10px;
+  line-height: 1.05;
+}
+
+body.cu-android-app .mobile-tabs button svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.cu-android-app .payment-modal,
+body.cu-android-app .account-modal,
+body.cu-android-app .creator-detail-modal,
+body.cu-android-app .work-detail-modal,
+body.cu-android-app .policy-modal {
+  max-height: calc(100vh - 22px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .wallet-hero,
+body.cu-android-app .studio-hero,
+body.cu-android-app .discover-hero,
+body.cu-android-app .matching-hero,
+body.cu-android-app .settlement-hero,
+body.cu-android-app .support-hero {
+  padding: 20px;
+  border-radius: 22px;
+}
+
+body.cu-android-app .wallet-kpis,
+body.cu-android-app .settlement-kpis,
+body.cu-android-app .studio-kpi-grid {
+  gap: 10px;
+}
+
+body.cu-android-app .reader-work-card,
+body.cu-android-app .creator-card,
+body.cu-android-app .studio-publish-editor,
+body.cu-android-app .studio-fan-commerce,
+body.cu-android-app .studio-growth-analytics,
+body.cu-android-app .studio-accessibility-lab {
+  border-radius: 22px;
+}
+
 @keyframes drawerDrop {
   from {
     opacity: 0;
