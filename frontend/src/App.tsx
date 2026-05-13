@@ -20,6 +20,7 @@ import {
   Minimize2,
   Moon,
   Play,
+  Plus,
   RefreshCw,
   Rocket,
   Search,
@@ -2784,6 +2785,7 @@ export function App() {
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
+  const [isMobileQuickOpen, setIsMobileQuickOpen] = useState(false);
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(null);
@@ -3660,6 +3662,7 @@ export function App() {
 
     setActivePage(page);
     setIsMobileMenuOpen(false);
+    setIsMobileQuickOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -6242,15 +6245,44 @@ export function App() {
         </nav>
       </footer>
 
-      <nav className="mobile-tabs">
+      <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
         <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
         <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>
-        <button className={activePage === "studio" ? "active" : ""} onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
-        <button className={activePage === "matching" ? "active" : ""} onClick={() => navigate("matching")}><Search size={18} />매칭</button>
+        <button
+          className="mobile-plus-tab"
+          type="button"
+          onClick={() => {
+            setIsMobileQuickOpen((value) => !value);
+            setIsSupportBotOpen(false);
+            setIsMessengerOpen(false);
+          }}
+          aria-label="빠른 메뉴 열기"
+          aria-expanded={isMobileQuickOpen}
+        >
+          {isMobileQuickOpen ? <X size={20} /> : <Plus size={22} />}
+        </button>
         <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
-        <button className={activePage === "settlement" ? "active" : ""} onClick={() => navigate("settlement")}><Wallet size={18} />정산</button>
-        <button className={activePage === "support" ? "active" : ""} onClick={() => navigate("support")}><ShieldCheck size={18} />센터</button>
+        <button
+          className={isAccountModalOpen ? "active" : ""}
+          onClick={() => {
+            if (!token) {
+              setAuthMode("login");
+              return;
+            }
+            setIsMobileQuickOpen(false);
+            setIsAccountModalOpen(true);
+          }}
+        >
+          <UserRound size={18} />마이
+        </button>
       </nav>
+
+      <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
+        <button onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span><small>창작자 홈</small></button>
+        <button onClick={() => navigate("matching")}><Search size={18} /><span>매칭</span><small>팀원 찾기</small></button>
+        <button onClick={() => navigate("settlement")}><Split size={18} /><span>정산</span><small>수익 분배</small></button>
+        <button onClick={() => navigate("support")}><ShieldCheck size={18} /><span>센터</span><small>문의/신고</small></button>
+      </div>
 
       <div className={`floating-messenger ${isMessengerOpen ? "open" : ""} ${isMessengerFullscreen ? "fullscreen-mode" : ""}`}>
         {isMessengerOpen && (
