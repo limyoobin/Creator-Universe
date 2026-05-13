@@ -2,7 +2,7 @@
 
 > 창작자 매칭, 멀티 콘텐츠 유통, 코인 결제, 스마트 자동 정산을 하나로 연결하는 서브컬처 협업 플랫폼 MVP
 
-[배포 사이트](https://project-limyoobins-projects.vercel.app) · [백엔드 상태 확인](https://creator-universe-api-7qfc.onrender.com/health) · [GitHub Repository](https://github.com/limyoobin/Creator-Universe)
+[배포 사이트](https://project-limyoobins-projects.vercel.app) · [개인정보 처리방침](https://project-limyoobins-projects.vercel.app/privacy-policy.html) · [계정 삭제 안내](https://project-limyoobins-projects.vercel.app/account-deletion.html) · [백엔드 상태 확인](https://creator-universe-api-7qfc.onrender.com/health) · [GitHub Repository](https://github.com/limyoobin/Creator-Universe)
 
 ## 1. 프로젝트 개요
 

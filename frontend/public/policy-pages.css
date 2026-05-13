@@ -1,0 +1,238 @@
+:root {
+  color-scheme: light;
+  --bg: #f8f6f1;
+  --surface: #ffffff;
+  --surface-2: #f0ece3;
+  --text: #171612;
+  --muted: #6f685f;
+  --line: #ded7cc;
+  --brand: #ff5c8a;
+  --brand-2: #6a5cff;
+  --cyan: #13bfd0;
+  --green: #2eaf77;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 92, 138, 0.16), transparent 18rem),
+    radial-gradient(circle at 100% 8%, rgba(19, 191, 208, 0.16), transparent 20rem),
+    var(--bg);
+}
+
+a {
+  color: inherit;
+}
+
+.policy-shell {
+  width: min(1080px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0 56px;
+}
+
+.policy-nav,
+.policy-card,
+.policy-footer {
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 80px rgba(35, 27, 20, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.policy-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+}
+
+.policy-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  font-weight: 950;
+}
+
+.policy-brand img {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.policy-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.policy-nav-links a,
+.policy-button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.policy-nav-links a:hover,
+.policy-button:hover {
+  color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 36%, var(--line));
+}
+
+.policy-card {
+  overflow: hidden;
+}
+
+.policy-hero {
+  padding: clamp(28px, 6vw, 60px);
+  color: #fff;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.28), transparent 8rem),
+    linear-gradient(135deg, #151622, #303982 50%, #e96893);
+}
+
+.policy-hero span {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.policy-hero h1 {
+  max-width: 780px;
+  margin: 18px 0 12px;
+  font-size: clamp(36px, 7vw, 70px);
+  line-height: 1;
+  letter-spacing: -0.08em;
+}
+
+.policy-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+.policy-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.policy-meta b {
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 12px;
+}
+
+.policy-content {
+  display: grid;
+  gap: 18px;
+  padding: clamp(22px, 4vw, 42px);
+}
+
+.policy-section {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 20px;
+  background: var(--surface);
+}
+
+.policy-section h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  letter-spacing: -0.055em;
+}
+
+.policy-section p,
+.policy-section li {
+  color: var(--muted);
+  line-height: 1.78;
+}
+
+.policy-section ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.policy-table {
+  display: grid;
+  gap: 8px;
+}
+
+.policy-row {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 13px;
+  background: var(--surface-2);
+}
+
+.policy-row strong {
+  color: var(--text);
+}
+
+.policy-row span {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.policy-notice {
+  border-left: 5px solid var(--brand);
+  border-radius: 18px;
+  padding: 16px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+  line-height: 1.75;
+}
+
+.policy-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .policy-nav {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .policy-nav-links a,
+  .policy-button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .policy-row {
+    grid-template-columns: 1fr;
+  }
+}

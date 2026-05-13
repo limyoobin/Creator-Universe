@@ -2253,30 +2253,35 @@ const policySections: Array<{
   title: string;
   summary: string;
   items: string[];
+  url: string;
 }> = [
   {
     id: "privacy",
     label: "개인정보 처리방침",
     title: "개인정보 처리방침",
-    summary: "크리에이터 유니버스는 회원 식별, 결제, 정산, 콘텐츠 접근성 제공을 위해 필요한 정보만 수집합니다.",
+    summary: "크리에이터 유니버스는 창작자 매칭, 콘텐츠 열람, 코인 결제, 자동 정산, 고객지원 제공에 필요한 개인정보만 수집하고 안전하게 처리합니다.",
     items: [
-      "수집 항목: 이메일, 아이디, 닉네임, 결제/정산 이력, 창작자 포트폴리오 정보",
-      "이용 목적: 로그인, 콘텐츠 열람권 발급, 자동 정산, 고객 문의, 부정 이용 방지",
-      "보관 기간: 회원 탈퇴 또는 법령상 보관 의무 종료 시까지 안전하게 관리",
-      "접근성 개선을 위한 사용 패턴은 개인을 식별할 수 없도록 통계화하여 활용",
+      "수집 항목: 이메일, 아이디, 닉네임, 비밀번호 해시, 지갑/코인 거래, 콘텐츠 구매, 창작자 프로필, 문의/신고, 서비스 이용 로그",
+      "이용 목적: 회원 인증, 콘텐츠 접근권 발급, 코인 충전/사용, 팀 정산, 매칭 제안, 고객지원, 부정 이용 방지, 접근성 품질 개선",
+      "제3자 제공/공유: 결제 처리, 클라우드 인프라, 이메일/알림 발송 등 서비스 운영에 필요한 범위에서만 처리 위탁 또는 공유",
+      "보관/삭제: 회원 탈퇴 또는 삭제 요청 시 지체 없이 삭제하되, 전자상거래·분쟁 대응 등 법령상 필요한 기록은 정해진 기간 보관",
+      "문의: privacy@creator-universe.app 으로 개인정보 열람, 정정, 삭제, 처리정지를 요청할 수 있습니다.",
     ],
+    url: "/privacy-policy.html",
   },
   {
     id: "terms",
     label: "약관",
     title: "서비스 이용약관",
-    summary: "회원은 창작자 매칭, 코인 결제, 오디오 콘텐츠 감상, 프로젝트 정산 기능을 본 약관에 따라 이용합니다.",
+    summary: "회원은 크리에이터 유니버스에서 창작자 매칭, 콘텐츠 발행/열람, 코인 결제, 팬 구독, 자동 정산 기능을 약관에 따라 이용합니다.",
     items: [
-      "회원은 타인의 저작권, 초상권, 음성권을 침해하지 않는 콘텐츠만 등록해야 합니다.",
-      "프로젝트 팀원은 사전 합의한 지분율을 기준으로 수익을 분배받습니다.",
+      "회원은 타인의 저작권, 초상권, 음성권, 개인정보, 명예를 침해하지 않는 콘텐츠와 프로필만 등록해야 합니다.",
+      "창작팀은 프로젝트별 지분율, 역할, 공개 범위, 수익 분배 조건을 사전에 합의하고 시스템에 등록해야 합니다.",
       "플랫폼 수수료는 일반 15%, 공식 파트너 8%로 고정 적용됩니다.",
-      "부정 결제, 무단 복제, 계정 공유 등 서비스 신뢰를 해치는 행위는 제한될 수 있습니다.",
+      "부정 결제, 무단 복제, 계정 공유, 스팸성 매칭, 괴롭힘 등 서비스 신뢰를 해치는 행위는 제한될 수 있습니다.",
+      "서비스는 MVP/베타 성격의 기능을 포함할 수 있으며, 정식 결제·정산 연동 전 일부 기능은 데모 데이터로 제공될 수 있습니다.",
     ],
+    url: "/terms.html",
   },
   {
     id: "refund",
@@ -2289,18 +2294,20 @@ const policySections: Array<{
       "중복 결제, 시스템 오류, 접근권 미지급은 확인 후 우선 환불 또는 재지급 처리합니다.",
       "환불 완료 시 해당 거래의 자동 정산분은 다음 고정 정산일에 차감 또는 보정됩니다.",
     ],
+    url: "/refund-policy.html",
   },
   {
     id: "legal",
     label: "법적 고지",
     title: "법적 고지",
-    summary: "크리에이터 유니버스의 로고, UI, 정산 구조, 콘텐츠 데이터는 보호 대상이며 무단 사용을 금지합니다.",
+    summary: "크리에이터 유니버스의 브랜드, UI, 정산 구조, 소프트웨어, 콘텐츠 데이터와 창작자의 작품 권리는 보호 대상입니다.",
     items: [
       "게시된 작품, 대본, 이미지, 음성, BGM의 권리는 원 권리자와 창작팀에게 있습니다.",
       "플랫폼은 창작자 간 계약과 분쟁을 줄이기 위한 정산 기록과 거래 로그를 제공합니다.",
       "AI 번역, 로컬라이징, 접근성 기능은 보조 수단이며 최종 검수 책임은 창작팀에 있습니다.",
       "법령 또는 권리 침해 신고가 접수된 콘텐츠는 임시 비공개 처리될 수 있습니다.",
     ],
+    url: "/legal-notice.html",
   },
   {
     id: "sitemap",
@@ -2313,6 +2320,7 @@ const policySections: Array<{
       "매칭: 글, 그림, 목소리, BGM 창작자 포트폴리오 탐색",
       "지갑/정산/고객센터: 로그인 후 이용 가능한 결제 내역, 수익 분배, 문의/신고 화면",
     ],
+    url: "/sitemap.html",
   },
 ];
 
@@ -2346,7 +2354,7 @@ function PolicyModal({ initialTab, onClose }: { initialTab: PolicyTabId; onClose
         </div>
 
         <section className="policy-content">
-          <span>대한민국 기준 데모 정책</span>
+          <span>대한민국 기준 정책 · Google Play 제출용 URL 제공</span>
           <h3>{currentPolicy.title}</h3>
           <p>{currentPolicy.summary}</p>
           <div>
@@ -2357,6 +2365,9 @@ function PolicyModal({ initialTab, onClose }: { initialTab: PolicyTabId; onClose
               </article>
             ))}
           </div>
+          <a className="policy-page-link" href={currentPolicy.url} target="_blank" rel="noreferrer">
+            전체 {currentPolicy.label} 페이지 열기
+          </a>
         </section>
       </div>
     </div>
@@ -6211,11 +6222,12 @@ export function App() {
         </div>
         <p className="footer-copy">Copyright © 2026 Creator Universe Inc. 모든 권리 보유.</p>
         <nav className="footer-links" aria-label="하단 정책 링크">
-          <button type="button" onClick={() => setPolicyTab("privacy")}>개인정보 처리방침</button>
-          <button type="button" onClick={() => setPolicyTab("terms")}>약관</button>
-          <button type="button" onClick={() => setPolicyTab("refund")}>판매 및 환불</button>
-          <button type="button" onClick={() => setPolicyTab("legal")}>법적 고지</button>
-          <button type="button" onClick={() => setPolicyTab("sitemap")}>사이트 맵</button>
+          <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
+          <a href="/terms.html" target="_blank" rel="noreferrer">약관</a>
+          <a href="/refund-policy.html" target="_blank" rel="noreferrer">판매 및 환불</a>
+          <a href="/legal-notice.html" target="_blank" rel="noreferrer">법적 고지</a>
+          <a href="/sitemap.html" target="_blank" rel="noreferrer">사이트 맵</a>
+          <a href="/account-deletion.html" target="_blank" rel="noreferrer">계정 삭제 안내</a>
         </nav>
       </footer>
 
