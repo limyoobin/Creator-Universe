@@ -1887,7 +1887,7 @@ function CreatorDetailModal({
     void runCreatorAction(async () => {
       await request(`/api/fan-posts/${post.id}/unlock`, token, {
         method: "POST",
-        body: JSON.stringify({ priceCoins: post.priceCoins }),
+        body: JSON.stringify({ priceCoins: post.priceCoins, creatorUserId: post.creatorUserId }),
       });
       setCreatorActionMessage(`${post.title} 열람권이 열렸습니다.`);
       await onActionComplete("유료 포스트 열람권이 발급되었습니다.");
@@ -1972,13 +1972,43 @@ function CreatorDetailModal({
 
         {profileTab === "fanclub" && (
           <>
+            <section className="fanclub-overview">
+              <article>
+                <span>무료 포트폴리오</span>
+                <strong>{portfolio.length}개</strong>
+                <p>작업 샘플과 협업 스타일을 먼저 확인합니다.</p>
+              </article>
+              <article>
+                <span>유료 포스트</span>
+                <strong>{creatorPosts.filter((post) => post.priceCoins > 0).length}개</strong>
+                <p>러프, 보이스, 이미지팩을 코인으로 열람합니다.</p>
+              </article>
+              <article>
+                <span>멤버십</span>
+                <strong>{creatorMembershipPlans.length}단계</strong>
+                <p>월 구독으로 한정 콘텐츠와 우선 답변을 받습니다.</p>
+              </article>
+            </section>
+
             <section className="creator-support-panel">
               <div>
                 <p className="kicker">Creator Fan Club</p>
                 <h3>{creator.displayName} 후원/구독</h3>
-                <p>픽시브 FANBOX나 Patreon처럼 창작자가 러프, 짧은 이미지팩, 보이스, 제작노트를 올리고 팬이 코인 또는 월 구독으로 열람하는 공간입니다.</p>
+                <p>창작자가 러프, 이미지팩, 보이스, 제작노트를 올리고 팬이 코인 후원 또는 월 구독으로 응원하는 공간입니다. 결제 내역은 지갑 원장에 기록되고 창작자 지갑으로 자동 입금됩니다.</p>
               </div>
               <div className="support-actions support-donation-box">
+                <div className="donation-quick-amounts" aria-label="후원 금액 빠른 선택">
+                  {[500, 1000, 3000, 5000].map((amount) => (
+                    <button
+                      key={amount}
+                      className={donationAmount === amount ? "active" : ""}
+                      type="button"
+                      onClick={() => setDonationAmount(amount)}
+                    >
+                      {formatCoins(amount)}
+                    </button>
+                  ))}
+                </div>
                 <label>
                   <span>후원 코인 직접 입력</span>
                   <input
@@ -2005,6 +2035,7 @@ function CreatorDetailModal({
                 <article key={plan.name}>
                   <span>{plan.name}</span>
                   <strong>{formatCoins(plan.price)} / 월</strong>
+                  <small>다음 결제일: 구독 시작 후 1개월</small>
                   {plan.benefits.map((benefit) => <p key={benefit}>{benefit}</p>)}
                   <button onClick={() => submitSubscription(plan)} disabled={isCreatorActionPending}>이 티어 구독</button>
                 </article>
@@ -2028,6 +2059,10 @@ function CreatorDetailModal({
                       <span>{post.access}</span>
                       <strong>{post.title}</strong>
                       <p>{post.description}</p>
+                      <div className="paid-post-meta">
+                        <em>{post.priceCoins > 0 ? formatCoins(post.priceCoins) : "무료"}</em>
+                        <em>{post.type}</em>
+                      </div>
                       <button onClick={() => unlockFanPost(post)} disabled={isCreatorActionPending}>{post.priceCoins > 0 ? `${formatCoins(post.priceCoins)} 열람` : "무료 보기"}</button>
                     </div>
                   </article>

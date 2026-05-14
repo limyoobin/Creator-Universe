@@ -7538,9 +7538,87 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   line-height: 1.7;
 }
 
+.fanclub-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.fanclub-overview article {
+  position: relative;
+  overflow: hidden;
+  min-height: 138px;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 24px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 7rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 84%, transparent), var(--surface));
+  box-shadow: 0 14px 36px color-mix(in srgb, #000 6%, transparent);
+}
+
+.fanclub-overview article::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  bottom: -28px;
+  width: 104px;
+  height: 104px;
+  border-radius: 34px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), color-mix(in srgb, var(--cyan) 14%, transparent));
+  transform: rotate(16deg);
+}
+
+.fanclub-overview span,
+.paid-post-meta em {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.fanclub-overview strong {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 10px;
+  color: var(--text);
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -0.04em;
+}
+
+.fanclub-overview p {
+  position: relative;
+  z-index: 1;
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.62;
+}
+
 .support-actions {
   display: grid;
   gap: 8px;
+}
+
+.donation-quick-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.donation-quick-amounts button {
+  min-height: 38px;
+  border-radius: 14px;
+  padding: 0 8px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  box-shadow: none;
+}
+
+.donation-quick-amounts button.active {
+  border-color: color-mix(in srgb, var(--brand) 48%, var(--line));
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
 }
 
 .support-donation-box label {
@@ -7692,6 +7770,17 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   font-size: 22px;
 }
 
+.membership-tier-grid small {
+  width: fit-content;
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: color-mix(in srgb, var(--brand) 82%, var(--text));
+  background: color-mix(in srgb, var(--brand) 7%, var(--surface-2));
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .membership-tier-grid p {
   margin: 0;
   color: var(--muted);
@@ -7776,6 +7865,22 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 .creator-paid-feed p {
   color: var(--muted);
   line-height: 1.55;
+}
+
+.paid-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0;
+}
+
+.paid-post-meta em {
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface));
+  font-style: normal;
+  white-space: nowrap;
 }
 
 .creator-paid-feed button {
@@ -9803,6 +9908,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .library-shelf,
   .content-format-grid,
   .discover-creator-grid,
+  .fanclub-overview,
   .membership-tier-grid,
   .creator-paid-feed > div:last-child,
   .community-care-grid,
@@ -11144,6 +11250,31 @@ body.cu-android-app .auth-modal {
   max-height: calc(100dvh - 18px);
   border-radius: 23px;
   padding: 15px;
+}
+
+body.cu-android-app .fanclub-overview {
+  gap: 9px;
+}
+
+body.cu-android-app .fanclub-overview article,
+body.cu-android-app .creator-support-panel,
+body.cu-android-app .membership-tier-grid article,
+body.cu-android-app .creator-paid-feed {
+  border-radius: 18px;
+  padding: 13px;
+}
+
+body.cu-android-app .fanclub-overview strong {
+  font-size: 23px;
+}
+
+body.cu-android-app .donation-quick-amounts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.cu-android-app .membership-tier-grid small,
+body.cu-android-app .paid-post-meta em {
+  font-size: 10.5px;
 }
 
 body.cu-android-app .mobile-tabs {

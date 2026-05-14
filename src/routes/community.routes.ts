@@ -1,8 +1,10 @@
-import { MatchRequestStatus, MemberRole, Prisma, ProjectStatus } from "@prisma/client";
+import { MatchRequestStatus, MemberRole, Prisma, ProjectStatus, TransactionStatus, TransactionType } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
+import { AppError } from "../errors/app-error.js";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import { roundToTwo, toDecimal } from "../utils/decimal.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 
 const communityRouter = Router();
@@ -23,12 +25,11 @@ type MatchRequestWithUsers = Prisma.MatchRequestGetPayload<{
   include: typeof matchRequestInclude;
 }>;
 
-const donations: unknown[] = [];
-const subscriptions: unknown[] = [];
-const unlocks: unknown[] = [];
 const reviews: unknown[] = [];
 const tickets: unknown[] = [];
 const reports: unknown[] = [];
+
+const CREATOR_COMMERCE_PROJECT_ID = "system-creator-fanclub";
 
 const donationSchema = z.object({
   amount: z.number().int().min(100).max(100000),
@@ -42,6 +43,7 @@ const subscriptionSchema = z.object({
 
 const unlockSchema = z.object({
   priceCoins: z.number().int().min(0),
+  creatorUserId: z.string().optional(),
 });
 
 const reviewSchema = z.object({
@@ -109,6 +111,123 @@ function buildMatchInboxItem(matchRequest: MatchRequestWithUsers, viewerId: stri
     createdAt: matchRequest.createdAt.toISOString(),
     acceptedAt: matchRequest.acceptedAt?.toISOString() ?? null,
   };
+}
+
+async function ensureCreatorCommerceProject(ownerId: string, tx: Prisma.TransactionClient) {
+  const existingProject = await tx.project.findUnique({
+    where: { id: CREATOR_COMMERCE_PROJECT_ID },
+    select: { id: true },
+  });
+  if (existingProject) {
+    return existingProject.id;
+  }
+
+  const project = await tx.project.create({
+    data: {
+      id: CREATOR_COMMERCE_PROJECT_ID,
+      ownerId,
+      title: "Creator Universe Fan Commerce",
+      slug: "system-creator-fanclub",
+      description: "Creator fan donations, subscriptions, and paid post unlock ledger.",
+      status: ProjectStatus.PUBLISHED,
+      isOfficialPartner: true,
+      priceCoins: 0,
+      platformFeeRate: 0,
+      partnerFeeRate: 0,
+      settlementCurrency: "COIN",
+    },
+    select: { id: true },
+  });
+
+  return project.id;
+}
+
+function getCreatorFeeRate(isPartner: boolean) {
+  return isPartner ? toDecimal(0.08) : toDecimal(0.15);
+}
+
+async function createCreatorCommerceTransaction(input: {
+  payerId: string;
+  creatorUserId: string;
+  amountCoins: number;
+  transactionType: TransactionType;
+  tx: Prisma.TransactionClient;
+}) {
+  if (input.amountCoins <= 0) {
+    return {
+      transaction: await input.tx.transaction.create({
+        data: {
+          buyerId: input.payerId,
+          projectId: await ensureCreatorCommerceProject(input.payerId, input.tx),
+          transactionType: input.transactionType,
+          status: TransactionStatus.PAID,
+          currency: "COIN",
+          grossAmount: 0,
+          appliedFeeRate: 0,
+          platformFeeAmount: 0,
+          netAmount: 0,
+          coinAmount: 0,
+          purchasedAt: new Date(),
+        },
+      }),
+      platformFeeRate: toDecimal(0),
+      platformFeeAmount: toDecimal(0),
+      creatorAmount: toDecimal(0),
+    };
+  }
+
+  const [payerWallet, creator] = await Promise.all([
+    input.tx.wallet.findUnique({ where: { userId: input.payerId }, select: { balance: true } }),
+    input.tx.user.findUnique({ where: { id: input.creatorUserId }, select: { id: true, isPartner: true } }),
+  ]);
+
+  if (!creator) {
+    throw new AppError("Creator not found.", 404);
+  }
+
+  const grossAmount = toDecimal(input.amountCoins);
+  if (!payerWallet || payerWallet.balance.lt(grossAmount)) {
+    throw new AppError("보유 코인이 부족합니다. 코인을 충전해 주세요.", 402);
+  }
+
+  const projectId = await ensureCreatorCommerceProject(input.payerId, input.tx);
+  const platformFeeRate = getCreatorFeeRate(creator.isPartner);
+  const platformFeeAmount = roundToTwo(grossAmount.mul(platformFeeRate));
+  const creatorAmount = grossAmount.minus(platformFeeAmount);
+
+  const transaction = await input.tx.transaction.create({
+    data: {
+      buyerId: input.payerId,
+      projectId,
+      transactionType: input.transactionType,
+      status: TransactionStatus.PAID,
+      currency: "COIN",
+      grossAmount,
+      appliedFeeRate: platformFeeRate,
+      platformFeeAmount,
+      netAmount: creatorAmount,
+      coinAmount: input.amountCoins,
+      purchasedAt: new Date(),
+    },
+  });
+
+  await input.tx.wallet.update({
+    where: { userId: input.payerId },
+    data: { balance: { decrement: grossAmount } },
+  });
+  await input.tx.wallet.upsert({
+    where: { userId: input.creatorUserId },
+    create: {
+      userId: input.creatorUserId,
+      balance: creatorAmount,
+      currency: "COIN",
+    },
+    update: {
+      balance: { increment: creatorAmount },
+    },
+  });
+
+  return { transaction, platformFeeRate, platformFeeAmount, creatorAmount };
 }
 
 async function buildChatThreads(viewerId: string) {
@@ -276,15 +395,30 @@ communityRouter.post(
   "/creators/:creatorUserId/donations",
   asyncHandler(async (req, res) => {
     const supporterId = await getCurrentUserId(req);
+    const creatorUserId = String(req.params.creatorUserId);
     const payload = donationSchema.parse(req.body);
-    const donation = {
-      id: `donation-${Date.now()}`,
-      supporterId,
-      creatorUserId: String(req.params.creatorUserId),
-      ...payload,
-      createdAt: new Date().toISOString(),
-    };
-    donations.push(donation);
+    const donation = await prisma.$transaction(async (tx) => {
+      const commerce = await createCreatorCommerceTransaction({
+        payerId: supporterId,
+        creatorUserId,
+        amountCoins: payload.amount,
+        transactionType: TransactionType.DONATION,
+        tx,
+      });
+
+      return tx.creatorDonation.create({
+        data: {
+          supporterId,
+          creatorUserId,
+          transactionId: commerce.transaction.id,
+          amountCoins: payload.amount,
+          message: payload.message,
+          platformFeeRate: commerce.platformFeeRate,
+          platformFeeAmount: commerce.platformFeeAmount,
+          creatorAmount: commerce.creatorAmount,
+        },
+      });
+    });
     res.status(201).json({ success: true, data: donation });
   }),
 );
@@ -293,16 +427,32 @@ communityRouter.post(
   "/creators/:creatorUserId/subscriptions",
   asyncHandler(async (req, res) => {
     const subscriberId = await getCurrentUserId(req);
+    const creatorUserId = String(req.params.creatorUserId);
     const payload = subscriptionSchema.parse(req.body);
-    const subscription = {
-      id: `sub-${Date.now()}`,
-      subscriberId,
-      creatorUserId: String(req.params.creatorUserId),
-      status: "ACTIVE",
-      ...payload,
-      startedAt: new Date().toISOString(),
-    };
-    subscriptions.push(subscription);
+    const nextBillingAt = new Date();
+    nextBillingAt.setMonth(nextBillingAt.getMonth() + 1);
+
+    const subscription = await prisma.$transaction(async (tx) => {
+      const commerce = await createCreatorCommerceTransaction({
+        payerId: subscriberId,
+        creatorUserId,
+        amountCoins: payload.priceCoins,
+        transactionType: TransactionType.SUBSCRIPTION,
+        tx,
+      });
+
+      return tx.creatorSubscription.create({
+        data: {
+          subscriberId,
+          creatorUserId,
+          transactionId: commerce.transaction.id,
+          tierName: payload.tierName,
+          priceCoins: payload.priceCoins,
+          status: "ACTIVE",
+          nextBillingAt,
+        },
+      });
+    });
     res.status(201).json({ success: true, data: subscription });
   }),
 );
@@ -312,14 +462,33 @@ communityRouter.post(
   asyncHandler(async (req, res) => {
     const userId = await getCurrentUserId(req);
     const payload = unlockSchema.parse(req.body);
-    const unlock = {
-      id: `unlock-${Date.now()}`,
-      userId,
-      postId: String(req.params.postId),
-      ...payload,
-      unlockedAt: new Date().toISOString(),
-    };
-    unlocks.push(unlock);
+    const postId = String(req.params.postId);
+    const unlock = await prisma.$transaction(async (tx) => {
+      const existingUnlock = await tx.fanPostUnlock.findUnique({
+        where: { userId_postId: { userId, postId } },
+      });
+      if (existingUnlock) {
+        return existingUnlock;
+      }
+
+      const commerce = await createCreatorCommerceTransaction({
+        payerId: userId,
+        creatorUserId: payload.creatorUserId ?? userId,
+        amountCoins: payload.priceCoins,
+        transactionType: TransactionType.CONTENT_PURCHASE,
+        tx,
+      });
+
+      return tx.fanPostUnlock.create({
+        data: {
+          userId,
+          creatorUserId: payload.creatorUserId,
+          postId,
+          transactionId: commerce.transaction.id,
+          priceCoins: payload.priceCoins,
+        },
+      });
+    });
     res.status(201).json({ success: true, data: unlock });
   }),
 );

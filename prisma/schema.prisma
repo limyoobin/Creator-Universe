@@ -87,6 +87,11 @@ model User {
   receivedChatMessages ChatMessage[] @relation("ChatReceiver")
   sentMatchRequests  MatchRequest[]  @relation("MatchRequester")
   receivedMatchRequests MatchRequest[] @relation("MatchTarget")
+  sentCreatorDonations CreatorDonation[] @relation("DonationSupporter")
+  receivedCreatorDonations CreatorDonation[] @relation("DonationCreator")
+  creatorSubscriptions CreatorSubscription[] @relation("SubscriptionSubscriber")
+  creatorSubscribers CreatorSubscription[] @relation("SubscriptionCreator")
+  fanPostUnlocks FanPostUnlock[]
 }
 
 model Project {
@@ -162,6 +167,9 @@ model Transaction {
   project                  Project            @relation(fields: [projectId], references: [id])
   settlementDistributions  SettlementDistribution[]
   contentAccess            ContentAccess?
+  creatorDonation          CreatorDonation?
+  creatorSubscription      CreatorSubscription?
+  fanPostUnlock            FanPostUnlock?
 
   @@index([buyerId])
   @@index([projectId])
@@ -324,4 +332,61 @@ model ChatMessage {
   @@index([senderId, receiverUserId, createdAt])
   @@index([receiverUserId, createdAt])
   @@index([matchRequestId])
+}
+
+model CreatorDonation {
+  id                String      @id @default(cuid())
+  supporterId       String
+  creatorUserId     String
+  transactionId     String      @unique
+  amountCoins       Int
+  message           String?
+  platformFeeRate   Decimal     @db.Decimal(5, 4)
+  platformFeeAmount Decimal     @db.Decimal(14, 2)
+  creatorAmount     Decimal     @db.Decimal(14, 2)
+  createdAt         DateTime    @default(now())
+
+  supporter         User        @relation("DonationSupporter", fields: [supporterId], references: [id], onDelete: Cascade)
+  creator           User        @relation("DonationCreator", fields: [creatorUserId], references: [id], onDelete: Cascade)
+  transaction       Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([supporterId, createdAt])
+  @@index([creatorUserId, createdAt])
+}
+
+model CreatorSubscription {
+  id                String      @id @default(cuid())
+  subscriberId      String
+  creatorUserId     String
+  transactionId     String      @unique
+  tierName          String
+  priceCoins        Int
+  status            String      @default("ACTIVE")
+  nextBillingAt     DateTime
+  startedAt         DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  subscriber        User        @relation("SubscriptionSubscriber", fields: [subscriberId], references: [id], onDelete: Cascade)
+  creator           User        @relation("SubscriptionCreator", fields: [creatorUserId], references: [id], onDelete: Cascade)
+  transaction       Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriberId, status])
+  @@index([creatorUserId, status])
+}
+
+model FanPostUnlock {
+  id                String      @id @default(cuid())
+  userId            String
+  creatorUserId     String?
+  postId            String
+  transactionId     String      @unique
+  priceCoins        Int
+  unlockedAt        DateTime    @default(now())
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction       Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([creatorUserId, unlockedAt])
 }
