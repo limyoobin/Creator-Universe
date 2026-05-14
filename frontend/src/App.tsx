@@ -4280,7 +4280,7 @@ export function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app page-${activePage}`}>
       {isBootLoading && (
         <div className="boot-loader" role="status" aria-live="polite">
           <div className="boot-loader-card">

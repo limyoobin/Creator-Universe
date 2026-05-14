@@ -11893,6 +11893,195 @@ body.cu-android-app .settlement-kpis {
   grid-template-columns: 1fr;
 }
 
+/* Android WebView polish pass: smoother scroll, tighter typography, and safer floating controls. */
+html.cu-android-webview {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body.cu-android-app {
+  height: auto !important;
+  min-height: 100dvh !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .app {
+  height: auto;
+  min-height: 100dvh;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+body.cu-android-app main {
+  width: min(calc(100% - 14px), 540px);
+  padding-top: 4px;
+}
+
+body.cu-android-app .intro-hero {
+  padding: 19px 16px 16px;
+  border-radius: 24px;
+}
+
+body.cu-android-app .slide-copy-stage {
+  min-height: 176px;
+}
+
+body.cu-android-app .slide-copy-panel h1 {
+  max-width: 11.6ch;
+  font-size: clamp(32px, 9.6vw, 45px);
+  line-height: 1.12;
+  letter-spacing: -0.055em;
+}
+
+body.cu-android-app .lead {
+  max-width: 30ch;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+body.cu-android-app .intro-actions {
+  gap: 9px;
+}
+
+body.cu-android-app .intro-actions button {
+  min-height: 45px;
+  border-radius: 15px;
+  font-size: 13px;
+}
+
+body.cu-android-app .topbar {
+  top: max(6px, env(safe-area-inset-top));
+  min-height: 58px;
+}
+
+body.cu-android-app .brand strong,
+body.cu-android-app .brand em {
+  display: none;
+}
+
+body.cu-android-app .mobile-drawer-card,
+body.cu-android-app .notification-panel,
+body.cu-android-app .account-dropdown {
+  max-height: calc(100dvh - 92px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .app-primary-tabs {
+  width: min(calc(100% - 14px), 500px);
+  min-height: 68px;
+  padding: 6px 8px;
+  border-radius: 24px;
+}
+
+body.cu-android-app .app-primary-tabs button {
+  min-height: 43px;
+  border-radius: 15px;
+  font-size: 10.5px;
+}
+
+body.cu-android-app .app-primary-tabs .mobile-plus-tab {
+  width: 55px;
+  height: 55px;
+  min-height: 55px;
+  margin-top: -25px;
+  border-radius: 22px;
+}
+
+body.cu-android-app .mobile-quick-sheet {
+  bottom: calc(var(--app-bottom-nav-height) + 14px + env(safe-area-inset-bottom));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+body.cu-android-app .mobile-quick-sheet button {
+  min-height: 58px;
+  padding: 8px 2px 6px;
+}
+
+body.cu-android-app .floating-help,
+body.cu-android-app .floating-messenger {
+  bottom: calc(var(--app-bottom-nav-height) + 12px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-help {
+  right: 12px;
+}
+
+body.cu-android-app .floating-messenger {
+  right: 68px;
+}
+
+body.cu-android-app .app.page-wallet .floating-help,
+body.cu-android-app .app.page-settlement .floating-help,
+body.cu-android-app .app.page-wallet .floating-messenger,
+body.cu-android-app .app.page-settlement .floating-messenger,
+body.cu-android-app .app.page-support .floating-messenger {
+  transform: translateY(-8px) scale(0.94);
+}
+
+body.cu-android-app .floating-help-panel,
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
+  max-height: calc(100dvh - 154px);
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen {
+  display: flex;
+  flex-direction: column;
+}
+
+body.cu-android-app .floating-messenger-panel.fullscreen .messenger-body {
+  flex: 1 1 auto;
+}
+
+body.cu-android-app .account-modal,
+body.cu-android-app .creator-detail-modal,
+body.cu-android-app .work-detail-modal,
+body.cu-android-app .payment-modal,
+body.cu-android-app .auth-modal {
+  max-height: calc(100dvh - 14px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .account-wallet {
+  min-height: 146px;
+}
+
+body.cu-android-app .account-quick-actions,
+body.cu-android-app .account-summary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.cu-android-app .wallet-mini-grid article,
+body.cu-android-app .account-summary-grid div {
+  min-width: 0;
+  padding: 10px;
+}
+
+@media (max-width: 380px) {
+  body.cu-android-app .app-primary-tabs button {
+    font-size: 9.8px;
+    letter-spacing: -0.08em;
+  }
+
+  body.cu-android-app .app-primary-tabs button svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  body.cu-android-app .mobile-quick-sheet {
+    gap: 5px;
+    padding: 7px;
+  }
+}
+
 @keyframes drawerDrop {
   from {
     opacity: 0;
