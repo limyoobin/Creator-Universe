@@ -584,6 +584,12 @@ type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settleme
 type LibraryViewId = (typeof libraryViewItems)[number]["id"];
 type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
 
+type WorkProgressEntry = {
+  episodeNumber: number;
+  percent: number;
+  updatedAt: string;
+};
+
 type StudioDraftState = {
   title: string;
   format: string;
@@ -856,8 +862,39 @@ function readStoredIds(key: string, fallback: string[] = []) {
   }
 }
 
-function getUserLibraryStorageKey(userId: string, key: "purchased-works" | "scrapped-works" | "recent-works" | "read-notifications") {
+function getUserLibraryStorageKey(userId: string, key: "purchased-works" | "scrapped-works" | "recent-works" | "read-notifications" | "work-progress") {
   return `creator-universe-user-${userId}-${key}`;
+}
+
+function readWorkProgress(key: string): Record<string, WorkProgressEntry> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<Record<string, WorkProgressEntry>>((acc, [workId, value]) => {
+      if (!value || typeof value !== "object") {
+        return acc;
+      }
+
+      const item = value as Partial<WorkProgressEntry>;
+      const episodeNumber = Number(item.episodeNumber);
+      const percent = Number(item.percent);
+      if (!Number.isFinite(episodeNumber) || !Number.isFinite(percent)) {
+        return acc;
+      }
+
+      acc[workId] = {
+        episodeNumber: Math.max(1, Math.floor(episodeNumber)),
+        percent: Math.max(0, Math.min(100, Math.floor(percent))),
+        updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : new Date().toISOString(),
+      };
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
 }
 
 const defaultNotificationPreferences: NotificationPreferences = {
@@ -2111,11 +2148,13 @@ function WorkDetailModal({
   reviews,
   creators,
   isPurchased,
+  progress,
   reviewRating,
   reviewBody,
   onClose,
   onOpenCreator,
   onOpenPayment,
+  onOpenEpisode,
   onRatingChange,
   onReviewBodyChange,
   onSubmitReview,
@@ -2125,11 +2164,13 @@ function WorkDetailModal({
   reviews: ContentReview[];
   creators: Creator[];
   isPurchased: boolean;
+  progress?: WorkProgressEntry;
   reviewRating: number;
   reviewBody: string;
   onClose: () => void;
   onOpenCreator: (creator: Creator) => void;
   onOpenPayment: () => void;
+  onOpenEpisode: (episodeNumber: number) => void;
   onRatingChange: (rating: number) => void;
   onReviewBodyChange: (body: string) => void;
   onSubmitReview: () => void;
@@ -2140,6 +2181,9 @@ function WorkDetailModal({
   const audioAvailable = hasAudioExperience(work);
   const audioLabel = getAudioExperienceLabel(work);
   const episodes = getWorkEpisodes(work);
+  const currentEpisodeNumber = Math.min(progress?.episodeNumber ?? 1, episodes.length);
+  const progressPercent = progress?.percent ?? (isPurchased ? 12 : 0);
+  const currentEpisode = episodes.find((episode) => episode.episodeNumber === currentEpisodeNumber) ?? episodes[0];
 
   return (
     <div className="modal-backdrop work-detail-backdrop" role="dialog" aria-modal="true">
@@ -2174,6 +2218,30 @@ function WorkDetailModal({
             </div>
           </div>
         </div>
+
+        <section className="work-progress-panel">
+          <div>
+            <p className="kicker">Continue Watching</p>
+            <h3>{isPurchased || currentEpisode.isFree ? `${currentEpisode.episodeNumber}화 이어보기` : "무료 회차부터 시작하기"}</h3>
+            <p>
+              {progress
+                ? `${formatDateTime(progress.updatedAt)}에 ${progress.percent}%까지 감상했어요.`
+                : "작품을 열면 최근 본 작품과 회차 진행률이 자동으로 저장됩니다."}
+            </p>
+          </div>
+          <div className="work-progress-card">
+            <div className="work-progress-bar" aria-label="작품 감상 진행률">
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div>
+              <strong>{progressPercent}%</strong>
+              <span>{currentEpisode.title}</span>
+            </div>
+            <button type="button" onClick={() => onOpenEpisode(currentEpisode.episodeNumber)}>
+              <Play size={16} /> 이어보기
+            </button>
+          </div>
+        </section>
 
         <section className="work-notice-panel">
           <div>
@@ -2236,7 +2304,7 @@ function WorkDetailModal({
             {episodes.map((episode) => {
               const unlocked = episode.isFree || isPurchased;
               return (
-                <article className={unlocked ? "unlocked" : "locked"} key={episode.id}>
+                <article className={`${unlocked ? "unlocked" : "locked"} ${episode.episodeNumber === currentEpisodeNumber ? "current" : ""}`} key={episode.id}>
                   <div className="episode-number">
                     <span>{episode.episodeNumber}</span>
                     <small>{episode.isFree ? "FREE" : unlocked ? "OPEN" : "LOCK"}</small>
@@ -2250,9 +2318,9 @@ function WorkDetailModal({
                       <span>{episode.isFree ? "무료" : formatCoins(episode.priceCoins)}</span>
                     </div>
                   </div>
-                  <button type="button" onClick={unlocked ? undefined : onOpenPayment}>
+                  <button type="button" onClick={() => (unlocked ? onOpenEpisode(episode.episodeNumber) : onOpenPayment())}>
                     {unlocked ? <Play size={16} /> : <Coins size={16} />}
-                    {unlocked ? "감상하기" : "구매 필요"}
+                    {unlocked ? (episode.episodeNumber === currentEpisodeNumber ? "이어보기" : "감상하기") : "구매 필요"}
                   </button>
                 </article>
               );
@@ -2453,6 +2521,7 @@ function AccountModal({
   purchasedWorkIds,
   scrappedWorkIds,
   recentWorkIds,
+  workProgress,
   premiumSubscription,
   notificationPreferences,
   onClose,
@@ -2470,6 +2539,7 @@ function AccountModal({
   purchasedWorkIds: string[];
   scrappedWorkIds: string[];
   recentWorkIds: string[];
+  workProgress: Record<string, WorkProgressEntry>;
   premiumSubscription: PremiumSubscriptionState;
   notificationPreferences: NotificationPreferences;
   onClose: () => void;
@@ -2693,7 +2763,11 @@ function AccountModal({
                   <div>
                     <span>{work.format} · {work.genre}</span>
                     <strong>{work.title}</strong>
-                    <p>{work.subGenre} · 마지막으로 열어본 작품</p>
+                    <p>
+                      {workProgress[work.id]
+                        ? `${workProgress[work.id].episodeNumber}화 · ${workProgress[work.id].percent}%까지 감상`
+                        : `${work.subGenre} · 마지막으로 열어본 작품`}
+                    </p>
                   </div>
                   <button onClick={() => { onClose(); onOpenLibrary("recent"); }}>이어보기</button>
                 </article>
@@ -2771,6 +2845,7 @@ export function App() {
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
   const [scrappedWorkIds, setScrappedWorkIds] = useState<string[]>([]);
   const [recentWorkIds, setRecentWorkIds] = useState(() => readStoredIds("creator-universe-recent-works"));
+  const [workProgress, setWorkProgress] = useState<Record<string, WorkProgressEntry>>(() => readWorkProgress("creator-universe-work-progress"));
   const [libraryStorageOwner, setLibraryStorageOwner] = useState("anonymous");
   const [pendingPurchaseWorkId, setPendingPurchaseWorkId] = useState(readerWorks[0].id);
   const [paymentMode, setPaymentMode] = useState<"charge" | "content">("charge");
@@ -3514,6 +3589,15 @@ export function App() {
     if (libraryStorageOwner !== owner) {
       return;
     }
+    const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "work-progress") : "creator-universe-work-progress";
+    localStorage.setItem(storageKey, JSON.stringify(workProgress));
+  }, [libraryStorageOwner, user?.id, workProgress]);
+
+  useEffect(() => {
+    const owner = user?.id ?? "anonymous";
+    if (libraryStorageOwner !== owner) {
+      return;
+    }
     const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "read-notifications") : "creator-universe-read-notifications";
     localStorage.setItem(storageKey, JSON.stringify(readNotificationIds));
   }, [libraryStorageOwner, readNotificationIds, user?.id]);
@@ -3536,6 +3620,7 @@ export function App() {
       setPurchasedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "purchased-works")));
       setScrappedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "scrapped-works")));
       setRecentWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "recent-works")));
+      setWorkProgress(readWorkProgress(getUserLibraryStorageKey(user.id, "work-progress")));
       setReadNotificationIds(readStoredIds(getUserLibraryStorageKey(user.id, "read-notifications")));
       setLibraryStorageOwner(user.id);
     } else {
@@ -3543,6 +3628,7 @@ export function App() {
       setPurchasedWorkIds([]);
       setScrappedWorkIds([]);
       setRecentWorkIds(readStoredIds("creator-universe-recent-works"));
+      setWorkProgress(readWorkProgress("creator-universe-work-progress"));
       setReadNotificationIds(readStoredIds("creator-universe-read-notifications"));
       setLibraryStorageOwner("anonymous");
     }
@@ -3666,6 +3752,29 @@ export function App() {
     setPendingPurchaseWorkId(workId);
     setPaymentMode("content");
     setIsPaymentOpen(true);
+  }
+
+  function openWorkEpisode(work: ReaderWork, episodeNumber: number) {
+    const episodes = getWorkEpisodes(work);
+    const selectedEpisode = episodes.find((episode) => episode.episodeNumber === episodeNumber) ?? episodes[0];
+    const unlocked = selectedEpisode.isFree || purchasedWorkIds.includes(work.id);
+    if (!unlocked) {
+      openWorkPayment(work.id);
+      return;
+    }
+
+    const basePercent = Math.round((selectedEpisode.episodeNumber / Math.max(episodes.length, 1)) * 100);
+    const nextPercent = selectedEpisode.episodeNumber >= episodes.length ? 100 : Math.min(97, Math.max(basePercent, 18));
+    setWorkProgress((current) => ({
+      ...current,
+      [work.id]: {
+        episodeNumber: selectedEpisode.episodeNumber,
+        percent: nextPercent,
+        updatedAt: new Date().toISOString(),
+      },
+    }));
+    setRecentWorkIds((current) => [work.id, ...current.filter((workId) => workId !== work.id)].slice(0, 12));
+    setCommunityMessage(`${work.title} ${selectedEpisode.episodeNumber}화를 이어보기로 저장했습니다.`);
   }
 
   async function handlePaymentConfirm(payload: { mode: "charge" | "content"; coinAmount: number; paymentAmountKrw?: number }) {
@@ -4929,6 +5038,13 @@ export function App() {
                       <b>{work.listeners} 감상</b>
                       <b>{work.episodes}화</b>
                     </div>
+                    {workProgress[work.id] && (
+                      <div className="reader-progress-chip">
+                        <span>{workProgress[work.id].episodeNumber}화 이어보기</span>
+                        <b>{workProgress[work.id].percent}%</b>
+                        <i><em style={{ width: `${workProgress[work.id].percent}%` }} /></i>
+                      </div>
+                    )}
                     <div className="work-contributors">
                       <span>참여 창작자</span>
                       <div>
@@ -6621,6 +6737,7 @@ export function App() {
           purchasedWorkIds={purchasedWorkIds}
           scrappedWorkIds={scrappedWorkIds}
           recentWorkIds={recentWorkIds}
+          workProgress={workProgress}
           premiumSubscription={premiumSubscription}
           notificationPreferences={notificationPreferences}
           onClose={() => setIsAccountModalOpen(false)}
@@ -6653,6 +6770,7 @@ export function App() {
           reviews={contentReviews.filter((review) => review.workId === selectedWork.id)}
           creators={creators}
           isPurchased={purchasedWorkIds.includes(selectedWork.id)}
+          progress={workProgress[selectedWork.id]}
           reviewRating={reviewRating}
           reviewBody={reviewBody}
           onClose={() => setSelectedWork(null)}
@@ -6661,6 +6779,7 @@ export function App() {
             setSelectedCreator(creator);
           }}
           onOpenPayment={() => openWorkPayment(selectedWork.id)}
+          onOpenEpisode={(episodeNumber) => openWorkEpisode(selectedWork, episodeNumber)}
           onRatingChange={setReviewRating}
           onReviewBodyChange={setReviewBody}
           onSubmitReview={() => void submitReview(selectedWork.id)}

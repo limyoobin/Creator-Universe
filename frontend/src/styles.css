@@ -3539,6 +3539,43 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   font-size: 12px;
 }
 
+.reader-progress-chip {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px 10px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--work-tone) 22%, var(--line));
+  border-radius: 16px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--work-tone) 7%, var(--surface-2));
+}
+
+.reader-progress-chip span,
+.reader-progress-chip b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.reader-progress-chip b {
+  color: var(--work-tone);
+}
+
+.reader-progress-chip i {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+.reader-progress-chip em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--work-tone), var(--brand));
+}
+
 .purchased-badge {
   color: var(--green) !important;
   border-color: color-mix(in srgb, var(--green) 30%, var(--line)) !important;
@@ -6464,6 +6501,86 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   font-size: 12px;
 }
 
+.work-progress-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.88fr) minmax(300px, 1.12fr);
+  gap: 12px;
+  margin-top: 18px;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 26px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 12rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 82%, transparent), var(--surface));
+}
+
+.work-progress-panel h3 {
+  margin: 4px 0 6px;
+  color: var(--text);
+  font-size: 26px;
+  letter-spacing: -0.05em;
+}
+
+.work-progress-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.work-progress-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 14px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+}
+
+.work-progress-bar {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  height: 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.work-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), var(--cyan));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cyan) 32%, transparent);
+}
+
+.work-progress-card strong {
+  display: block;
+  color: var(--brand);
+  font-size: 24px;
+  letter-spacing: -0.05em;
+}
+
+.work-progress-card span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.work-progress-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  font-weight: 950;
+  white-space: nowrap;
+}
+
 .work-notice-panel {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -6675,6 +6792,14 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--brand) 30%, var(--line));
   box-shadow: 0 16px 36px color-mix(in srgb, var(--brand) 10%, transparent);
+}
+
+.episode-list article.current {
+  border-color: color-mix(in srgb, var(--brand) 42%, var(--line));
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 10rem),
+    var(--surface-2);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--brand) 11%, transparent);
 }
 
 .episode-list article.locked {
@@ -9891,6 +10016,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .ranking-layout,
   .work-detail-hero,
   .work-audio-panel,
+  .work-progress-panel,
   .work-notice-panel,
   .production-credit-strip,
   .support-hero,
@@ -10058,6 +10184,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .share-row,
   .ledger-list div,
   .wallet-ledger-list article,
+  .work-progress-card,
   .episode-list article {
     grid-template-columns: 1fr;
   }
@@ -12052,6 +12179,39 @@ body.cu-android-app .auth-modal {
 
 body.cu-android-app .account-wallet {
   min-height: 146px;
+}
+
+body.cu-android-app .work-progress-panel {
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 12px;
+  border-radius: 20px;
+  padding: 13px;
+}
+
+body.cu-android-app .work-progress-panel h3 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+body.cu-android-app .work-progress-panel p {
+  font-size: 12.5px;
+}
+
+body.cu-android-app .work-progress-card {
+  grid-template-columns: 1fr;
+  border-radius: 18px;
+  padding: 12px;
+}
+
+body.cu-android-app .work-progress-card button,
+body.cu-android-app .episode-list button {
+  width: 100%;
+}
+
+body.cu-android-app .reader-progress-chip {
+  border-radius: 14px;
+  padding: 9px;
 }
 
 body.cu-android-app .account-quick-actions,
