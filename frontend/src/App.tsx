@@ -4374,7 +4374,7 @@ export function App() {
           <div className="home-page page-panel">
             <section className={`intro-hero reveal revealed ${introSlides[activeIntroSlide].tone}`}>
               <div className="intro-copy">
-                <p className="kicker">{status} · Creator Universe</p>
+                <p className="kicker">Creator Universe</p>
                 <div className="slide-copy-stage">
                   {introSlides.map((slide, index) => (
                     <article className={`slide-copy-panel ${activeIntroSlide === index ? "active" : ""}`} key={slide.eyebrow}>
