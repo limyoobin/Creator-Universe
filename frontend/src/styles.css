@@ -545,6 +545,32 @@ a {
   font-weight: 900;
 }
 
+.notification-preference-strip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.notification-preference-strip button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 6px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 75%, transparent);
+  font-size: 0.74rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.notification-preference-strip button.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+}
+
 .primary-button,
 .ghost-button,
 .icon-button {
@@ -12179,6 +12205,130 @@ body.cu-android-app .auth-modal {
 
 body.cu-android-app .account-wallet {
   min-height: 146px;
+}
+
+body.cu-android-app:has(.modal-backdrop) .floating-help,
+body.cu-android-app:has(.modal-backdrop) .floating-messenger {
+  opacity: 0;
+  transform: translateY(12px) scale(0.92);
+  pointer-events: none;
+}
+
+body.cu-android-app .notification-panel {
+  position: fixed;
+  top: calc(70px + env(safe-area-inset-top));
+  right: 8px;
+  left: 8px;
+  width: auto;
+  max-height: calc(100dvh - 150px);
+  border-radius: 22px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+body.cu-android-app .notification-panel::before {
+  display: none;
+}
+
+body.cu-android-app .notification-panel-head {
+  padding: 4px 2px 0;
+}
+
+body.cu-android-app .notification-list {
+  max-height: calc(100dvh - 270px);
+  padding-right: 2px;
+}
+
+body.cu-android-app .notification-item {
+  gap: 9px;
+  border-radius: 16px;
+  padding: 10px;
+}
+
+body.cu-android-app .notification-item i {
+  width: 34px;
+  height: 34px;
+  border-radius: 13px;
+}
+
+body.cu-android-app .notification-item b {
+  font-size: 0.86rem;
+}
+
+body.cu-android-app .notification-item small {
+  font-size: 0.76rem;
+}
+
+body.cu-android-app .reader-toolbar {
+  gap: 10px;
+  border-radius: 20px;
+  padding: 12px;
+}
+
+body.cu-android-app .library-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+body.cu-android-app .library-tabs button {
+  justify-content: center;
+  min-width: 0;
+  padding: 9px 7px;
+  font-size: 11.5px;
+}
+
+body.cu-android-app .reader-filter-groups {
+  gap: 10px;
+}
+
+body.cu-android-app .reader-filter-groups .genre-filter {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+body.cu-android-app .reader-filter-groups .genre-filter::-webkit-scrollbar {
+  display: none;
+}
+
+body.cu-android-app .reader-filter-groups .genre-filter button {
+  flex: 0 0 auto;
+}
+
+body.cu-android-app .work-detail-modal {
+  width: min(calc(100vw - 16px), 460px);
+  padding: 12px;
+}
+
+body.cu-android-app .work-detail-hero {
+  gap: 12px;
+  border-radius: 20px;
+  padding: 12px;
+}
+
+body.cu-android-app .work-detail-hero > img {
+  min-height: 0;
+  height: 218px;
+  border-radius: 16px;
+}
+
+body.cu-android-app .work-detail-hero h2 {
+  font-size: clamp(26px, 8vw, 34px);
+  line-height: 1.14;
+}
+
+body.cu-android-app .work-detail-meta {
+  gap: 6px;
+}
+
+body.cu-android-app .work-detail-meta b {
+  padding: 7px 8px;
+  font-size: 11px;
 }
 
 body.cu-android-app .work-progress-panel {

@@ -3536,7 +3536,7 @@ export function App() {
       setMatchRequests([]);
     }
 
-    setStatus("백엔드 연결 완료");
+    setStatus("");
   }
 
   async function refreshCreatorChats(currentToken = token) {
@@ -3555,6 +3555,16 @@ export function App() {
     document.body.dataset.theme = theme;
     localStorage.setItem("creator-universe-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (!/CreatorUniverseAndroid/i.test(navigator.userAgent)) {
+      return;
+    }
+
+    document.documentElement.classList.add("cu-android-webview");
+    document.body.classList.add("cu-android-app");
+    document.body.dataset.appShell = "android";
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsBootLoading(false), 1200);
@@ -4492,6 +4502,29 @@ export function App() {
                         </button>
                       );
                     })}
+                  </div>
+                  <div className="notification-preference-strip" aria-label="알림 빠른 설정">
+                    <button
+                      className={notificationPreferences.newEpisode ? "active" : ""}
+                      type="button"
+                      onClick={() => toggleNotificationPreference("newEpisode")}
+                    >
+                      새 회차
+                    </button>
+                    <button
+                      className={notificationPreferences.settlement ? "active" : ""}
+                      type="button"
+                      onClick={() => toggleNotificationPreference("settlement")}
+                    >
+                      정산
+                    </button>
+                    <button
+                      className={notificationPreferences.marketing ? "active" : ""}
+                      type="button"
+                      onClick={() => toggleNotificationPreference("marketing")}
+                    >
+                      이벤트
+                    </button>
                   </div>
                 </div>
               )}
