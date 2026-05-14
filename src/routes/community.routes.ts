@@ -479,23 +479,11 @@ communityRouter.post(
       },
     });
     const receiver = await prisma.user.findUnique({ where: { id: receiverId }, select: { displayName: true } });
-    const acceptanceMessage = await prisma.chatMessage.create({
+    await prisma.chatMessage.create({
       data: {
         senderId: receiverId,
         receiverUserId: matchRequest.requesterId,
         body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 제안을 수락했고 팀 정산 멤버에 합류했습니다.`,
-      },
-    });
-    await prisma.chatMessage.update({
-      where: { id: acceptanceMessage.id },
-      data: {
-        body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 제안을 수락했고 팀 정산 멤버에 합류했습니다.`,
-      },
-    });
-    await prisma.chatMessage.update({
-      where: { id: acceptanceMessage.id },
-      data: {
-        body: `${receiver?.displayName ?? "\uCD08\uB300\uBC1B\uC740 \uCC3D\uC791\uC790"}\uB2D8\uC774 ${Number(matchRequest.sharePercentage)}% \uC218\uC775 \uC9C0\uBD84 \uC81C\uC548\uC744 \uC218\uB77D\uD588\uACE0 \uD300 \uC815\uC0B0 \uBA64\uBC84\uC5D0 \uD569\uB958\uD588\uC2B5\uB2C8\uB2E4.`,
       },
     });
     res.json({ success: true, data: { matchRequest: acceptedRequest, members } });
