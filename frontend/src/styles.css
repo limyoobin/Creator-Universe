@@ -6312,6 +6312,24 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   box-shadow: 0 14px 28px color-mix(in srgb, var(--cyan) 24%, transparent);
 }
 
+.match-proposal-bubble .match-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.match-proposal-bubble .match-proposal-actions button {
+  margin-top: 0;
+}
+
+.match-proposal-bubble .match-proposal-actions button.decline {
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  color: var(--muted);
+  background: var(--surface);
+  box-shadow: none;
+}
+
 .inline-match-accept-button {
   display: inline-flex;
   align-items: center;

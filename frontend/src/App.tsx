@@ -116,6 +116,18 @@ type MatchProposalPayload = {
   status: "PENDING" | "ACCEPTED" | "DECLINED";
 };
 
+type MatchRequestRecord = {
+  id: string;
+  direction: "sent" | "received";
+  partnerUserId: string;
+  partnerName: string;
+  partnerUsername: string;
+  partnerRole: string;
+  proposal: MatchProposalPayload;
+  createdAt: string;
+  acceptedAt: string | null;
+};
+
 type Creator = {
   id: string;
   userId: string;
@@ -1771,10 +1783,12 @@ function MatchProposalBubble({
   proposal,
   canAccept,
   onAccept,
+  onDecline,
 }: {
   proposal: MatchProposalPayload;
   canAccept: boolean;
   onAccept: () => void;
+  onDecline?: () => void;
 }) {
   const roleLabel = roleLabels[proposal.memberRole] || proposal.memberRole;
 
@@ -1789,10 +1803,19 @@ function MatchProposalBubble({
       </div>
       {proposal.status === "ACCEPTED" ? (
         <em>수락 완료 · 팀원으로 합류됨</em>
+      ) : proposal.status === "DECLINED" ? (
+        <em>거절됨 · 제안 종료</em>
       ) : canAccept ? (
-        <button type="button" onClick={onAccept}>
-          <CheckCircle2 size={16} /> 조건 보고 수락하기
-        </button>
+        <div className="match-proposal-actions">
+          <button type="button" onClick={onAccept}>
+            <CheckCircle2 size={16} /> 조건 보고 수락하기
+          </button>
+          {onDecline && (
+            <button className="decline" type="button" onClick={onDecline}>
+              <X size={16} /> 거절
+            </button>
+          )}
+        </div>
       ) : (
         <em>상대방 수락 대기 중</em>
       )}
@@ -2783,6 +2806,7 @@ export function App() {
   const [activeChatCreatorId, setActiveChatCreatorId] = useState<string | null>(null);
   const [messengerInput, setMessengerInput] = useState("");
   const [creatorChatThreads, setCreatorChatThreads] = useState<Record<string, CreatorChatMessage[]>>({});
+  const [matchRequests, setMatchRequests] = useState<MatchRequestRecord[]>([]);
   const [theme, setTheme] = useState(() => localStorage.getItem("creator-universe-theme") || "light");
   const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
   const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery" | null>(null);
@@ -2880,24 +2904,20 @@ export function App() {
   const pendingPurchaseWork = readerWorks.find((work) => work.id === pendingPurchaseWorkId) ?? readerWorks[0];
 
   const matchProposalInboxItems = useMemo(() => {
-    return Object.entries(creatorChatThreads)
-      .flatMap(([creatorUserId, messages]) => {
-        const partner = creators.find((creator) => creator.userId === creatorUserId) ?? null;
-
-        return messages
-          .filter((message) => Boolean(message.matchProposal))
-          .map((message) => ({
-            id: `${message.matchProposal!.id}-${message.createdAt}`,
-            proposal: message.matchProposal!,
-            direction: message.from === "me" ? "sent" as const : "received" as const,
-            partner,
-            createdAt: message.createdAt,
-            time: message.time,
-            canAccept: message.from === "creator" && message.matchProposal!.status === "PENDING",
-          }));
-      })
+    return matchRequests
+      .map((request) => ({
+        id: request.id,
+        proposal: request.proposal,
+        direction: request.direction,
+        partner: creators.find((creator) => creator.userId === request.partnerUserId) ?? null,
+        partnerName: request.partnerName,
+        partnerRole: request.partnerRole,
+        createdAt: request.createdAt,
+        time: formatChatTime(request.createdAt),
+        canAccept: request.direction === "received" && request.proposal.status === "PENDING",
+      }))
       .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
-  }, [creatorChatThreads, creators]);
+  }, [creators, matchRequests]);
 
   const matchInboxCounts = useMemo(
     () => ({
@@ -3394,10 +3414,16 @@ export function App() {
       } catch {
         setCreatorChatThreads({});
       }
+      try {
+        setMatchRequests(await request<MatchRequestRecord[]>("/api/matching/requests", currentToken));
+      } catch {
+        setMatchRequests([]);
+      }
     } else {
       setWallet(null);
       setWalletDetail(null);
       setCreatorChatThreads({});
+      setMatchRequests([]);
     }
 
     setStatus("백엔드 연결 완료");
@@ -3406,11 +3432,13 @@ export function App() {
   async function refreshCreatorChats(currentToken = token) {
     if (!currentToken) {
       setCreatorChatThreads({});
+      setMatchRequests([]);
       return;
     }
 
     const chatThreads = await request<ChatThread[]>("/api/chats/threads", currentToken);
     setCreatorChatThreads(mapChatThreads(chatThreads));
+    setMatchRequests(await request<MatchRequestRecord[]>("/api/matching/requests", currentToken));
   }
 
   useEffect(() => {
@@ -3993,6 +4021,18 @@ export function App() {
     await refreshCreatorChats(token);
     await loadData(token);
     setMatchingActionMessage("매칭 조건을 수락했습니다. 새 팀원이 정산 팀원 목록에 반영되었습니다.");
+  }
+
+  async function declineMatchProposal(proposalId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    await request(`/api/matching/requests/${proposalId}/decline`, token, {
+      method: "POST",
+    });
+    await refreshCreatorChats(token);
+    setMatchingActionMessage("매칭 제안을 거절했습니다. 제안함 상태가 업데이트되었습니다.");
   }
 
   async function requestCreatorMatch(creator: Creator) {
@@ -5741,9 +5781,10 @@ export function App() {
                     item.proposal.status === "ACCEPTED" ? "수락 완료" : item.proposal.status === "DECLINED" ? "거절됨" : "수락 대기";
                   const partnerName =
                     item.partner?.displayName ??
+                    item.partnerName ??
                     (item.direction === "received" ? item.proposal.requesterName : item.proposal.targetName) ??
                     "창작자";
-                  const partnerRole = item.partner ? roleLabels[item.partner.primaryRole] : roleLabels[item.proposal.memberRole];
+                  const partnerRole = item.partner ? roleLabels[item.partner.primaryRole] : roleLabels[item.partnerRole] || roleLabels[item.proposal.memberRole];
 
                   return (
                     <article className={`match-inbox-card ${item.direction} ${item.proposal.status.toLowerCase()}`} key={item.id}>
@@ -5762,11 +5803,17 @@ export function App() {
                         proposal={item.proposal}
                         canAccept={item.canAccept}
                         onAccept={() => void acceptMatchProposal(item.proposal.id)}
+                        onDecline={item.canAccept ? () => void declineMatchProposal(item.proposal.id) : undefined}
                       />
                       <div className="match-inbox-actions">
                         {item.partner && (
                           <button type="button" onClick={() => setSelectedCreator(item.partner)}>
                             프로필 보기
+                          </button>
+                        )}
+                        {item.proposal.status === "ACCEPTED" && (
+                          <button type="button" onClick={() => navigate("settlement")}>
+                            정산 보기
                           </button>
                         )}
                         <button

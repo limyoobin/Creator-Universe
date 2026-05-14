@@ -7,11 +7,20 @@ import { getCurrentUserId } from "../utils/request-context.js";
 
 const communityRouter = Router();
 
+const matchRequestUserSelect = {
+  id: true,
+  displayName: true,
+  username: true,
+  creatorProfile: { select: { primaryRole: true } },
+} satisfies Prisma.UserSelect;
+
+const matchRequestInclude = {
+  requester: { select: matchRequestUserSelect },
+  targetUser: { select: matchRequestUserSelect },
+} satisfies Prisma.MatchRequestInclude;
+
 type MatchRequestWithUsers = Prisma.MatchRequestGetPayload<{
-  include: {
-    requester: { select: { displayName: true } };
-    targetUser: { select: { displayName: true } };
-  };
+  include: typeof matchRequestInclude;
 }>;
 
 const donations: unknown[] = [];
@@ -85,18 +94,30 @@ function buildMatchProposal(matchRequest?: MatchRequestWithUsers | null) {
   };
 }
 
+function buildMatchInboxItem(matchRequest: MatchRequestWithUsers, viewerId: string) {
+  const direction = matchRequest.requesterId === viewerId ? "sent" : "received";
+  const partner = direction === "sent" ? matchRequest.targetUser : matchRequest.requester;
+
+  return {
+    id: matchRequest.id,
+    direction,
+    partnerUserId: partner.id,
+    partnerName: partner.displayName,
+    partnerUsername: partner.username,
+    partnerRole: partner.creatorProfile?.primaryRole ?? matchRequest.memberRole,
+    proposal: buildMatchProposal(matchRequest),
+    createdAt: matchRequest.createdAt.toISOString(),
+    acceptedAt: matchRequest.acceptedAt?.toISOString() ?? null,
+  };
+}
+
 async function buildChatThreads(viewerId: string) {
   const relevantMessages = await prisma.chatMessage.findMany({
     where: {
       OR: [{ senderId: viewerId }, { receiverUserId: viewerId }],
     },
     include: {
-      matchRequest: {
-        include: {
-          requester: { select: { displayName: true } },
-          targetUser: { select: { displayName: true } },
-        },
-      },
+      matchRequest: { include: matchRequestInclude },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -385,6 +406,22 @@ communityRouter.get(
   }),
 );
 
+communityRouter.get(
+  "/matching/requests",
+  asyncHandler(async (req, res) => {
+    const viewerId = await getCurrentUserId(req);
+    const requests = await prisma.matchRequest.findMany({
+      where: {
+        OR: [{ requesterId: viewerId }, { targetUserId: viewerId }],
+      },
+      include: matchRequestInclude,
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ success: true, data: requests.map((request) => buildMatchInboxItem(request, viewerId)) });
+  }),
+);
+
 communityRouter.post(
   "/matching/requests",
   asyncHandler(async (req, res) => {
@@ -414,10 +451,7 @@ communityRouter.post(
         message: payload.message || `${payload.sharePercentage}% 수익 지분 조건으로 협업을 제안합니다.`,
         status: MatchRequestStatus.PENDING,
       },
-      include: {
-        requester: { select: { displayName: true } },
-        targetUser: { select: { displayName: true } },
-      },
+      include: matchRequestInclude,
     });
     const chatMessage = await prisma.chatMessage.create({
       data: {
@@ -427,7 +461,13 @@ communityRouter.post(
         matchRequestId: matchRequest.id,
       },
     });
-    res.status(201).json({ success: true, data: { ...matchRequest, chatMessage } });
+    const updatedChatMessage = await prisma.chatMessage.update({
+      where: { id: chatMessage.id },
+      data: {
+        body: `${requester?.displayName ?? "창작자"}님이 '${matchRequest.projectTitle}' 프로젝트에 ${payload.sharePercentage}% 수익 지분 조건으로 매칭을 제안했습니다.`,
+      },
+    });
+    res.status(201).json({ success: true, data: { matchRequest, chatMessage: updatedChatMessage } });
   }),
 );
 
@@ -437,10 +477,7 @@ communityRouter.post(
     const receiverId = await getCurrentUserId(req);
     const matchRequest = await prisma.matchRequest.findUnique({
       where: { id: String(req.params.requestId) },
-      include: {
-        requester: { select: { displayName: true } },
-        targetUser: { select: { displayName: true } },
-      },
+      include: matchRequestInclude,
     });
     if (!matchRequest) {
       res.status(404).json({ success: false, message: "Matching request not found." });
@@ -473,20 +510,69 @@ communityRouter.post(
         status: MatchRequestStatus.ACCEPTED,
         acceptedAt: new Date(),
       },
-      include: {
-        requester: { select: { displayName: true } },
-        targetUser: { select: { displayName: true } },
-      },
+      include: matchRequestInclude,
     });
     const receiver = await prisma.user.findUnique({ where: { id: receiverId }, select: { displayName: true } });
-    await prisma.chatMessage.create({
+    const acceptanceMessage = await prisma.chatMessage.create({
       data: {
         senderId: receiverId,
         receiverUserId: matchRequest.requesterId,
         body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 제안을 수락했고 팀 정산 멤버에 합류했습니다.`,
       },
     });
+    await prisma.chatMessage.update({
+      where: { id: acceptanceMessage.id },
+      data: {
+        body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 제안을 수락했고 팀 정산 멤버에 합류했습니다.`,
+      },
+    });
+    await prisma.chatMessage.update({
+      where: { id: acceptanceMessage.id },
+      data: {
+        body: `${receiver?.displayName ?? "\uCD08\uB300\uBC1B\uC740 \uCC3D\uC791\uC790"}\uB2D8\uC774 ${Number(matchRequest.sharePercentage)}% \uC218\uC775 \uC9C0\uBD84 \uC81C\uC548\uC744 \uC218\uB77D\uD588\uACE0 \uD300 \uC815\uC0B0 \uBA64\uBC84\uC5D0 \uD569\uB958\uD588\uC2B5\uB2C8\uB2E4.`,
+      },
+    });
     res.json({ success: true, data: { matchRequest: acceptedRequest, members } });
+  }),
+);
+
+communityRouter.post(
+  "/matching/requests/:requestId/decline",
+  asyncHandler(async (req, res) => {
+    const receiverId = await getCurrentUserId(req);
+    const matchRequest = await prisma.matchRequest.findUnique({
+      where: { id: String(req.params.requestId) },
+      include: matchRequestInclude,
+    });
+    if (!matchRequest) {
+      res.status(404).json({ success: false, message: "Matching request not found." });
+      return;
+    }
+    if (matchRequest.targetUserId !== receiverId) {
+      res.status(403).json({ success: false, message: "Only the invited creator can decline this matching request." });
+      return;
+    }
+    if (matchRequest.status !== MatchRequestStatus.PENDING) {
+      res.json({ success: true, data: { matchRequest } });
+      return;
+    }
+
+    const declinedRequest = await prisma.matchRequest.update({
+      where: { id: matchRequest.id },
+      data: { status: MatchRequestStatus.DECLINED },
+      include: matchRequestInclude,
+    });
+    const receiver = await prisma.user.findUnique({ where: { id: receiverId }, select: { displayName: true } });
+    await prisma.chatMessage.create({
+      data: {
+        senderId: receiverId,
+        receiverUserId: matchRequest.requesterId,
+        body: `${receiver?.displayName ?? "초대받은 창작자"}님이 ${Number(matchRequest.sharePercentage)}% 수익 지분 매칭 제안을 거절했습니다.`,
+        matchRequestId: matchRequest.id,
+      },
+    });
+
+    res.json({ success: true, data: { matchRequest: declinedRequest } });
   }),
 );
 
