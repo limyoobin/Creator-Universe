@@ -4624,10 +4624,10 @@ export function App() {
               </div>
 
               <div className="app-home-quick-grid">
-                <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품</span></button>
-                <button type="button" onClick={openPayment}><Coins size={18} /><span>{formatCoins(currentWalletDetail.balance)}</span></button>
-                <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span></button>
-                <button type="button" onClick={() => navigate("matching")}><Users size={18} /><span>매칭</span></button>
+                <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 보기</span></button>
+                <button type="button" onClick={openPayment}><Coins size={18} /><span>코인 충전</span></button>
+                <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 올리기</span></button>
+                <button type="button" onClick={() => navigate("matching")}><Users size={18} /><span>팀원 찾기</span></button>
               </div>
 
               <div className="app-home-mini-panels">
@@ -6613,10 +6613,38 @@ export function App() {
       </nav>
 
       <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
-        <button onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span><small>창작자 홈</small></button>
-        <button onClick={() => navigate("matching")}><Search size={18} /><span>매칭</span><small>팀원 찾기</small></button>
-        <button onClick={() => navigate("settlement")}><Split size={18} /><span>정산</span><small>수익 분배</small></button>
-        <button onClick={() => navigate("support")}><ShieldCheck size={18} /><span>센터</span><small>문의/신고</small></button>
+        <div className="quick-sheet-head">
+          <strong>무엇을 할까요?</strong>
+          <span>자주 쓰는 기능만 모았어요</span>
+        </div>
+        <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 올리기</span><small>창작자 홈으로 이동</small></button>
+        <button onClick={() => navigate("matching")}><Search size={18} /><span>팀원 찾기</span><small>작가·그림·성우 탐색</small></button>
+        <button onClick={() => navigate("settlement")}><Split size={18} /><span>정산 보기</span><small>수익 분배 확인</small></button>
+        <button
+          onClick={() => {
+            setIsMobileQuickOpen(false);
+            openCreatorMessenger();
+          }}
+        >
+          <MessageCircle size={18} /><span>채팅 열기</span><small>협업 대화 이어가기</small>
+        </button>
+        <button
+          onClick={() => {
+            setIsMobileQuickOpen(false);
+            openPayment();
+          }}
+        >
+          <Coins size={18} /><span>코인 충전</span><small>작품 구매 준비</small>
+        </button>
+        <button
+          onClick={() => {
+            setIsMobileQuickOpen(false);
+            setIsSupportBotOpen(true);
+            setIsMessengerOpen(false);
+          }}
+        >
+          <Bot size={18} /><span>도움 받기</span><small>챗봇 상담</small>
+        </button>
       </div>
 
       <div className={`floating-messenger ${isMessengerOpen ? "open" : ""} ${isMessengerFullscreen ? "fullscreen-mode" : ""}`}>

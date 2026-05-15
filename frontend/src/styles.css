@@ -11485,7 +11485,7 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
   z-index: 29;
   display: none;
   width: min(calc(100% - 24px), 520px);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   transform: translateX(-50%) translateY(12px) scale(0.98);
   border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
@@ -11499,6 +11499,26 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
   backdrop-filter: blur(20px) saturate(1.18);
   pointer-events: none;
   transition: opacity 170ms ease, transform 170ms ease;
+}
+
+.quick-sheet-head {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 3px;
+  padding: 4px 4px 6px;
+}
+
+.quick-sheet-head strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -0.05em;
+}
+
+.quick-sheet-head span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .mobile-quick-sheet.open {
@@ -11823,20 +11843,37 @@ body.cu-android-app .app-primary-tabs .mobile-plus-tab svg {
 body.cu-android-app .mobile-quick-sheet {
   bottom: calc(var(--app-bottom-nav-height) + 18px + env(safe-area-inset-bottom));
   width: min(calc(100% - 18px), 520px);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
-  border-radius: 24px;
-  padding: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  border-radius: 26px;
+  padding: 12px;
+}
+
+body.cu-android-app .quick-sheet-head {
+  padding: 2px 3px 5px;
+}
+
+body.cu-android-app .quick-sheet-head strong {
+  font-size: 17px;
+}
+
+body.cu-android-app .quick-sheet-head span {
+  font-size: 12px;
 }
 
 body.cu-android-app .mobile-quick-sheet button {
-  min-height: 64px;
-  border-radius: 17px;
-  padding: 9px 3px 7px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 54px;
+  border-radius: 18px;
+  padding: 10px;
+  text-align: left;
 }
 
 body.cu-android-app .mobile-quick-sheet button span {
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 
 body.cu-android-app .mobile-quick-sheet button small {
@@ -12778,8 +12815,12 @@ body.cu-android-app .reader-actions button {
 }
 
 body.cu-android-app .mobile-quick-sheet {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   box-shadow: 0 20px 60px color-mix(in srgb, #000 18%, transparent);
+}
+
+body.cu-android-app .mobile-quick-sheet .quick-sheet-head {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 380px) {
