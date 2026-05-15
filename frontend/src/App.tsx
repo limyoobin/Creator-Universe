@@ -4589,6 +4589,101 @@ export function App() {
       <main>
         {activePage === "home" && (
           <div className="home-page page-panel">
+            <section className="app-home-dashboard" aria-label="앱 홈 대시보드">
+              <div className="app-home-greeting">
+                <span>Creator Universe App</span>
+                <h1>{user ? `${user.displayName}님, 이어서 볼까요?` : "오늘 볼 작품을 바로 찾아볼까요?"}</h1>
+                <p>앱에서는 긴 소개보다 감상, 코인, 알림, 스튜디오 이동을 먼저 보여줍니다.</p>
+              </div>
+
+              <div className="app-home-main-card">
+                {(() => {
+                  const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
+                  const progress = workProgress[continueWork.id];
+
+                  return (
+                    <>
+                      <img src={continueWork.coverImage} alt="" />
+                      <div>
+                        <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : continueWork.badge}</span>
+                        <strong>{continueWork.title}</strong>
+                        <p>{continueWork.tagline}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedWork(continueWork);
+                          setReviewWorkId(continueWork.id);
+                        }}
+                      >
+                        <Play size={16} /> 이어보기
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="app-home-quick-grid">
+                <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품</span></button>
+                <button type="button" onClick={openPayment}><Coins size={18} /><span>{formatCoins(currentWalletDetail.balance)}</span></button>
+                <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span></button>
+                <button type="button" onClick={() => navigate("matching")}><Users size={18} /><span>매칭</span></button>
+              </div>
+
+              <div className="app-home-mini-panels">
+                <article>
+                  <span>알림</span>
+                  <strong>{notificationItems[0]?.title ?? "아직 새 알림이 없어요"}</strong>
+                  <p>{notificationItems[0]?.body ?? "작품 스크랩, 구매, 매칭 제안이 생기면 여기에서 바로 확인할 수 있어요."}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!user) {
+                        setAuthMode("login");
+                        return;
+                      }
+                      if (notificationItems[0]) {
+                        openNotificationItem(notificationItems[0]);
+                      } else {
+                        setIsNotificationOpen(true);
+                      }
+                    }}
+                  >
+                    확인하기
+                  </button>
+                </article>
+                <article>
+                  <span>내 지갑</span>
+                  <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+                  <p>{currentWalletDetail.transactions[0]?.title ?? "충전하면 작품 열람과 후원에 바로 사용할 수 있어요."}</p>
+                  <button type="button" onClick={openPayment}>코인 충전</button>
+                </article>
+              </div>
+
+              <div className="app-home-recommend">
+                <div>
+                  <span>추천 작품</span>
+                  <button type="button" onClick={() => navigate("discover")}>전체 보기</button>
+                </div>
+                <div>
+                  {rankedReaderWorks.slice(0, 3).map((work) => (
+                    <button
+                      type="button"
+                      key={work.id}
+                      onClick={() => {
+                        setSelectedWork(work);
+                        setReviewWorkId(work.id);
+                      }}
+                    >
+                      <img src={work.coverImage} alt="" />
+                      <strong>{work.title}</strong>
+                      <small>{work.format} · {work.genre}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             <section className={`intro-hero reveal revealed ${introSlides[activeIntroSlide].tone}`}>
               <div className="intro-copy">
                 <p className="kicker">Creator Universe</p>
