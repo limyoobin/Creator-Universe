@@ -6818,7 +6818,19 @@ export function App() {
             </div>
           </section>
         )}
-        <button className="floating-messenger-button" type="button" onClick={() => openCreatorMessenger()} aria-label="창작자 채팅 열기">
+        <button
+          className="floating-messenger-button"
+          type="button"
+          onClick={() => {
+            if (isMessengerOpen) {
+              setIsMessengerOpen(false);
+              setIsMessengerFullscreen(false);
+              return;
+            }
+            openCreatorMessenger();
+          }}
+          aria-label={isMessengerOpen ? "창작자 채팅 닫기" : "창작자 채팅 열기"}
+        >
           {isMessengerOpen ? <X size={23} /> : <MessageCircle size={23} />}
           {!isMessengerOpen && <i />}
         </button>

@@ -13011,17 +13011,17 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 960px) {
   .floating-messenger.fullscreen-mode {
     inset: auto 8px max(8px, env(safe-area-inset-bottom));
-    top: max(58px, env(safe-area-inset-top));
+    top: max(76px, env(safe-area-inset-top));
     width: auto;
     transform: none;
   }
 
   body.cu-android-app .floating-messenger.fullscreen-mode {
     inset: auto 8px max(8px, env(safe-area-inset-bottom));
-    top: max(58px, env(safe-area-inset-top));
+    top: max(76px, env(safe-area-inset-top));
     width: auto;
     transform: none;
   }
@@ -13034,8 +13034,8 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
     min-height: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    border-radius: 28px;
-    padding: 10px;
+    border-radius: 26px;
+    padding: 9px;
     background:
       radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 16%, transparent), transparent 12rem),
       radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--brand) 13%, transparent), transparent 12rem),
@@ -13046,7 +13046,8 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   body.cu-android-app .floating-messenger-panel.fullscreen .floating-messenger-head {
     grid-template-columns: auto 1fr auto;
     gap: 9px;
-    padding: 2px 2px 10px;
+    min-height: 46px;
+    padding: 0 2px 9px;
   }
 
   .floating-messenger-panel.fullscreen .floating-messenger-head > span,
@@ -13093,23 +13094,23 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list {
     display: flex;
     gap: 8px;
-    min-height: 76px;
-    max-height: 84px;
+    min-height: 62px;
+    max-height: 70px;
     overflow-x: auto;
     overflow-y: hidden;
-    border-radius: 22px;
-    padding: 8px;
+    border-radius: 20px;
+    padding: 7px;
     scroll-snap-type: x proximity;
   }
 
   .floating-messenger-panel.fullscreen .messenger-thread-list button,
   body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list button {
-    flex: 0 0 150px;
+    flex: 0 0 142px;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 8px;
     min-width: 0;
-    padding: 8px;
-    border-radius: 18px;
+    padding: 7px;
+    border-radius: 17px;
     scroll-snap-align: start;
   }
 
@@ -13120,9 +13121,9 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
 
   .floating-messenger-panel.fullscreen .messenger-thread-list button > span,
   body.cu-android-app .floating-messenger-panel.fullscreen .messenger-thread-list button > span {
-    width: 36px;
-    height: 36px;
-    border-radius: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 13px;
   }
 
   .floating-messenger-panel.fullscreen .messenger-thread-list button i,
@@ -13145,12 +13146,12 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-pane {
     height: 100%;
     min-height: 0;
-    border-radius: 24px;
+    border-radius: 22px;
   }
 
   .floating-messenger-panel.fullscreen .messenger-chat-title,
   body.cu-android-app .floating-messenger-panel.fullscreen .messenger-chat-title {
-    padding: 13px 14px;
+    padding: 11px 13px;
   }
 
   .floating-messenger-panel.fullscreen .messenger-chat-title strong,
@@ -13181,7 +13182,7 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
     min-height: 0;
     max-height: none;
     overflow-y: auto;
-    padding: 14px 12px;
+    padding: 12px 11px;
   }
 
   .floating-messenger-panel.fullscreen .messenger-messages > div:not(.messenger-day-divider),
@@ -13198,7 +13199,7 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
 
   .floating-messenger-panel.fullscreen .messenger-input,
   body.cu-android-app .floating-messenger-panel.fullscreen .messenger-input {
-    margin: 0 10px 10px;
+    margin: 0 9px 9px;
     border-radius: 20px;
     padding: 7px;
   }
