@@ -12864,6 +12864,136 @@ body.cu-android-app .floating-messenger.fullscreen-mode {
   transform: none;
 }
 
+body.cu-android-app .floating-messenger.open:not(.fullscreen-mode) {
+  bottom: calc(var(--app-bottom-nav-height) + 10px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: min(78dvh, calc(100dvh - 128px));
+  padding: 10px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 11rem),
+    radial-gradient(circle at 100% 100%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 12rem),
+    var(--surface);
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .floating-messenger-head {
+  gap: 9px;
+  padding: 2px 2px 9px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .floating-messenger-head > span {
+  width: 38px;
+  height: 38px;
+  border-radius: 15px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .floating-messenger-head strong {
+  font-size: 17px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .floating-messenger-head small {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-window-actions button {
+  width: 34px;
+  height: 34px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-thread-list {
+  display: flex;
+  gap: 7px;
+  min-height: 66px;
+  max-height: 74px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 18px;
+  padding: 7px;
+  scroll-snap-type: x proximity;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-thread-list button {
+  flex: 0 0 134px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px;
+  border-radius: 15px;
+  scroll-snap-align: start;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-thread-list button > span {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-thread-list button i {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-thread-list small {
+  max-width: 76px;
+  font-size: 10.5px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-chat-pane {
+  min-height: min(49dvh, 390px);
+  border-radius: 22px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-chat-title {
+  padding: 11px 12px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-chat-title strong {
+  font-size: 16px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-chat-title small {
+  display: none;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-chat-title button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-messages {
+  min-height: 210px;
+  max-height: none;
+  overflow-y: auto;
+  padding: 12px 10px;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-messages > div:not(.messenger-day-divider) {
+  max-width: 94%;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-messages p {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.52;
+}
+
+body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input {
+  margin: 0 9px 9px;
+  border-radius: 18px;
+  padding: 7px;
+}
+
 @media (max-width: 380px) {
   body.cu-android-app .app-primary-tabs button {
     font-size: 9.8px;
