@@ -13223,6 +13223,155 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   }
 }
 
+@media (max-width: 1280px) {
+  .floating-messenger.fullscreen-mode {
+    position: fixed !important;
+    inset: auto 8px max(8px, env(safe-area-inset-bottom)) 8px !important;
+    top: max(96px, env(safe-area-inset-top)) !important;
+    width: auto !important;
+    height: auto !important;
+    align-items: stretch !important;
+    justify-items: stretch !important;
+    transform: none !important;
+  }
+
+  body.cu-android-app .floating-messenger.fullscreen-mode {
+    top: max(78px, env(safe-area-inset-top)) !important;
+  }
+
+  .floating-messenger.fullscreen-mode::before {
+    inset: 0 !important;
+  }
+
+  .floating-messenger-panel.fullscreen {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    overflow: hidden !important;
+    border-radius: 24px !important;
+    padding: 8px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .floating-messenger-head {
+    min-height: 42px !important;
+    padding: 0 2px 8px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .floating-messenger-head > span {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 15px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .floating-messenger-head strong {
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+  }
+
+  .floating-messenger-panel.fullscreen .floating-messenger-head small,
+  .floating-messenger-panel.fullscreen .messenger-inbox-title {
+    display: none !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-body {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 58px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list {
+    display: flex !important;
+    gap: 7px !important;
+    min-height: 58px !important;
+    max-height: 58px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-radius: 18px !important;
+    padding: 6px !important;
+    scrollbar-width: none;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list button {
+    flex: 0 0 132px !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    gap: 7px !important;
+    min-width: 0 !important;
+    padding: 6px !important;
+    border-radius: 16px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list button > span {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list button i {
+    display: none !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list strong {
+    font-size: 12.5px !important;
+    line-height: 1.05 !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-thread-list small {
+    max-width: 74px !important;
+    font-size: 10px !important;
+    line-height: 1.15 !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-chat-pane {
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 21px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-chat-title {
+    padding: 10px 12px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-chat-title strong {
+    font-size: 17px !important;
+    line-height: 1.15 !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-chat-title small {
+    display: none !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-chat-title button {
+    padding: 7px 11px !important;
+    font-size: 12px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-messages {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    padding: 12px 10px !important;
+  }
+
+  .floating-messenger-panel.fullscreen .messenger-input {
+    margin: 0 8px 8px !important;
+    border-radius: 18px !important;
+    padding: 6px !important;
+  }
+}
+
 @keyframes drawerDrop {
   from {
     opacity: 0;
