@@ -13372,6 +13372,181 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   }
 }
 
+@media (max-width: 640px) {
+  .floating-messenger.open:not(.fullscreen-mode) {
+    left: 50% !important;
+    right: auto !important;
+    bottom: calc(var(--app-bottom-nav-height, 76px) + 14px + env(safe-area-inset-bottom)) !important;
+    width: min(calc(100vw - 18px), 520px) !important;
+    max-width: 520px !important;
+    height: auto !important;
+    align-items: end !important;
+    justify-items: stretch !important;
+    transform: translateX(-50%) !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .floating-messenger-panel:not(.fullscreen) {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-height: min(58dvh, calc(100dvh - var(--app-bottom-nav-height, 76px) - 92px)) !important;
+    overflow: hidden !important;
+    border-radius: 24px !important;
+    padding: 8px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .floating-messenger-head {
+    position: relative !important;
+    z-index: 8 !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    min-height: 42px !important;
+    padding: 0 2px 8px !important;
+    border-bottom: 1px solid var(--line) !important;
+    background:
+      radial-gradient(circle at 0 0, rgba(255, 111, 156, 0.1), transparent 9rem),
+      color-mix(in srgb, var(--surface) 92%, transparent) !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .floating-messenger-head > span {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 15px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .floating-messenger-head strong {
+    font-size: 18px !important;
+    line-height: 1.08 !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .floating-messenger-head small {
+    display: none !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-window-actions {
+    display: flex !important;
+    gap: 6px !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-window-actions button {
+    display: grid !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    border-radius: 50% !important;
+    place-items: center !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-body {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 58px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-thread-list {
+    display: flex !important;
+    gap: 7px !important;
+    min-height: 58px !important;
+    max-height: 58px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-radius: 18px !important;
+    padding: 6px !important;
+    scrollbar-width: none !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-thread-list::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-thread-list button {
+    flex: 0 0 134px !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    gap: 7px !important;
+    padding: 6px !important;
+    border-radius: 16px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-thread-list button > span {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 12px !important;
+    font-size: 12px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-thread-list strong {
+    font-size: 12.5px !important;
+    line-height: 1.08 !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-thread-list small {
+    max-width: 74px !important;
+    font-size: 10px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-chat-pane {
+    height: 100% !important;
+    min-height: 0 !important;
+    border-radius: 20px !important;
+    overflow: hidden !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-chat-title {
+    padding: 10px 12px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-chat-title strong {
+    font-size: 17px !important;
+    line-height: 1.12 !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-chat-title small {
+    display: none !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-chat-title button {
+    padding: 7px 11px !important;
+    font-size: 12px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-messages {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    padding: 12px 10px !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-messages p {
+    padding: 10px 12px !important;
+    font-size: 12.5px !important;
+    line-height: 1.52 !important;
+  }
+
+  .floating-messenger.open:not(.fullscreen-mode) .messenger-input {
+    margin: 0 8px 8px !important;
+    border-radius: 18px !important;
+    padding: 6px !important;
+  }
+
+  .floating-messenger.fullscreen-mode {
+    top: max(118px, env(safe-area-inset-top)) !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body.cu-android-app .floating-messenger.fullscreen-mode {
+    top: max(86px, env(safe-area-inset-top)) !important;
+  }
+}
+
 @keyframes drawerDrop {
   from {
     opacity: 0;
