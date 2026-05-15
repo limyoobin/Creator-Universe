@@ -12375,6 +12375,190 @@ body.cu-android-app .account-summary-grid div {
   padding: 10px;
 }
 
+/* App shell simplification: the web page is rich, but the app should feel calm and task-first. */
+body.cu-android-app .topbar {
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  padding: 7px;
+}
+
+body.cu-android-app .header-actions {
+  justify-self: end;
+}
+
+body.cu-android-app .header-actions > .icon-button:not(.mobile-menu-button),
+body.cu-android-app .mobile-menu-button {
+  display: none;
+}
+
+body.cu-android-app .notification-trigger,
+body.cu-android-app .account-trigger,
+body.cu-android-app .primary-button.compact {
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 16px;
+}
+
+body.cu-android-app .account-trigger {
+  max-width: 74px;
+  padding: 4px;
+}
+
+body.cu-android-app .account-trigger b,
+body.cu-android-app .account-trigger svg {
+  display: none;
+}
+
+body.cu-android-app .app.page-home .floating-help,
+body.cu-android-app .app.page-home .floating-messenger,
+body.cu-android-app .app.page-discover .floating-help,
+body.cu-android-app .app.page-discover .floating-messenger,
+body.cu-android-app .app.page-wallet .floating-help,
+body.cu-android-app .app.page-wallet .floating-messenger,
+body.cu-android-app .app.page-settlement .floating-help,
+body.cu-android-app .app.page-settlement .floating-messenger,
+body.cu-android-app .app.page-studio .floating-help,
+body.cu-android-app .app.page-support .floating-messenger {
+  display: none;
+}
+
+body.cu-android-app .studio-visual {
+  display: none;
+}
+
+body.cu-android-app .intro-hero {
+  min-height: 0;
+  padding: 22px 18px 20px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 15%, transparent), transparent 12rem),
+    radial-gradient(circle at 100% 12%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 13rem),
+    var(--surface);
+}
+
+body.cu-android-app .slide-copy-stage {
+  min-height: 164px;
+}
+
+body.cu-android-app .slide-copy-panel h1 {
+  max-width: 12.5ch;
+  font-size: clamp(30px, 8.8vw, 40px);
+  line-height: 1.14;
+  letter-spacing: -0.06em;
+}
+
+body.cu-android-app .slide-eyebrow {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+
+body.cu-android-app .lead {
+  max-width: 31ch;
+  font-size: 13px;
+}
+
+body.cu-android-app .intro-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+body.cu-android-app .intro-actions button {
+  width: 100%;
+}
+
+body.cu-android-app .intro-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.cu-android-app .intro-metrics div,
+body.cu-android-app .feature-card,
+body.cu-android-app .content-format-card,
+body.cu-android-app .audience-card,
+body.cu-android-app .plan-card,
+body.cu-android-app .mock-card {
+  border-radius: 18px;
+  padding: 14px;
+}
+
+body.cu-android-app .intro-section,
+body.cu-android-app .showcase-section,
+body.cu-android-app .ecosystem-section,
+body.cu-android-app .flow-section,
+body.cu-android-app .premium-section,
+body.cu-android-app .timeline-section,
+body.cu-android-app .mission-section,
+body.cu-android-app .final-cta {
+  margin-top: 10px;
+  padding: 18px;
+  border-radius: 22px;
+}
+
+body.cu-android-app .section-head,
+body.cu-android-app .intro-head {
+  gap: 8px;
+}
+
+body.cu-android-app .section-head h2,
+body.cu-android-app .intro-head h2,
+body.cu-android-app .showcase-copy h2,
+body.cu-android-app .flow-section h2,
+body.cu-android-app .mission-section h2,
+body.cu-android-app .final-cta h2 {
+  font-size: clamp(22px, 6vw, 30px);
+  line-height: 1.22;
+}
+
+body.cu-android-app .section-head > p,
+body.cu-android-app .intro-head > p,
+body.cu-android-app .showcase-copy p,
+body.cu-android-app .flow-section p,
+body.cu-android-app .mission-section p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+body.cu-android-app .reader-work-card {
+  border-radius: 20px;
+}
+
+body.cu-android-app .reader-work-body {
+  gap: 9px;
+  padding: 13px;
+}
+
+body.cu-android-app .reader-work-body h3 {
+  font-size: 19px;
+}
+
+body.cu-android-app .reader-work-body > p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+body.cu-android-app .reader-work-card .work-contributors,
+body.cu-android-app .reader-work-card .chips {
+  display: none;
+}
+
+body.cu-android-app .reader-actions {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+body.cu-android-app .reader-actions button {
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+body.cu-android-app .mobile-quick-sheet {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  box-shadow: 0 20px 60px color-mix(in srgb, #000 18%, transparent);
+}
+
 @media (max-width: 380px) {
   body.cu-android-app .app-primary-tabs button {
     font-size: 9.8px;
