@@ -11906,17 +11906,26 @@ body.cu-android-app .floating-messenger-button {
 
 body.cu-android-app .floating-help.open,
 body.cu-android-app .floating-messenger.open {
-  right: 10px;
+  left: 50%;
+  right: auto;
+  width: min(calc(100vw - 18px), 520px);
   bottom: calc(var(--app-bottom-nav-height) + 12px + env(safe-area-inset-bottom));
+  justify-items: stretch;
+  transform: translateX(-50%);
 }
 
 body.cu-android-app .floating-help-panel,
 body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
-  width: min(342px, calc(100vw - 20px));
-  max-height: calc(100dvh - 166px);
+  width: 100%;
+  max-height: min(66dvh, calc(100dvh - 166px));
   border-radius: 24px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .floating-help.open .floating-help-button,
+body.cu-android-app .floating-messenger.open:not(.fullscreen-mode) .floating-messenger-button {
+  justify-self: end;
 }
 
 body.cu-android-app .mobile-quick-sheet.open ~ .floating-messenger,
@@ -11929,6 +11938,8 @@ body.cu-android-app .mobile-quick-sheet.open ~ .floating-help {
 body.cu-android-app .floating-messenger.fullscreen-mode {
   inset: 8px;
   z-index: 80;
+  width: auto;
+  transform: none;
   right: 8px;
   bottom: 8px;
 }
@@ -12821,6 +12832,36 @@ body.cu-android-app .mobile-quick-sheet {
 
 body.cu-android-app .mobile-quick-sheet .quick-sheet-head {
   grid-column: 1 / -1;
+}
+
+body.cu-android-app .mobile-quick-sheet button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 54px;
+  padding: 10px;
+  text-align: left;
+}
+
+body.cu-android-app .floating-help.open,
+body.cu-android-app .floating-messenger.open {
+  left: 50%;
+  right: auto;
+  width: min(calc(100vw - 18px), 520px);
+  transform: translateX(-50%);
+}
+
+body.cu-android-app .floating-help.open .floating-help-panel,
+body.cu-android-app .floating-messenger.open .floating-messenger-panel:not(.fullscreen) {
+  width: 100%;
+  max-height: min(66dvh, calc(100dvh - 154px));
+}
+
+body.cu-android-app .floating-messenger.fullscreen-mode {
+  left: auto;
+  width: auto;
+  transform: none;
 }
 
 @media (max-width: 380px) {

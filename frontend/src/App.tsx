@@ -1080,13 +1080,8 @@ function getWorkEpisodes(work: ReaderWork) {
 
 function mapChatThreads(threads: ChatThread[]) {
   return threads.reduce<Record<string, CreatorChatMessage[]>>((acc, thread) => {
-    acc[thread.otherUser.id] = thread.messages.map((message) => ({
-      from: message.from,
-      text: normalizeChatMessageText(message.body),
-      time: formatChatTime(message.createdAt),
-      createdAt: message.createdAt,
-      matchRequestId: message.matchRequestId,
-      matchProposal: message.matchProposal
+    acc[thread.otherUser.id] = thread.messages.map((message) => {
+      const normalizedProposal = message.matchProposal
         ? {
             ...message.matchProposal,
             projectTitle: cleanDisplayText(message.matchProposal.projectTitle, "크리에이터 유니버스 협업 프로젝트"),
@@ -1095,8 +1090,20 @@ function mapChatThreads(threads: ChatThread[]) {
             requesterName: cleanDisplayText(message.matchProposal.requesterName, "제안한 창작자"),
             targetName: cleanDisplayText(message.matchProposal.targetName, "초대받은 창작자"),
           }
-        : message.matchProposal,
-    }));
+        : message.matchProposal;
+      const proposalText = normalizedProposal
+        ? `${normalizedProposal.requesterName}님이 '${normalizedProposal.projectTitle}' 프로젝트에 ${normalizedProposal.sharePercentage}% 수익 지분 조건으로 매칭을 제안했습니다.`
+        : null;
+
+      return {
+        from: message.from,
+        text: proposalText ?? normalizeChatMessageText(message.body),
+        time: formatChatTime(message.createdAt),
+        createdAt: message.createdAt,
+        matchRequestId: message.matchRequestId,
+        matchProposal: normalizedProposal,
+      };
+    });
     return acc;
   }, {});
 }
