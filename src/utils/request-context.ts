@@ -3,6 +3,9 @@ import { AppError } from "../errors/app-error.js";
 import { getUserIdBySessionToken } from "../services/auth.service.js";
 import { getBearerToken } from "./token.js";
 
+const allowInsecureUserContext =
+  process.env.NODE_ENV !== "production" || process.env.ALLOW_INSECURE_USER_CONTEXT === "true";
+
 export async function getCurrentUserId(req: Request) {
   const bearerToken = getBearerToken(req);
   if (bearerToken) {
@@ -10,6 +13,10 @@ export async function getCurrentUserId(req: Request) {
     if (userId) {
       return userId;
     }
+  }
+
+  if (!allowInsecureUserContext) {
+    throw new AppError("Authorization token is required.", 401);
   }
 
   const headerUserId = req.header("x-user-id");

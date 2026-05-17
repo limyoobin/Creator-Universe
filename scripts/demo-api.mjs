@@ -34,7 +34,7 @@ const users = [
     email: "root@creator-universe.local",
     username: "root",
     displayName: "Root Admin",
-    password: "toor",
+    password: process.env.DEMO_ROOT_PASSWORD || "local-demo-admin!2026",
     userType: "ADMIN",
     isOfficialPartner: true,
     walletBalance: 100000,

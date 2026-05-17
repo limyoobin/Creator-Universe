@@ -18,6 +18,6 @@ echo Backend:  http://127.0.0.1:4000/health
 echo.
 echo Demo creator account: yurino_script / demo1234
 echo Demo reader account:  reader_one / demo1234
-echo Local root account:  root / toor
+echo Admin/root account is disabled unless ROOT_ADMIN_PASSWORD is set in your local .env.
 echo.
 pause

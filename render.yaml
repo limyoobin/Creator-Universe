@@ -12,3 +12,7 @@ services:
         value: production
       - key: DATABASE_URL
         sync: false
+      - key: CORS_ORIGINS
+        value: https://project-limyoobins-projects.vercel.app
+      - key: ALLOW_INSECURE_USER_CONTEXT
+        value: "false"

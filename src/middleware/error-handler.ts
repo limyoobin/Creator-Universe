@@ -18,7 +18,13 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     });
   }
 
-  const message = error instanceof Error ? error.message : "Internal server error.";
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal server error."
+      : error instanceof Error
+        ? error.message
+        : "Internal server error.";
+
   return res.status(500).json({
     success: false,
     message,

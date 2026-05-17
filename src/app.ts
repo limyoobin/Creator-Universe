@@ -11,8 +11,49 @@ import { errorHandler } from "./middleware/error-handler.js";
 
 const app = express();
 
+const defaultAllowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://project-limyoobins-projects.vercel.app",
+];
+
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || defaultAllowedOrigins.join(","))
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+function isAllowedOrigin(origin?: string) {
+  if (!origin) {
+    return true;
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  return process.env.NODE_ENV !== "production" && allowedOrigins.includes("*");
+}
+
 app.use((_req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  const origin = _req.header("origin");
+
+  if (!isAllowedOrigin(origin)) {
+    if (_req.method === "OPTIONS") {
+      res.sendStatus(403);
+      return;
+    }
+
+    next();
+    return;
+  }
+
+  if (origin) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Vary", "Origin");
+  } else if (process.env.NODE_ENV !== "production") {
+    res.header("Access-Control-Allow-Origin", "*");
+  }
+
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id");
   res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   next();
