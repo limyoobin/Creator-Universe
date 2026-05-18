@@ -583,6 +583,7 @@ const universePremiumBenefits = [
 type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support";
 type LibraryViewId = (typeof libraryViewItems)[number]["id"];
 type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
+type AppMode = "reader" | "creator";
 
 type WorkProgressEntry = {
   episodeNumber: number;
@@ -2985,6 +2986,10 @@ export function App() {
   const [creatorChatThreads, setCreatorChatThreads] = useState<Record<string, CreatorChatMessage[]>>({});
   const [matchRequests, setMatchRequests] = useState<MatchRequestRecord[]>([]);
   const [theme, setTheme] = useState(() => localStorage.getItem("creator-universe-theme") || "light");
+  const [appMode, setAppMode] = useState<AppMode>(() => {
+    const storedMode = localStorage.getItem("creator-universe-app-mode");
+    return storedMode === "creator" ? "creator" : "reader";
+  });
   const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
   const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery" | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -3622,6 +3627,10 @@ export function App() {
     document.body.dataset.theme = theme;
     localStorage.setItem("creator-universe-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("creator-universe-app-mode", appMode);
+  }, [appMode]);
 
   useEffect(() => {
     if (!/CreatorUniverseAndroid/i.test(navigator.userAgent)) {
@@ -4662,6 +4671,78 @@ export function App() {
                 <h1>{user ? `${user.displayName}님, 이어서 볼까요?` : "오늘 볼 작품을 바로 찾아볼까요?"}</h1>
                 <p>앱에서는 긴 소개보다 감상, 코인, 알림, 스튜디오 이동을 먼저 보여줍니다.</p>
               </div>
+
+              <div className="app-mode-switch" aria-label="앱 사용 목적 선택">
+                <button type="button" className={appMode === "reader" ? "active" : ""} onClick={() => setAppMode("reader")}>
+                  <BookOpen size={16} />
+                  독자 모드
+                </button>
+                <button type="button" className={appMode === "creator" ? "active" : ""} onClick={() => setAppMode("creator")}>
+                  <Rocket size={16} />
+                  창작자 모드
+                </button>
+              </div>
+
+              <section className={`app-purpose-panel ${appMode}`} aria-label={appMode === "reader" ? "독자 추천 동선" : "창작자 추천 동선"}>
+                <div className="app-purpose-head">
+                  <span>{appMode === "reader" ? "Reader Flow" : "Creator Flow"}</span>
+                  <strong>{appMode === "reader" ? "보고, 저장하고, 바로 이어보기" : "프로필부터 제안, 정산까지 한 번에"}</strong>
+                  <p>
+                    {appMode === "reader"
+                      ? "처음 들어온 독자는 작품 탐색과 내 보관함을 먼저 쓰게 됩니다. 많이 누르는 기능만 앞에 모았어요."
+                      : "창작자는 팀원 찾기보다 내 프로필, 제안 수락, 정산 상태가 먼저 보여야 오래 머뭅니다."}
+                  </p>
+                </div>
+                <div className="app-purpose-grid">
+                  {appMode === "reader" ? (
+                    <>
+                      <button type="button" onClick={() => openReaderLibrary("purchased")}>
+                        <Play size={17} />
+                        <span>이어볼 작품</span>
+                        <strong>{purchasedWorks.length}개</strong>
+                      </button>
+                      <button type="button" onClick={() => openReaderLibrary("scrapped")}>
+                        <Heart size={17} />
+                        <span>스크랩</span>
+                        <strong>{scrappedWorks.length}개</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("discover")}>
+                        <Search size={17} />
+                        <span>장르 탐색</span>
+                        <strong>{readerGenreFilters.slice(0, 3).join(" · ")}</strong>
+                      </button>
+                      <button type="button" onClick={openPayment}>
+                        <Wallet size={17} />
+                        <span>보유 코인</span>
+                        <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => navigate("studio")}>
+                        <UserRound size={17} />
+                        <span>프로필 완성도</span>
+                        <strong>{studioProfileCompletion.percent}%</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("matching")}>
+                        <MessageCircle size={17} />
+                        <span>대기 제안</span>
+                        <strong>{matchInboxCounts.pending}건</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("settlement")}>
+                        <Split size={17} />
+                        <span>예상 정산</span>
+                        <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("support")}>
+                        <ShieldCheck size={17} />
+                        <span>도움센터</span>
+                        <strong>문의/신고</strong>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </section>
 
               <div className="app-home-main-card">
                 {(() => {

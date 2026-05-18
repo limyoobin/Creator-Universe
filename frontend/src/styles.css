@@ -12650,6 +12650,131 @@ body.cu-android-app .app-home-main-card p {
   line-height: 1.62;
 }
 
+body.cu-android-app .app-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 7px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 7%, transparent);
+}
+
+body.cu-android-app .app-mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 16px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-mode-switch button.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--brand) 20%, transparent);
+}
+
+body.cu-android-app .app-purpose-panel {
+  display: grid;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 15px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 10rem),
+    radial-gradient(circle at 100% 12%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 9rem),
+    var(--surface);
+  box-shadow: 0 16px 42px color-mix(in srgb, #000 8%, transparent);
+}
+
+body.cu-android-app .app-purpose-panel.creator {
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--violet) 13%, transparent), transparent 10rem),
+    radial-gradient(circle at 100% 10%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 9rem),
+    var(--surface);
+}
+
+body.cu-android-app .app-purpose-head {
+  display: grid;
+  gap: 5px;
+}
+
+body.cu-android-app .app-purpose-head span {
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+body.cu-android-app .app-purpose-head strong {
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.22;
+  letter-spacing: -0.055em;
+}
+
+body.cu-android-app .app-purpose-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
+body.cu-android-app .app-purpose-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.cu-android-app .app-purpose-grid button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 68px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 11px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  text-align: left;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+}
+
+body.cu-android-app .app-purpose-grid button svg {
+  grid-row: span 2;
+  color: var(--brand);
+}
+
+body.cu-android-app .app-purpose-grid span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 950;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-purpose-grid strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 body.cu-android-app .app-home-main-card {
   display: grid;
   grid-template-columns: 96px 1fr;
@@ -14960,6 +15085,14 @@ body.cu-android-app .app-support-topic-grid button {
 @media (max-width: 380px) {
   body.cu-android-app .app-support-topic-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.cu-android-app .app-purpose-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.cu-android-app .app-purpose-grid button {
+    min-height: 58px !important;
   }
 }
 
