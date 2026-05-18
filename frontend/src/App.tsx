@@ -4787,6 +4787,32 @@ export function App() {
                         <div className="aurora-orb orb-one" />
                         <div className="aurora-orb orb-two" />
                         <div className="moon" />
+                        <div className="universe-3d-scene" aria-hidden="true">
+                          <div className="orbit-ring ring-one" />
+                          <div className="orbit-ring ring-two" />
+                          <div className="orbit-ring ring-three" />
+                          <div className="constellation-core">
+                            <img src="/logo.png" alt="" />
+                            <span />
+                            <span />
+                            <span />
+                          </div>
+                          <div className="orbit-card orbit-card-work">
+                            <BookOpen size={15} />
+                            <b>작품 IP</b>
+                            <small>웹툰 · 소설 · 오디오</small>
+                          </div>
+                          <div className="orbit-card orbit-card-match">
+                            <Users size={15} />
+                            <b>팀 매칭</b>
+                            <small>글 · 그림 · 목소리</small>
+                          </div>
+                          <div className="orbit-card orbit-card-settle">
+                            <Split size={15} />
+                            <b>자동 정산</b>
+                            <small>30 · 30 · 40</small>
+                          </div>
+                        </div>
                         <div className="city-lines" />
                         <div className="character-card">
                           <span>{slide.visualLabel}</span>

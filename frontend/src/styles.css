@@ -948,6 +948,156 @@ main {
   pointer-events: none;
 }
 
+.universe-3d-scene {
+  position: absolute;
+  inset: 34px 24px 86px;
+  perspective: 920px;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.orbit-ring {
+  position: absolute;
+  inset: 50%;
+  width: 320px;
+  height: 136px;
+  margin: -68px 0 0 -160px;
+  border: 1px solid rgba(159, 243, 255, 0.26);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 30px rgba(159, 243, 255, 0.08),
+    0 0 26px rgba(159, 243, 255, 0.08);
+  transform-style: preserve-3d;
+}
+
+.ring-one {
+  transform: rotateX(68deg) rotateZ(-14deg) translateZ(6px);
+  animation: orbitSpin 16s linear infinite;
+}
+
+.ring-two {
+  width: 390px;
+  height: 172px;
+  margin: -86px 0 0 -195px;
+  border-color: color-mix(in srgb, var(--slide-accent) 34%, transparent);
+  transform: rotateX(62deg) rotateZ(36deg) translateZ(-24px);
+  animation: orbitSpin 22s linear infinite reverse;
+}
+
+.ring-three {
+  width: 250px;
+  height: 102px;
+  margin: -51px 0 0 -125px;
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: rotateX(74deg) rotateZ(82deg) translateZ(34px);
+  animation: orbitSpin 13s linear infinite;
+}
+
+.constellation-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 132px;
+  height: 132px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.24), transparent 32px),
+    linear-gradient(145deg, rgba(10, 16, 34, 0.94), rgba(24, 36, 82, 0.82));
+  box-shadow:
+    0 24px 70px color-mix(in srgb, var(--slide-accent) 24%, transparent),
+    inset 0 0 34px rgba(255, 255, 255, 0.08);
+  transform: translate3d(-50%, -50%, 76px) rotateX(10deg) rotateY(-18deg);
+  animation: coreFloat3d 6.5s ease-in-out infinite;
+}
+
+.constellation-core img {
+  width: 76px;
+  height: 76px;
+  border-radius: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.32));
+}
+
+.constellation-core span {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.8);
+}
+
+.constellation-core span:nth-child(2) {
+  top: 24px;
+  left: 34px;
+}
+
+.constellation-core span:nth-child(3) {
+  right: 28px;
+  top: 54px;
+}
+
+.constellation-core span:nth-child(4) {
+  left: 50px;
+  bottom: 26px;
+}
+
+.orbit-card {
+  position: absolute;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  align-items: center;
+  min-width: 142px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  padding: 12px;
+  color: #fff;
+  background: rgba(8, 12, 24, 0.58);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
+  transform-style: preserve-3d;
+}
+
+.orbit-card svg {
+  grid-row: span 2;
+  color: #9ff3ff;
+}
+
+.orbit-card b {
+  font-size: 13px;
+}
+
+.orbit-card small {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.orbit-card-work {
+  top: 34px;
+  right: 20px;
+  transform: translateZ(112px) rotateY(-18deg);
+  animation: orbitCardFloat 5.2s ease-in-out infinite;
+}
+
+.orbit-card-match {
+  left: 6px;
+  top: 132px;
+  transform: translateZ(70px) rotateY(16deg);
+  animation: orbitCardFloat 6.4s ease-in-out infinite reverse;
+}
+
+.orbit-card-settle {
+  right: 42px;
+  bottom: 18px;
+  transform: translateZ(92px) rotateX(8deg) rotateY(-10deg);
+  animation: orbitCardFloat 5.8s ease-in-out infinite;
+}
+
 .aurora-orb {
   position: absolute;
   border-radius: 50%;
@@ -13870,6 +14020,24 @@ body.cu-android-app .studio-visual {
   display: none;
 }
 
+@media (max-width: 860px) {
+  .universe-3d-scene {
+    inset: 28px 18px 86px;
+    opacity: 0.82;
+    transform: scale(0.88);
+    transform-origin: center;
+  }
+
+  .orbit-card {
+    min-width: 126px;
+    padding: 10px;
+  }
+}
+
+body.cu-android-app .universe-3d-scene {
+  display: none;
+}
+
 body.cu-android-app .intro-hero {
   min-height: 0;
   padding: 22px 18px 20px;
@@ -14902,6 +15070,35 @@ body.cu-android-app .app-support-topic-grid button {
   }
   50% {
     transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+@keyframes orbitSpin {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes coreFloat3d {
+  0%,
+  100% {
+    transform: translate3d(-50%, -50%, 76px) rotateX(10deg) rotateY(-18deg) translateY(0);
+  }
+  50% {
+    transform: translate3d(-50%, -50%, 94px) rotateX(14deg) rotateY(14deg) translateY(-10px);
+  }
+}
+
+@keyframes orbitCardFloat {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -12px;
   }
 }
 
