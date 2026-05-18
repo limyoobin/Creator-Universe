@@ -676,7 +676,7 @@ const newEpisodeAlertMap: Record<string, { title: string; episodeLabel: string; 
   "neon-pulse-zero": { title: "5화. 파일럿 컷 공개", episodeLabel: "신규 애니메이션 회차", publishedAt: "오늘" },
 };
 
-const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement", "support"]);
+const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement"]);
 
 const walletFallback: WalletDetail = {
   balance: 0,
@@ -7115,6 +7115,7 @@ export function App() {
         <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 올리기</span><small>창작자 홈으로 이동</small></button>
         <button onClick={() => navigate("matching")}><Search size={18} /><span>팀원 찾기</span><small>작가·그림·성우 탐색</small></button>
         <button onClick={() => navigate("settlement")}><Split size={18} /><span>정산 보기</span><small>수익 분배 확인</small></button>
+        <button onClick={() => navigate("support")}><ShieldCheck size={18} /><span>고객센터</span><small>문의·신고 접수</small></button>
         <button
           onClick={() => {
             setIsMobileQuickOpen(false);

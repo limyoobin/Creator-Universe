@@ -14733,7 +14733,7 @@ body.cu-android-app .mobile-quick-backdrop {
 
 body.cu-android-app .mobile-quick-sheet.open {
   z-index: 36 !important;
-  max-height: min(74dvh, 560px) !important;
+  max-height: min(78dvh, 600px) !important;
   overflow-y: auto !important;
   -webkit-overflow-scrolling: touch !important;
 }
@@ -14764,6 +14764,35 @@ body.cu-android-app .notification-panel {
 
 body.cu-android-app .notification-panel::before {
   display: none !important;
+}
+
+body.cu-android-app .support-page {
+  gap: 11px !important;
+}
+
+body.cu-android-app .app-support-dashboard {
+  padding-bottom: 2px !important;
+}
+
+body.cu-android-app .app-support-card textarea {
+  max-height: 160px !important;
+}
+
+body.cu-android-app .app-support-topic-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-support-topic-grid button {
+  grid-template-columns: 1fr !important;
+  justify-items: center !important;
+  text-align: center !important;
+  padding: 10px 6px !important;
+}
+
+@media (max-width: 380px) {
+  body.cu-android-app .app-support-topic-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 }
 
 @keyframes drawerDrop {
