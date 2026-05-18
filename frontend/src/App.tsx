@@ -4916,6 +4916,98 @@ export function App() {
         )}
 
         {activePage === "discover" && <section className="section discover-page page-panel">
+          <section className="app-discover-dashboard" aria-label="앱 작품 탐색 요약">
+            <div className="app-discover-head">
+              <span>Library</span>
+              <h2>오늘 볼 작품을 빠르게 찾기</h2>
+              <p>앱에서는 검색, 이어보기, 스크랩을 먼저 보여줘서 복잡하게 내려가지 않아도 바로 감상할 수 있게 했어요.</p>
+            </div>
+
+            <label className="app-discover-search">
+              <Search size={17} />
+              <input
+                value={readerSearch}
+                onChange={(event) => setReaderSearch(event.target.value)}
+                placeholder="웹툰 로맨스, 소설 판타지처럼 검색"
+                type="search"
+              />
+            </label>
+
+            <div className="app-discover-library-tabs" aria-label="앱 작품 보관함 바로가기">
+              {libraryViewItems.map((item) => {
+                const count =
+                  item.id === "recent"
+                    ? recentWorkIds.length
+                    : item.id === "purchased"
+                      ? purchasedWorkIds.length
+                      : item.id === "scrapped"
+                        ? scrappedWorkIds.length
+                        : readerWorks.length;
+
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={readerLibraryView === item.id ? "active" : ""}
+                    onClick={() => {
+                      if ((item.id === "purchased" || item.id === "scrapped") && !token) {
+                        setAuthMode("login");
+                        return;
+                      }
+                      setReaderLibraryView(item.id);
+                      window.setTimeout(() => {
+                        librarySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 80);
+                    }}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <article className="app-continue-card">
+              {(() => {
+                const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
+                const progress = workProgress[continueWork.id];
+
+                return (
+                  <>
+                    <img src={continueWork.coverImage} alt="" />
+                    <div>
+                      <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : "추천 이어보기"}</span>
+                      <strong>{continueWork.title}</strong>
+                      <p>{continueWork.format} · {continueWork.genre}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedWork(continueWork);
+                        setReviewWorkId(continueWork.id);
+                      }}
+                    >
+                      <Play size={15} /> 보기
+                    </button>
+                  </>
+                );
+              })()}
+            </article>
+
+            <div className="app-filter-strip" aria-label="앱 장르 빠른 선택">
+              {[...readerFormatFilters.slice(0, 5), ...readerGenreFilters.slice(0, 6)].map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className={(filter === "전체" ? readerFilters.length === 0 : readerFilters.includes(filter)) ? "active" : ""}
+                  onClick={() => toggleReaderFilter(filter)}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </section>
+
           <div className="discover-hero">
             <div>
               <p className="kicker">Multi Content Library</p>
