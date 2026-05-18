@@ -1303,12 +1303,13 @@ main {
 .feature-3d-object {
   position: absolute;
   right: 16px;
-  top: 18px;
+  top: auto;
+  bottom: 8px;
   width: 112px;
   height: 104px;
   perspective: 540px;
   transform-style: preserve-3d;
-  opacity: 0.92;
+  opacity: 0.58;
   pointer-events: none;
 }
 
@@ -1401,18 +1402,23 @@ main {
 }
 
 .mock-card {
+  position: relative;
   min-height: 220px;
   overflow: hidden;
   padding: 22px;
 }
 
 .mock-card span {
+  position: relative;
+  z-index: 2;
   color: var(--cyan);
   font-size: 12px;
   font-weight: 900;
 }
 
 .mock-card strong {
+  position: relative;
+  z-index: 2;
   display: block;
   margin-top: 8px;
   font-size: 22px;
@@ -1448,37 +1454,152 @@ main {
 }
 
 .avatar-row {
-  display: flex;
-  margin-top: 54px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 42px;
+  perspective: 760px;
+  transform-style: preserve-3d;
 }
 
 .avatar-row i {
-  width: 54px;
-  height: 54px;
-  margin-right: -10px;
-  border: 4px solid var(--surface);
-  border-radius: 50%;
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 82px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 22px;
   background: linear-gradient(135deg, var(--brand), var(--cyan));
+  box-shadow:
+    0 18px 30px color-mix(in srgb, var(--brand) 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  transform: rotateX(12deg) rotateY(-18deg) translateZ(10px);
+  animation: studioOrbFloat 5.4s ease-in-out infinite;
+}
+
+.avatar-row i::before {
+  color: #fff;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.avatar-row i::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 44px;
+  height: 12px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 28%, transparent), transparent 70%);
+  filter: blur(5px);
+  transform: translateX(-50%);
+}
+
+.avatar-row i:nth-child(1)::before {
+  content: "작가";
 }
 
 .avatar-row i:nth-child(2) {
   background: linear-gradient(135deg, var(--violet), var(--brand));
+  animation-delay: -1s;
+}
+
+.avatar-row i:nth-child(2)::before {
+  content: "그림";
 }
 
 .avatar-row i:nth-child(3) {
   background: linear-gradient(135deg, #ffb84d, var(--brand));
+  animation-delay: -2s;
+}
+
+.avatar-row i:nth-child(3)::before {
+  content: "성우";
 }
 
 .avatar-row i:nth-child(4) {
   background: linear-gradient(135deg, var(--cyan), var(--violet));
+  animation-delay: -3s;
+}
+
+.avatar-row i:nth-child(4)::before {
+  content: "BGM";
 }
 
 .mini-donut {
-  width: 118px;
-  height: 118px;
-  margin: 34px auto 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--surface) 0 46%, transparent 47%), conic-gradient(var(--brand) 0 30%, var(--cyan) 30% 60%, var(--violet) 60% 100%);
+  position: relative;
+  width: 190px;
+  height: 126px;
+  margin: 28px auto 0;
+  perspective: 740px;
+  transform-style: preserve-3d;
+  background: none;
+}
+
+.mini-donut::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, var(--surface) 0 42%, transparent 43%),
+    conic-gradient(var(--brand) 0 30%, var(--cyan) 30% 60%, var(--violet) 60% 100%);
+  box-shadow: 0 24px 40px color-mix(in srgb, var(--brand) 18%, transparent);
+  transform: translateX(-50%) rotateX(58deg);
+  animation: coinPulse3d 4.4s ease-in-out infinite;
+}
+
+.mini-donut::after {
+  content: "30 · 30 · 40";
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 132px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: 0 14px 26px color-mix(in srgb, #000 8%, transparent);
+  font-size: 12px;
+  font-weight: 950;
+  transform: translateX(-50%);
+}
+
+.settlement-mock::after,
+.settlement-mock::before {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.settlement-mock::before {
+  right: 18px;
+  bottom: 38px;
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #ffd166, #ff8a3d);
+  box-shadow: 0 18px 28px rgba(255, 184, 77, 0.22);
+}
+
+.settlement-mock::after {
+  left: 28px;
+  bottom: 44px;
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, var(--cyan), var(--violet));
+  box-shadow: 0 18px 28px rgba(103, 232, 249, 0.2);
 }
 
 .mission-section {
