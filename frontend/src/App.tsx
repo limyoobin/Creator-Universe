@@ -5005,13 +5005,26 @@ export function App() {
                 <h2>결제 한 번이 팀 전체의 정산까지 이어지는 구조</h2>
                 <p>단순히 콘텐츠를 올리는 곳이 아니라, 협업의 시작부터 수익 분배까지 하나의 데이터 흐름으로 묶습니다.</p>
               </div>
-              <div className="flow-rail">
-                {serviceFlow.map((item, index) => (
-                  <div key={item}>
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <strong>{item}</strong>
+              <div className="flow-visual-stack">
+                <div className="flow-3d-pipeline" aria-hidden="true">
+                  <div className="flow-coin-core">
+                    <Coins size={24} />
+                    <strong>1,000</strong>
                   </div>
-                ))}
+                  <div className="flow-fee-chip">수수료 15%</div>
+                  <div className="flow-split-line" />
+                  <div className="flow-wallet-node writer"><span>작가</span><b>30%</b></div>
+                  <div className="flow-wallet-node artist"><span>그림</span><b>30%</b></div>
+                  <div className="flow-wallet-node voice"><span>성우</span><b>40%</b></div>
+                </div>
+                <div className="flow-rail">
+                  {serviceFlow.map((item, index) => (
+                    <div key={item}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{item}</strong>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
 

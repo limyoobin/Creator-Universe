@@ -1685,13 +1685,142 @@ main {
   grid-template-columns: 0.68fr 1.32fr;
   gap: 24px;
   align-items: center;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 32px;
   padding: 34px;
   background:
+    radial-gradient(circle at 72% 16%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 18rem),
+    radial-gradient(circle at 88% 78%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 16rem),
     linear-gradient(135deg, color-mix(in srgb, var(--surface) 88%, transparent), color-mix(in srgb, var(--surface-2) 92%, transparent)),
     var(--surface);
   box-shadow: var(--shadow);
+}
+
+.flow-visual-stack {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.flow-3d-pipeline {
+  position: relative;
+  min-height: 230px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+  border-radius: 28px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 50% 16%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 12rem),
+    color-mix(in srgb, var(--surface) 82%, transparent);
+  background-size: 26px 26px, 26px 26px, auto, auto;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 20%, transparent),
+    0 18px 46px color-mix(in srgb, #000 8%, transparent);
+  perspective: 820px;
+  transform-style: preserve-3d;
+}
+
+.flow-coin-core {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  z-index: 2;
+  display: grid;
+  width: 116px;
+  height: 92px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 32px;
+  color: #111827;
+  background:
+    radial-gradient(circle at 34% 26%, #fff8c7, transparent 28%),
+    linear-gradient(135deg, #ffd166, #ff8a3d);
+  box-shadow: 0 28px 48px rgba(255, 184, 77, 0.26);
+  transform: translateX(-50%) rotateX(54deg) translateZ(34px);
+  animation: flowCoinHover 4.4s ease-in-out infinite;
+}
+
+.flow-coin-core svg {
+  width: 24px;
+  height: 24px;
+}
+
+.flow-coin-core strong {
+  font-size: 20px;
+  letter-spacing: -0.05em;
+}
+
+.flow-fee-chip {
+  position: absolute;
+  left: 50%;
+  top: 112px;
+  z-index: 2;
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 999px;
+  padding: 8px 13px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: 0 14px 30px color-mix(in srgb, #000 8%, transparent);
+  font-size: 12px;
+  font-weight: 950;
+  transform: translateX(-50%);
+}
+
+.flow-split-line {
+  position: absolute;
+  left: 50%;
+  top: 86px;
+  width: min(520px, 78%);
+  height: 138px;
+  border: 1px dashed color-mix(in srgb, var(--cyan) 48%, transparent);
+  border-top: 0;
+  border-radius: 0 0 999px 999px;
+  transform: translateX(-50%) rotateX(62deg);
+  animation: flowLinePulse 4.8s ease-in-out infinite;
+}
+
+.flow-wallet-node {
+  position: absolute;
+  bottom: 26px;
+  z-index: 2;
+  display: grid;
+  width: 104px;
+  height: 72px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 24px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  box-shadow: 0 22px 38px color-mix(in srgb, var(--brand) 20%, transparent);
+  transform: rotateX(14deg) translateZ(20px);
+  animation: flowWalletFloat 5s ease-in-out infinite;
+}
+
+.flow-wallet-node span {
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.flow-wallet-node b {
+  font-size: 23px;
+  letter-spacing: -0.05em;
+}
+
+.flow-wallet-node.writer {
+  left: 12%;
+}
+
+.flow-wallet-node.artist {
+  left: calc(50% - 52px);
+  background: linear-gradient(135deg, var(--cyan), var(--violet));
+  animation-delay: -1.4s;
+}
+
+.flow-wallet-node.voice {
+  right: 12%;
+  background: linear-gradient(135deg, #ffb84d, var(--brand));
+  animation-delay: -2.8s;
 }
 
 .flow-rail {
@@ -10950,6 +11079,23 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     grid-template-columns: 1fr 1fr;
   }
 
+  .flow-3d-pipeline {
+    min-height: 210px;
+  }
+
+  .flow-wallet-node {
+    width: 92px;
+    height: 66px;
+  }
+
+  .flow-wallet-node.writer {
+    left: 6%;
+  }
+
+  .flow-wallet-node.voice {
+    right: 6%;
+  }
+
   .flow-rail div::after {
     display: none;
   }
@@ -11111,6 +11257,26 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
   .flow-rail {
     grid-template-columns: 1fr;
+  }
+
+  .flow-3d-pipeline {
+    min-height: 244px;
+  }
+
+  .flow-split-line {
+    top: 88px;
+    width: 72%;
+    height: 150px;
+  }
+
+  .flow-wallet-node {
+    width: 78px;
+    height: 62px;
+    border-radius: 20px;
+  }
+
+  .flow-wallet-node b {
+    font-size: 18px;
   }
 
   .flow-rail div {
@@ -15674,6 +15840,35 @@ body.cu-android-app .feature-3d-object {
   }
   50% {
     transform: rotateX(54deg) rotateZ(6deg) translateY(-10px);
+  }
+}
+
+@keyframes flowCoinHover {
+  0%, 100% {
+    transform: translateX(-50%) rotateX(54deg) translateZ(34px) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) rotateX(54deg) translateZ(42px) translateY(-10px);
+  }
+}
+
+@keyframes flowLinePulse {
+  0%, 100% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 0 color-mix(in srgb, var(--cyan) 0%, transparent));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--cyan) 36%, transparent));
+  }
+}
+
+@keyframes flowWalletFloat {
+  0%, 100% {
+    transform: rotateX(14deg) translateZ(20px) translateY(0);
+  }
+  50% {
+    transform: rotateX(14deg) translateZ(34px) translateY(-9px);
   }
 }
 
