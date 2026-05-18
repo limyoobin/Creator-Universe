@@ -7084,14 +7084,50 @@ export function App() {
         </button>
       </nav>
 
+      {isMobileQuickOpen && (
+        <button
+          className="mobile-quick-backdrop"
+          type="button"
+          onClick={() => setIsMobileQuickOpen(false)}
+          aria-label="빠른 메뉴 닫기"
+        />
+      )}
+
       <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
         <div className="quick-sheet-head">
           <strong>무엇을 할까요?</strong>
           <span>자주 쓰는 기능만 모았어요</span>
         </div>
+        <div className="quick-sheet-summary" aria-label="앱 빠른 상태 요약">
+          <div>
+            <span>코인</span>
+            <strong>{formatCoins(wallet ?? 0)}</strong>
+          </div>
+          <div>
+            <span>알림</span>
+            <strong>{unreadNotificationCount}개</strong>
+          </div>
+          <div>
+            <span>이어보기</span>
+            <strong>{recentWorks.length}개</strong>
+          </div>
+        </div>
         <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 올리기</span><small>창작자 홈으로 이동</small></button>
         <button onClick={() => navigate("matching")}><Search size={18} /><span>팀원 찾기</span><small>작가·그림·성우 탐색</small></button>
         <button onClick={() => navigate("settlement")}><Split size={18} /><span>정산 보기</span><small>수익 분배 확인</small></button>
+        <button
+          onClick={() => {
+            setIsMobileQuickOpen(false);
+            if (!token) {
+              setAuthMode("login");
+              return;
+            }
+            setIsNotificationOpen(true);
+            setIsAccountMenuOpen(false);
+          }}
+        >
+          <Bell size={18} /><span>알림 확인</span><small>신작·매칭·정산 알림</small>
+        </button>
         <button
           onClick={() => {
             setIsMobileQuickOpen(false);

@@ -9037,6 +9037,10 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   color: var(--brand);
 }
 
+.mobile-quick-backdrop {
+  display: none;
+}
+
 .boot-loader {
   position: fixed;
   inset: 0;
@@ -13704,6 +13708,118 @@ body.cu-android-app .support-message {
   font-weight: 900;
 }
 
+/* App final polish: quick menu and notifications behave like native bottom sheets. */
+body.cu-android-app .mobile-quick-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  display: block;
+  border: 0;
+  background: rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(3px);
+}
+
+body.cu-android-app .mobile-quick-sheet {
+  z-index: 36;
+  max-height: min(74dvh, 560px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .quick-sheet-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 8px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 9rem),
+    var(--surface);
+}
+
+body.cu-android-app .quick-sheet-summary div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-radius: 14px;
+  padding: 9px 7px;
+  background: var(--surface-2);
+}
+
+body.cu-android-app .quick-sheet-summary span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 950;
+}
+
+body.cu-android-app .quick-sheet-summary strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12.5px;
+  letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .notification-panel {
+  position: fixed;
+  top: auto;
+  right: 10px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  left: 10px;
+  width: auto;
+  max-height: min(72dvh, 560px);
+  overflow-y: auto;
+  border-radius: 24px;
+  padding: 12px;
+  transform: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.cu-android-app .notification-panel::before {
+  display: none;
+}
+
+body.cu-android-app .notification-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: -12px -12px 8px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 24px 24px 0 0;
+  padding: 14px 12px 10px;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+body.cu-android-app .notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+body.cu-android-app .notification-item {
+  grid-template-columns: auto 1fr;
+  border-radius: 18px;
+  padding: 10px;
+}
+
+body.cu-android-app .notification-preference-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+body.cu-android-app .notification-preference-strip button {
+  min-height: 38px;
+  border-radius: 14px;
+}
+
+body.cu-android-app .app-primary-tabs {
+  z-index: 35;
+}
+
 body.cu-android-app .topbar {
   grid-template-columns: auto 1fr;
   gap: 8px;
@@ -14602,6 +14718,52 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) .messenger-input 
   body.cu-android-app .floating-messenger.fullscreen-mode {
     top: max(86px, env(safe-area-inset-top)) !important;
   }
+}
+
+/* Final Android app overrides must stay near the end because earlier mobile passes tune the same widgets. */
+body.cu-android-app .mobile-quick-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 34 !important;
+  display: block !important;
+  border: 0 !important;
+  background: rgba(15, 23, 42, 0.18) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+body.cu-android-app .mobile-quick-sheet.open {
+  z-index: 36 !important;
+  max-height: min(74dvh, 560px) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.cu-android-app .quick-sheet-summary {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 18px !important;
+  padding: 8px !important;
+  background: var(--surface) !important;
+}
+
+body.cu-android-app .notification-panel {
+  position: fixed !important;
+  top: auto !important;
+  right: 10px !important;
+  bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+  left: 10px !important;
+  width: auto !important;
+  max-height: min(72dvh, 560px) !important;
+  overflow-y: auto !important;
+  border-radius: 24px !important;
+  transform: none !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.cu-android-app .notification-panel::before {
+  display: none !important;
 }
 
 @keyframes drawerDrop {
