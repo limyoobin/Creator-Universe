@@ -5367,6 +5367,78 @@ export function App() {
         </section>}
 
         {activePage === "studio" && <section className="section studio-page page-panel">
+          <section className="app-studio-dashboard" aria-label="앱 창작자 스튜디오 요약">
+            <div className="app-studio-head">
+              <span>Creator Studio</span>
+              <h2>{myCreatorProfile ? "오늘의 창작 스튜디오" : "먼저 내 프로필을 만들어볼까요?"}</h2>
+              <p>
+                앱에서는 자주 쓰는 작업만 앞에 모았습니다. 프로필 등록, 매칭 제안 확인, 채팅, 지갑 이동을 빠르게 시작할 수 있어요.
+              </p>
+            </div>
+
+            <div className="app-studio-status-grid">
+              <article>
+                <UserRound size={18} />
+                <span>프로필</span>
+                <strong>{studioProfileCompletion.percent}%</strong>
+                <p>{myCreatorProfile ? roleLabels[myCreatorProfile.primaryRole] : "등록 대기"}</p>
+              </article>
+              <article>
+                <MessageCircle size={18} />
+                <span>제안함</span>
+                <strong>{matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length}건</strong>
+                <p>대기 중</p>
+              </article>
+              <article>
+                <Wallet size={18} />
+                <span>지갑</span>
+                <strong>{formatCoins(wallet ?? 0)}</strong>
+                <p>보유 코인</p>
+              </article>
+            </div>
+
+            <div className="app-studio-flow-card">
+              <span>추천 순서</span>
+              <div>
+                <b>1</b>
+                <p>프로필 공개</p>
+              </div>
+              <div>
+                <b>2</b>
+                <p>팀원 찾기</p>
+              </div>
+              <div>
+                <b>3</b>
+                <p>제안 수락</p>
+              </div>
+              <div>
+                <b>4</b>
+                <p>정산 확인</p>
+              </div>
+            </div>
+
+            <div className="app-studio-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreatorProfileFormOpen(true);
+                  navigate("matching");
+                }}
+              >
+                <UserPlus size={16} /> 프로필 등록
+              </button>
+              <button type="button" onClick={() => navigate("matching")}>
+                <Users size={16} /> 팀원 찾기
+              </button>
+              <button type="button" onClick={() => openCreatorMessenger()}>
+                <MessageCircle size={16} /> 채팅 열기
+              </button>
+              <button type="button" onClick={() => navigate("wallet")}>
+                <Wallet size={16} /> 지갑
+              </button>
+            </div>
+          </section>
+
           <div className="studio-hero">
             <div>
               <p className="kicker">Creator Studio</p>
@@ -6031,6 +6103,80 @@ export function App() {
         </section>}
 
         {activePage === "matching" && <section className="section matching-page page-panel">
+          <section className="app-matching-dashboard" aria-label="앱 팀원 찾기 요약">
+            <div className="app-matching-head">
+              <span>Team Matching</span>
+              <h2>필요한 팀원을 빠르게 찾기</h2>
+              <p>직군을 고르고 검색한 뒤 바로 채팅하거나 지분 제안을 보낼 수 있게 앱 전용으로 단순화했습니다.</p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!token) {
+                      setAuthMode("login");
+                      return;
+                    }
+                    setIsCreatorProfileFormOpen((value) => !value);
+                  }}
+                >
+                  <UserPlus size={16} /> 내 프로필
+                </button>
+                <button type="button" onClick={() => openCreatorMessenger()}>
+                  <MessageCircle size={16} /> 채팅
+                </button>
+              </div>
+            </div>
+
+            <label className="app-matching-search">
+              <Search size={17} />
+              <input
+                value={matchingSearch}
+                onChange={(event) => setMatchingSearch(event.target.value)}
+                placeholder="예: 로맨스 작가, 판타지 BGM, 웹툰 그림"
+                type="search"
+              />
+            </label>
+
+            <div className="app-role-strip" aria-label="앱 직군 필터">
+              {roleFilterItems.map((item) => (
+                <button key={item} className={role === item ? "active" : ""} onClick={() => setRole(item)} type="button">
+                  {item === "ALL" ? "전체" : roleLabels[item]}
+                </button>
+              ))}
+            </div>
+
+            <div className="app-matching-shortcuts">
+              <button type="button" onClick={() => setMatchInboxFilter("received")}>
+                <span>받은 제안</span>
+                <strong>{matchInboxCounts.received}</strong>
+              </button>
+              <button type="button" onClick={() => setMatchInboxFilter("sent")}>
+                <span>보낸 제안</span>
+                <strong>{matchInboxCounts.sent}</strong>
+              </button>
+              <button type="button" onClick={() => setMatchInboxFilter("accepted")}>
+                <span>합류 완료</span>
+                <strong>{matchInboxCounts.accepted}</strong>
+              </button>
+            </div>
+
+            <div className="app-matching-featured">
+              {filteredCreators.slice(0, 3).map((creator) => (
+                <article key={creator.id}>
+                  <i>{creator.displayName.slice(0, 1)}</i>
+                  <div>
+                    <span>{roleLabels[creator.primaryRole]}</span>
+                    <strong>{creator.displayName}</strong>
+                    <p>{creator.headline}</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedCreator(creator)}>
+                    보기
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
+
           <div className="matching-hero">
             <div>
               <p className="kicker">Creator Match Board</p>
