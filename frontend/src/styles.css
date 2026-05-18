@@ -1047,6 +1047,7 @@ main {
 
 .orbit-card {
   position: absolute;
+  z-index: 3;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 4px 8px;
@@ -1092,9 +1093,11 @@ main {
 }
 
 .orbit-card-settle {
-  right: 42px;
-  bottom: 18px;
-  transform: translateZ(92px) rotateX(8deg) rotateY(-10deg);
+  right: 26px;
+  bottom: 96px;
+  z-index: 6;
+  min-width: 158px;
+  transform: translateZ(118px) rotateX(7deg) rotateY(-8deg);
   animation: orbitCardFloat 5.8s ease-in-out infinite;
 }
 
@@ -1147,9 +1150,10 @@ main {
 
 .character-card {
   position: absolute;
+  z-index: 5;
   left: 28px;
   bottom: 28px;
-  width: min(280px, calc(100% - 56px));
+  width: min(274px, calc(100% - 56px));
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 22px;
   padding: 18px;
@@ -1205,7 +1209,8 @@ main {
 
 .widget-right {
   right: 34px;
-  bottom: 42px;
+  bottom: 28px;
+  z-index: 7;
   animation: widgetFloat 6.4s ease-in-out infinite reverse;
 }
 
@@ -1708,7 +1713,7 @@ main {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
-  align-items: center;
+  align-items: stretch;
   border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
   border-radius: 30px;
   padding: 18px;
@@ -1755,7 +1760,7 @@ main {
   box-shadow:
     0 18px 34px color-mix(in srgb, #000 7%, transparent),
     inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent);
-  transform: translateY(-6px);
+  transform: none;
   transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
   overflow: hidden;
 }
@@ -1777,15 +1782,7 @@ main {
   box-shadow:
     0 24px 46px color-mix(in srgb, var(--brand) 13%, transparent),
     inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
-  transform: translateY(-14px);
-}
-
-.flow-rail div:nth-child(even) {
-  transform: translateY(18px);
-}
-
-.flow-rail div:nth-child(even):hover {
-  transform: translateY(8px);
+  transform: translateY(-6px);
 }
 
 .flow-rail div:nth-child(2),
@@ -11048,9 +11045,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   }
 
   .flow-rail div,
-  .flow-rail div:nth-child(even),
-  .flow-rail div:hover,
-  .flow-rail div:nth-child(even):hover {
+  .flow-rail div:hover {
     min-height: 124px;
     transform: none;
   }
