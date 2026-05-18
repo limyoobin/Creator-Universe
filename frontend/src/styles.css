@@ -1302,14 +1302,14 @@ main {
 
 .feature-3d-object {
   position: absolute;
-  right: 16px;
+  right: -8px;
   top: auto;
-  bottom: 8px;
-  width: 112px;
-  height: 104px;
+  bottom: -6px;
+  width: 98px;
+  height: 92px;
   perspective: 540px;
   transform-style: preserve-3d;
-  opacity: 0.58;
+  opacity: 0.32;
   pointer-events: none;
 }
 
@@ -1378,6 +1378,7 @@ main {
 .feature-card p {
   position: relative;
   z-index: 2;
+  max-width: 92%;
 }
 
 .showcase-section {
@@ -1699,169 +1700,131 @@ main {
 
 .flow-visual-stack {
   display: grid;
-  gap: 16px;
   min-width: 0;
 }
 
-.flow-3d-pipeline {
-  position: relative;
-  min-height: 230px;
-  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
-  border-radius: 28px;
-  background:
-    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    radial-gradient(circle at 50% 16%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 12rem),
-    color-mix(in srgb, var(--surface) 82%, transparent);
-  background-size: 26px 26px, 26px 26px, auto, auto;
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 20%, transparent),
-    0 18px 46px color-mix(in srgb, #000 8%, transparent);
-  perspective: 820px;
-  transform-style: preserve-3d;
-}
-
-.flow-coin-core {
-  position: absolute;
-  left: 50%;
-  top: 18px;
-  z-index: 2;
-  display: grid;
-  width: 116px;
-  height: 92px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 32px;
-  color: #111827;
-  background:
-    radial-gradient(circle at 34% 26%, #fff8c7, transparent 28%),
-    linear-gradient(135deg, #ffd166, #ff8a3d);
-  box-shadow: 0 28px 48px rgba(255, 184, 77, 0.26);
-  transform: translateX(-50%) rotateX(54deg) translateZ(34px);
-  animation: flowCoinHover 4.4s ease-in-out infinite;
-}
-
-.flow-coin-core svg {
-  width: 24px;
-  height: 24px;
-}
-
-.flow-coin-core strong {
-  font-size: 20px;
-  letter-spacing: -0.05em;
-}
-
-.flow-fee-chip {
-  position: absolute;
-  left: 50%;
-  top: 112px;
-  z-index: 2;
-  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
-  border-radius: 999px;
-  padding: 8px 13px;
-  color: var(--text);
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  box-shadow: 0 14px 30px color-mix(in srgb, #000 8%, transparent);
-  font-size: 12px;
-  font-weight: 950;
-  transform: translateX(-50%);
-}
-
-.flow-split-line {
-  position: absolute;
-  left: 50%;
-  top: 86px;
-  width: min(520px, 78%);
-  height: 138px;
-  border: 1px dashed color-mix(in srgb, var(--cyan) 48%, transparent);
-  border-top: 0;
-  border-radius: 0 0 999px 999px;
-  transform: translateX(-50%) rotateX(62deg);
-  animation: flowLinePulse 4.8s ease-in-out infinite;
-}
-
-.flow-wallet-node {
-  position: absolute;
-  bottom: 26px;
-  z-index: 2;
-  display: grid;
-  width: 104px;
-  height: 72px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  border-radius: 24px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--brand), var(--violet));
-  box-shadow: 0 22px 38px color-mix(in srgb, var(--brand) 20%, transparent);
-  transform: rotateX(14deg) translateZ(20px);
-  animation: flowWalletFloat 5s ease-in-out infinite;
-}
-
-.flow-wallet-node span {
-  font-size: 12px;
-  font-weight: 950;
-}
-
-.flow-wallet-node b {
-  font-size: 23px;
-  letter-spacing: -0.05em;
-}
-
-.flow-wallet-node.writer {
-  left: 12%;
-}
-
-.flow-wallet-node.artist {
-  left: calc(50% - 52px);
-  background: linear-gradient(135deg, var(--cyan), var(--violet));
-  animation-delay: -1.4s;
-}
-
-.flow-wallet-node.voice {
-  right: 12%;
-  background: linear-gradient(135deg, #ffb84d, var(--brand));
-  animation-delay: -2.8s;
-}
-
 .flow-rail {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--brand) 16%, var(--line));
+  border-radius: 30px;
+  padding: 18px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px) 0 0 / 24px 24px,
+    radial-gradient(circle at 16% 18%, color-mix(in srgb, var(--brand) 13%, transparent), transparent 14rem),
+    radial-gradient(circle at 82% 70%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 15rem),
+    color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 24%, transparent),
+    0 20px 46px color-mix(in srgb, #000 8%, transparent);
+  isolation: isolate;
+}
+
+.flow-rail::before {
+  content: "";
+  position: absolute;
+  inset: 50% 34px auto;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--cyan), var(--violet));
+  box-shadow: 0 0 26px color-mix(in srgb, var(--cyan) 24%, transparent);
+  opacity: 0.42;
+  transform: translateY(-50%);
+  z-index: 0;
 }
 
 .flow-rail div {
   position: relative;
+  z-index: 1;
   display: grid;
-  align-content: space-between;
-  min-height: 164px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 16px;
-  background: var(--surface);
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  min-height: 150px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, var(--brand));
+  border-radius: 24px;
+  padding: 18px 12px;
+  text-align: center;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #fff 16%, transparent), transparent 34%),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow:
+    0 18px 34px color-mix(in srgb, #000 7%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent);
+  transform: translateY(-6px);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  overflow: hidden;
 }
 
-.flow-rail div::after {
+.flow-rail div::before {
   content: "";
   position: absolute;
-  right: -14px;
-  top: 50%;
-  width: 18px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--brand), var(--cyan));
+  inset: auto auto -38px 50%;
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 24%, transparent), transparent 68%);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
-.flow-rail div:last-child::after {
-  display: none;
+.flow-rail div:hover {
+  border-color: color-mix(in srgb, var(--brand) 36%, var(--line));
+  box-shadow:
+    0 24px 46px color-mix(in srgb, var(--brand) 13%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
+  transform: translateY(-14px);
+}
+
+.flow-rail div:nth-child(even) {
+  transform: translateY(18px);
+}
+
+.flow-rail div:nth-child(even):hover {
+  transform: translateY(8px);
+}
+
+.flow-rail div:nth-child(2),
+.flow-rail div:nth-child(5) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--cyan) 11%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+}
+
+.flow-rail div:nth-child(4),
+.flow-rail div:nth-child(6) {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--brand) 12%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface) 94%, transparent);
 }
 
 .flow-rail span {
-  color: var(--brand);
-  font-weight: 900;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--brand) 28%, transparent);
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  box-shadow: 0 16px 28px color-mix(in srgb, var(--brand) 22%, transparent);
+  font-weight: 950;
+  letter-spacing: -0.04em;
 }
 
 .flow-rail strong {
-  font-size: 17px;
-  letter-spacing: -0.04em;
+  position: relative;
+  z-index: 1;
+  max-width: 86px;
+  font-size: 16px;
+  line-height: 1.28;
+  letter-spacing: -0.045em;
 }
 
 .plan-grid {
@@ -11077,27 +11040,19 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
   .flow-rail {
     grid-template-columns: 1fr 1fr;
+    padding: 14px;
   }
 
-  .flow-3d-pipeline {
-    min-height: 210px;
-  }
-
-  .flow-wallet-node {
-    width: 92px;
-    height: 66px;
-  }
-
-  .flow-wallet-node.writer {
-    left: 6%;
-  }
-
-  .flow-wallet-node.voice {
-    right: 6%;
-  }
-
-  .flow-rail div::after {
+  .flow-rail::before {
     display: none;
+  }
+
+  .flow-rail div,
+  .flow-rail div:nth-child(even),
+  .flow-rail div:hover,
+  .flow-rail div:nth-child(even):hover {
+    min-height: 124px;
+    transform: none;
   }
 
   .timeline-list article {
@@ -11259,28 +11214,15 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     grid-template-columns: 1fr;
   }
 
-  .flow-3d-pipeline {
-    min-height: 244px;
-  }
-
-  .flow-split-line {
-    top: 88px;
-    width: 72%;
-    height: 150px;
-  }
-
-  .flow-wallet-node {
-    width: 78px;
-    height: 62px;
-    border-radius: 20px;
-  }
-
-  .flow-wallet-node b {
-    font-size: 18px;
-  }
-
   .flow-rail div {
-    min-height: 118px;
+    min-height: 108px;
+    grid-template-columns: auto 1fr;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .flow-rail strong {
+    max-width: none;
   }
 
   .audience-card b,
@@ -15840,35 +15782,6 @@ body.cu-android-app .feature-3d-object {
   }
   50% {
     transform: rotateX(54deg) rotateZ(6deg) translateY(-10px);
-  }
-}
-
-@keyframes flowCoinHover {
-  0%, 100% {
-    transform: translateX(-50%) rotateX(54deg) translateZ(34px) translateY(0);
-  }
-  50% {
-    transform: translateX(-50%) rotateX(54deg) translateZ(42px) translateY(-10px);
-  }
-}
-
-@keyframes flowLinePulse {
-  0%, 100% {
-    opacity: 0.55;
-    filter: drop-shadow(0 0 0 color-mix(in srgb, var(--cyan) 0%, transparent));
-  }
-  50% {
-    opacity: 1;
-    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--cyan) 36%, transparent));
-  }
-}
-
-@keyframes flowWalletFloat {
-  0%, 100% {
-    transform: rotateX(14deg) translateZ(20px) translateY(0);
-  }
-  50% {
-    transform: rotateX(14deg) translateZ(34px) translateY(-9px);
   }
 }
 
