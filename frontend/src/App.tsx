@@ -2592,6 +2592,66 @@ function AccountModal({
           <button className="ghost-button compact" onClick={onOpenPayment}><Coins size={16} /> 코인 충전</button>
         </section>
 
+        <section className="app-account-dashboard" aria-label="앱 내 계정 요약">
+          <div className="app-account-balance">
+            <span>My Universe</span>
+            <strong>{formatCoins(walletBalance)}</strong>
+            <p>{premiumSubscription.isActive ? `프리미엄 구독중 · 다음 결제 ${formatDateOnly(premiumSubscription.nextBillingDate)}` : "코인 충전, 작품 보관함, 구독 관리를 여기서 바로 시작하세요."}</p>
+          </div>
+
+          <div className="app-account-quick-grid">
+            <button type="button" onClick={() => { onClose(); onNavigate("wallet"); }}>
+              <Wallet size={17} />
+              <span>지갑</span>
+              <b>{formatCoins(walletBalance)}</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onOpenLibrary("purchased"); }}>
+              <BookOpen size={17} />
+              <span>결제 작품</span>
+              <b>{purchasedWorks.length}개</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onOpenLibrary("scrapped"); }}>
+              <Heart size={17} />
+              <span>스크랩</span>
+              <b>{scrappedWorks.length}개</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onOpenLibrary("recent"); }}>
+              <RefreshCw size={17} />
+              <span>이어보기</span>
+              <b>{recentWorks.length}개</b>
+            </button>
+          </div>
+
+          <div className="app-account-premium">
+            <div>
+              <span>Premium</span>
+              <strong>{premiumSubscription.isActive ? "구독중" : "광고 없는 감상 시작"}</strong>
+              <p>{premiumSubscription.isActive ? "해지 전까지 보너스 코인과 광고 제거 혜택이 유지됩니다." : "월 7,900코인으로 광고 제거와 보너스 코인을 받을 수 있어요."}</p>
+            </div>
+            <button type="button" onClick={premiumSubscription.isActive ? onCancelPremium : onStartPremium}>
+              {premiumSubscription.isActive ? "해지" : "구독"}
+            </button>
+          </div>
+
+          <div className="app-account-notice">
+            <button type="button" onClick={() => onToggleNotificationPreference("newEpisode")}>
+              <Bell size={16} />
+              <span>신작 알림</span>
+              <b>{notificationPreferences.newEpisode ? "ON" : "OFF"}</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onNavigate("support"); }}>
+              <ShieldCheck size={16} />
+              <span>도움센터</span>
+              <b>문의/신고</b>
+            </button>
+          </div>
+
+          <div className="app-account-danger">
+            <button type="button" onClick={onLogout}><LogOut size={16} /> 로그아웃</button>
+            <button type="button" onClick={onDeleteAccount}><X size={16} /> 계정 탈퇴</button>
+          </div>
+        </section>
+
         <div className="account-grid">
           <section className="account-panel wallet-account-panel">
             <div className="account-panel-head">
@@ -6836,6 +6896,67 @@ export function App() {
 
         {activePage === "support" && (
           <section className="section support-page page-panel">
+            <section className="app-support-dashboard" aria-label="앱 고객센터 요약">
+              <div className="app-support-head">
+                <span>Help Center</span>
+                <h2>무엇을 도와드릴까요?</h2>
+                <p>앱에서는 자주 쓰는 문의와 신고만 먼저 보이게 정리했습니다. 내용은 백엔드 티켓으로 저장됩니다.</p>
+              </div>
+
+              <div className="app-support-topic-grid">
+                {[
+                  { id: "PAYMENT", label: "결제", icon: <Coins size={17} /> },
+                  { id: "SETTLEMENT", label: "정산", icon: <Split size={17} /> },
+                  { id: "ACCESSIBILITY", label: "접근성", icon: <Headphones size={17} /> },
+                  { id: "BUG", label: "버그", icon: <ShieldCheck size={17} /> },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={supportCategory === item.id ? "active" : ""}
+                    onClick={() => setSupportCategory(item.id)}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <article className="app-support-card">
+                <div>
+                  <span>1:1 문의</span>
+                  <strong>{supportCategory === "PAYMENT" ? "결제/환불 문의" : supportCategory === "SETTLEMENT" ? "정산 문의" : supportCategory === "ACCESSIBILITY" ? "접근성 문의" : "버그 신고"}</strong>
+                </div>
+                <textarea
+                  value={supportBody}
+                  onChange={(event) => setSupportBody(event.target.value)}
+                  placeholder="문제 상황을 짧게 적어주세요. 예: 코인을 충전했는데 잔액이 늘지 않았어요."
+                />
+                <button type="button" onClick={() => void submitSupportTicket()}>
+                  <Send size={16} /> 문의 보내기
+                </button>
+              </article>
+
+              <article className="app-support-card report">
+                <div>
+                  <span>사용자 신고</span>
+                  <strong>매칭/채팅에서 문제가 있었나요?</strong>
+                </div>
+                <select value={reportTargetUserId} onChange={(event) => setReportTargetUserId(event.target.value)}>
+                  <option value="">신고 대상 선택</option>
+                  {creators.map((creator) => <option key={creator.userId} value={creator.userId}>{creator.displayName}</option>)}
+                </select>
+                <textarea
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  placeholder="신고 사유와 상황을 적어주세요."
+                />
+                <button type="button" onClick={() => void submitUserReport()}>
+                  <Bell size={16} /> 신고 접수
+                </button>
+              </article>
+            </section>
+
             <div className="support-hero">
               <div>
                 <p className="kicker">Support & Trust Center</p>
