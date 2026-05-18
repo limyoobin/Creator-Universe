@@ -4500,6 +4500,11 @@ export function App() {
               <span className="cat-heart" />
               <span className="cat-yarn" />
             </div>
+            <div className="loader-3d-universe" aria-hidden="true">
+              <i />
+              <b />
+              <em />
+            </div>
             <strong>크리에이터 유니버스 준비 중</strong>
             <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>
             <div className="loader-dots" aria-hidden="true"><span /><span /><span /></div>
@@ -4931,9 +4936,14 @@ export function App() {
                 <p>흩어진 창작자가 팀을 만들고, 작품을 판매하고, 수익을 투명하게 나누는 과정을 하나의 제품 흐름으로 설계한 멀티 IP 플랫폼입니다.</p>
               </div>
               <div className="feature-grid">
-                {featureCards.map((feature) => (
+                {featureCards.map((feature, index) => (
                   <article key={feature.title} className="feature-card">
                     <span>{feature.icon}</span>
+                    <div className={`feature-3d-object object-${index + 1}`} aria-hidden="true">
+                      <i />
+                      <b />
+                      <em />
+                    </div>
                     <h3>{feature.title}</h3>
                     <p>{feature.text}</p>
                   </article>
@@ -5190,8 +5200,13 @@ export function App() {
           </div>
 
           <section className="content-format-grid" aria-label="콘텐츠 형식별 협업 모델">
-            {contentFormatCards.map((item) => (
+            {contentFormatCards.map((item, index) => (
               <article className="content-format-card" key={item.title}>
+                <div className={`content-3d-stack stack-${index + 1}`} aria-hidden="true">
+                  <i />
+                  <b />
+                  <em />
+                </div>
                 <span>{item.label}</span>
                 <strong>{item.title}</strong>
                 <p>{item.text}</p>
@@ -6367,10 +6382,20 @@ export function App() {
                 </button>
               </div>
             </div>
-            <div className="matching-stats">
-              <div><strong>{creators.length}</strong><span>활동 크리에이터</span></div>
-              <div><strong>0원</strong><span>초기 매칭 수수료</span></div>
-              <div><strong>1/N</strong><span>정산 자동화</span></div>
+            <div className="matching-hero-side">
+              <div className="matching-3d-studio" aria-hidden="true">
+                <span className="studio-table" />
+                <i className="role-orb writer">글</i>
+                <i className="role-orb artist">그림</i>
+                <i className="role-orb voice">목소리</i>
+                <i className="role-orb sound">BGM</i>
+                <b />
+              </div>
+              <div className="matching-stats">
+                <div><strong>{creators.length}</strong><span>활동 크리에이터</span></div>
+                <div><strong>0원</strong><span>초기 매칭 수수료</span></div>
+                <div><strong>1/N</strong><span>정산 자동화</span></div>
+              </div>
             </div>
           </div>
 
@@ -6822,6 +6847,13 @@ export function App() {
               <span>Smart Settlement</span>
               <h2>이번 달 정산 요약</h2>
               <p>매월 15일, 고정 수수료를 제외한 금액이 팀원 지분율대로 자동 분배됩니다.</p>
+              <div className="settlement-3d-flow compact" aria-hidden="true">
+                <i className="coin-source" />
+                <span />
+                <b className="coin-member coin-one" />
+                <b className="coin-member coin-two" />
+                <b className="coin-member coin-three" />
+              </div>
             </div>
 
             <div className="app-settlement-amount-card">
@@ -6869,6 +6901,13 @@ export function App() {
               <p>팀장은 지분율과 팀원 동의 상태만 관리합니다. 매월 15일, 플랫폼 수수료를 제외한 금액이 각자의 지분율대로 자동 분배됩니다.</p>
             </div>
             <div className="settlement-next-card">
+              <div className="settlement-3d-flow" aria-hidden="true">
+                <i className="coin-source" />
+                <span />
+                <b className="coin-member coin-one" />
+                <b className="coin-member coin-two" />
+                <b className="coin-member coin-three" />
+              </div>
               <span><ShieldCheck size={16} /> 고정 정산일</span>
               <strong>매월 15일</strong>
               <p>전월 결제분을 자동 계산해 팀원 지갑으로 지급합니다.</p>
