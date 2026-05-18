@@ -6495,6 +6495,67 @@ export function App() {
         </section>}
 
         {activePage === "wallet" && <section className="section wallet-console page-panel">
+          <section className="app-wallet-dashboard" aria-label="앱 지갑 요약">
+            <div className="app-wallet-balance">
+              <span>My Coin Wallet</span>
+              <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+              <p>충전한 코인은 작품 열람, 창작자 후원, 구독에 사용할 수 있어요.</p>
+              <div>
+                <button type="button" onClick={openPayment}>
+                  <Coins size={16} /> 코인 충전
+                </button>
+                <button type="button" onClick={() => navigate("discover")}>
+                  <BookOpen size={16} /> 작품 보기
+                </button>
+              </div>
+            </div>
+
+            <div className="app-wallet-mini-grid">
+              <article>
+                <span>이번 달 사용</span>
+                <strong>{formatCoins(currentWalletDetail.monthlySpend)}</strong>
+              </article>
+              <article>
+                <span>정산 입금</span>
+                <strong>{formatCoins(currentWalletDetail.monthlyEarned)}</strong>
+              </article>
+              <article>
+                <span>보너스</span>
+                <strong>{formatCoins(currentWalletDetail.bonusCoins)}</strong>
+              </article>
+              <article>
+                <span>구독 상태</span>
+                <strong>{premiumSubscription.isActive ? "구독중" : "미구독"}</strong>
+              </article>
+            </div>
+
+            <div className="app-wallet-feed">
+              <div>
+                <span>최근 이용 내역</span>
+                <button type="button" onClick={() => setWalletFilter("ALL")}>전체</button>
+              </div>
+              {filteredWalletTransactions.slice(0, 3).map((item) => (
+                <article className={item.amount >= 0 ? "plus" : "minus"} key={item.id}>
+                  <i>{item.amount >= 0 ? "+" : "-"}</i>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{getWalletTypeLabel(item.type)} · {formatDateTime(item.createdAt)}</p>
+                  </div>
+                  <b>{item.amount >= 0 ? "+" : ""}{formatCoins(item.amount)}</b>
+                </article>
+              ))}
+              {filteredWalletTransactions.length === 0 && (
+                <article className="empty">
+                  <i>0</i>
+                  <div>
+                    <strong>아직 내역이 없어요</strong>
+                    <p>첫 충전이나 작품 구매 후 여기에 기록됩니다.</p>
+                  </div>
+                </article>
+              )}
+            </div>
+          </section>
+
           <div className="wallet-hero">
             <div>
               <p className="kicker">Coin Wallet</p>
@@ -6589,6 +6650,51 @@ export function App() {
         </section>}
 
         {activePage === "settlement" && <section className="section settlement-console page-panel">
+          <section className="app-settlement-dashboard" aria-label="앱 정산 요약">
+            <div className="app-settlement-head">
+              <span>Smart Settlement</span>
+              <h2>이번 달 정산 요약</h2>
+              <p>매월 15일, 고정 수수료를 제외한 금액이 팀원 지분율대로 자동 분배됩니다.</p>
+            </div>
+
+            <div className="app-settlement-amount-card">
+              <span>내 예상 정산</span>
+              <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+              <div>
+                <p>총 결제 {formatCoins(settlementPreview.grossAmount)}</p>
+                <p>수수료 {settlementConfig.platformFeeRate}%</p>
+                <p>정산일 매월 15일</p>
+              </div>
+            </div>
+
+            <div className="app-settlement-member-list">
+              <div>
+                <span>팀원별 분배</span>
+                <b>{settlementPreview.shareTotal}%</b>
+              </div>
+              {settlementPreview.members.map((member) => (
+                <article key={member.userId}>
+                  <i>{member.displayName.slice(0, 1)}</i>
+                  <div>
+                    <strong>{member.displayName}</strong>
+                    <p>{roleLabels[member.memberRole]} · {member.sharePercentage}%</p>
+                  </div>
+                  <b>{formatCoins(member.expectedSettlement)}</b>
+                </article>
+              ))}
+            </div>
+
+            <div className="app-settlement-actions">
+              <button type="button" onClick={() => applySettlementPreset("audioDrama")}>
+                <Split size={16} /> 팀장 40 프리셋
+              </button>
+              <button type="button" onClick={saveSettlementSettings}>
+                <CheckCircle2 size={16} /> 설정 저장
+              </button>
+            </div>
+            {settlementMessage && <p className={`app-settlement-message ${settlementPreview.shareTotal === 100 ? "ok" : "warn"}`}>{settlementMessage}</p>}
+          </section>
+
           <div className="settlement-hero">
             <div>
               <p className="kicker">Smart Settlement Console</p>

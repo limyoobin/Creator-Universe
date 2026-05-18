@@ -744,7 +744,9 @@ main {
 }
 
 .app-studio-dashboard,
-.app-matching-dashboard {
+.app-matching-dashboard,
+.app-wallet-dashboard,
+.app-settlement-dashboard {
   display: none;
 }
 
@@ -13187,6 +13189,279 @@ body.cu-android-app .creator-grid {
 body.cu-android-app .creator-card {
   border-radius: 22px;
   padding: 14px;
+}
+
+/* App wallet/settlement simplification: money screens should be clear before they are detailed. */
+body.cu-android-app .app-wallet-dashboard,
+body.cu-android-app .app-settlement-dashboard {
+  display: grid;
+  gap: 11px;
+}
+
+body.cu-android-app .wallet-hero,
+body.cu-android-app .wallet-kpis,
+body.cu-android-app .wallet-layout,
+body.cu-android-app .settlement-hero,
+body.cu-android-app .settlement-kpis,
+body.cu-android-app .settlement-main-grid,
+body.cu-android-app .settlement-ledger,
+body.cu-android-app .settlement-ops {
+  display: none;
+}
+
+body.cu-android-app .app-wallet-balance,
+body.cu-android-app .app-wallet-mini-grid article,
+body.cu-android-app .app-wallet-feed,
+body.cu-android-app .app-settlement-head,
+body.cu-android-app .app-settlement-amount-card,
+body.cu-android-app .app-settlement-member-list {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 16px 42px color-mix(in srgb, #000 8%, transparent);
+}
+
+body.cu-android-app .app-wallet-balance,
+body.cu-android-app .app-settlement-head {
+  display: grid;
+  gap: 9px;
+  border-radius: 24px;
+  padding: 20px 17px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 12rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 11rem),
+    var(--surface);
+}
+
+body.cu-android-app .app-wallet-balance > span,
+body.cu-android-app .app-settlement-head span,
+body.cu-android-app .app-settlement-amount-card > span,
+body.cu-android-app .app-wallet-feed > div > span,
+body.cu-android-app .app-settlement-member-list > div > span {
+  color: var(--brand);
+  font-size: 11.5px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+}
+
+body.cu-android-app .app-wallet-balance strong {
+  color: var(--text);
+  font-size: clamp(34px, 10vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.08em;
+}
+
+body.cu-android-app .app-settlement-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(26px, 7.2vw, 34px);
+  line-height: 1.14;
+  letter-spacing: -0.065em;
+}
+
+body.cu-android-app .app-wallet-balance p,
+body.cu-android-app .app-settlement-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
+body.cu-android-app .app-wallet-balance > div,
+body.cu-android-app .app-settlement-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.cu-android-app .app-wallet-balance button,
+body.cu-android-app .app-settlement-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  font-size: 12.5px;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-wallet-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.cu-android-app .app-wallet-mini-grid article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border-radius: 20px;
+  padding: 13px;
+}
+
+body.cu-android-app .app-wallet-mini-grid span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-wallet-mini-grid strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 16px;
+  letter-spacing: -0.05em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-wallet-feed,
+body.cu-android-app .app-settlement-member-list {
+  display: grid;
+  gap: 8px;
+  border-radius: 22px;
+  padding: 12px;
+}
+
+body.cu-android-app .app-wallet-feed > div,
+body.cu-android-app .app-settlement-member-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.cu-android-app .app-wallet-feed > div button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+  font-size: 11px;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-wallet-feed article,
+body.cu-android-app .app-settlement-member-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border-radius: 16px;
+  padding: 10px;
+  background: var(--surface-2);
+}
+
+body.cu-android-app .app-wallet-feed article.empty {
+  grid-template-columns: auto 1fr;
+}
+
+body.cu-android-app .app-wallet-feed i,
+body.cu-android-app .app-settlement-member-list i {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--cyan));
+  font-style: normal;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-wallet-feed article.minus i {
+  background: linear-gradient(135deg, #ff7d91, var(--violet));
+}
+
+body.cu-android-app .app-wallet-feed div,
+body.cu-android-app .app-settlement-member-list article div {
+  min-width: 0;
+}
+
+body.cu-android-app .app-wallet-feed strong,
+body.cu-android-app .app-settlement-member-list strong,
+body.cu-android-app .app-wallet-feed p,
+body.cu-android-app .app-settlement-member-list p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-wallet-feed strong,
+body.cu-android-app .app-settlement-member-list strong {
+  display: block;
+  color: var(--text);
+  font-size: 13.5px;
+  letter-spacing: -0.035em;
+}
+
+body.cu-android-app .app-wallet-feed p,
+body.cu-android-app .app-settlement-member-list p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+body.cu-android-app .app-wallet-feed b,
+body.cu-android-app .app-settlement-member-list article > b,
+body.cu-android-app .app-settlement-member-list > div > b {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-settlement-amount-card {
+  display: grid;
+  gap: 8px;
+  border-radius: 24px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 11rem),
+    var(--surface);
+}
+
+body.cu-android-app .app-settlement-amount-card strong {
+  color: var(--text);
+  font-size: clamp(30px, 9vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.075em;
+}
+
+body.cu-android-app .app-settlement-amount-card div {
+  display: grid;
+  gap: 6px;
+}
+
+body.cu-android-app .app-settlement-amount-card p {
+  margin: 0;
+  border-radius: 13px;
+  padding: 9px 10px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+body.cu-android-app .app-settlement-message {
+  margin: 0;
+  border-radius: 16px;
+  padding: 12px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+body.cu-android-app .app-settlement-message.ok {
+  color: color-mix(in srgb, var(--green) 82%, var(--text));
+  background: color-mix(in srgb, var(--green) 9%, var(--surface));
+}
+
+body.cu-android-app .app-settlement-message.warn {
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.12);
 }
 
 body.cu-android-app .topbar {
