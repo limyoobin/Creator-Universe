@@ -2174,8 +2174,26 @@ h2 {
   min-width: 0;
 }
 
+.section-head h2 {
+  text-wrap: balance;
+  word-break: keep-all;
+}
+
 .section-head > p {
   max-width: 460px;
+  color: var(--muted);
+  line-height: 1.72;
+  text-wrap: pretty;
+  word-break: keep-all;
+}
+
+.section-description {
+  display: grid;
+  gap: 3px;
+}
+
+.section-description span {
+  display: block;
 }
 
 .matching-page {
@@ -11234,6 +11252,12 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .lead {
     font-size: 14px;
     line-height: 1.68;
+    text-wrap: pretty;
+    word-break: keep-all;
+  }
+
+  .section-description {
+    gap: 2px;
   }
 
   .brand strong,
@@ -15227,6 +15251,8 @@ body.cu-android-app .flow-section p,
 body.cu-android-app .mission-section p {
   font-size: 13px;
   line-height: 1.65;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 body.cu-android-app .flow-visual-stack {

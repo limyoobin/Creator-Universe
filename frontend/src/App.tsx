@@ -5278,7 +5278,10 @@ export function App() {
                 <p className="kicker">Ranking</p>
                 <h2>지금 가장 많이 보는 작품과 장르별 TOP 차트</h2>
               </div>
-              <p>감상 수, 평점, 회차 활동성을 합산해 만든 데모 랭킹입니다. 카드 클릭 시 작품 상세와 댓글/리뷰로 바로 연결됩니다.</p>
+              <p className="section-description">
+                <span>감상 수, 평점, 회차 활동성을 합산해 만든 데모 랭킹입니다.</span>
+                <span>카드 클릭 시 작품 상세와 댓글/리뷰로 바로 연결됩니다.</span>
+              </p>
             </div>
             <div className="ranking-layout">
               <article className="overall-ranking-card">
