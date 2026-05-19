@@ -16954,45 +16954,45 @@ body.cu-android-app .visual-caption {
 
   .orbit-card {
     display: grid !important;
-    width: clamp(168px, 18cqw, 258px) !important;
+    width: clamp(142px, 15.2cqw, 218px) !important;
     min-width: 0 !important;
     max-width: none !important;
-    padding: clamp(12px, 1.38cqw, 19px) clamp(14px, 1.58cqw, 22px) !important;
-    border-radius: clamp(18px, 1.8cqw, 26px) !important;
-    gap: clamp(3px, 0.46cqw, 6px) !important;
+    padding: clamp(10px, 1.18cqw, 16px) clamp(11px, 1.28cqw, 18px) !important;
+    border-radius: clamp(16px, 1.55cqw, 23px) !important;
+    gap: clamp(2px, 0.4cqw, 5px) !important;
   }
 
   .orbit-card svg {
-    width: clamp(15px, 1.35cqw, 20px) !important;
-    height: clamp(15px, 1.35cqw, 20px) !important;
+    width: clamp(13px, 1.22cqw, 18px) !important;
+    height: clamp(13px, 1.22cqw, 18px) !important;
   }
 
   .orbit-card b {
-    font-size: clamp(14px, 1.28cqw, 18px) !important;
+    font-size: clamp(12px, 1.13cqw, 16px) !important;
     line-height: 1.12 !important;
   }
 
   .orbit-card small {
-    font-size: clamp(11px, 1.04cqw, 14px) !important;
+    font-size: clamp(9.5px, 0.94cqw, 12.5px) !important;
     line-height: 1.18 !important;
   }
 
   .orbit-card-match {
-    inset: 7% auto auto 5% !important;
+    inset: 7% auto auto 7% !important;
   }
 
   .orbit-card-work {
-    inset: 7% 5% auto auto !important;
+    inset: 7% 7% auto auto !important;
   }
 
   .orbit-card-voice {
-    inset: 43% auto auto 5% !important;
+    inset: 43% auto auto 7% !important;
     display: grid !important;
   }
 
   .orbit-card-settle {
-    inset: 43% 5% auto auto !important;
-    width: clamp(168px, 18cqw, 258px) !important;
+    inset: 43% 7% auto auto !important;
+    width: clamp(142px, 15.2cqw, 218px) !important;
   }
 
   .moon {
@@ -17018,25 +17018,25 @@ body.cu-android-app .visual-caption {
   }
 
   .orbit-card {
-    width: clamp(146px, 16.5cqw, 186px) !important;
-    padding: 11px 13px !important;
+    width: clamp(124px, 14.4cqw, 158px) !important;
+    padding: 9px 11px !important;
   }
 
   .orbit-card-match {
-    inset: 7% auto auto 4.5% !important;
+    inset: 7% auto auto 6% !important;
   }
 
   .orbit-card-work {
-    inset: 7% 4.5% auto auto !important;
+    inset: 7% 6% auto auto !important;
   }
 
   .orbit-card-voice {
-    inset: 41% auto auto 4.5% !important;
+    inset: 41% auto auto 6% !important;
   }
 
   .orbit-card-settle {
-    inset: 41% 4.5% auto auto !important;
-    width: clamp(146px, 16.5cqw, 186px) !important;
+    inset: 41% 6% auto auto !important;
+    width: clamp(124px, 14.4cqw, 158px) !important;
   }
 
   .moon {
@@ -17065,26 +17065,26 @@ body.cu-android-app .visual-caption {
 
   .orbit-card {
     display: grid !important;
-    width: clamp(108px, 30cqw, 148px) !important;
+    width: clamp(92px, 26cqw, 126px) !important;
     min-width: 0 !important;
     max-width: none !important;
-    padding: 8px 10px !important;
-    border-radius: 16px !important;
-    gap: 2px !important;
+    padding: 7px 8px !important;
+    border-radius: 14px !important;
+    gap: 1px !important;
   }
 
   .orbit-card svg {
-    width: 13px !important;
-    height: 13px !important;
+    width: 11px !important;
+    height: 11px !important;
   }
 
   .orbit-card b {
-    font-size: clamp(11px, 3.25cqw, 13.5px) !important;
+    font-size: clamp(9.5px, 2.9cqw, 12px) !important;
     line-height: 1.12 !important;
   }
 
   .orbit-card small {
-    font-size: clamp(9px, 2.62cqw, 11px) !important;
+    font-size: clamp(8px, 2.35cqw, 10px) !important;
     line-height: 1.14 !important;
   }
 
@@ -17103,7 +17103,7 @@ body.cu-android-app .visual-caption {
 
   .orbit-card-settle {
     inset: 39% 5% auto auto !important;
-    width: clamp(108px, 30cqw, 148px) !important;
+    width: clamp(92px, 26cqw, 126px) !important;
   }
 
   .moon {
@@ -17133,16 +17133,16 @@ body.cu-android-app .visual-caption {
   }
 
   .orbit-card {
-    width: 106px !important;
-    padding: 8px 9px !important;
+    width: 94px !important;
+    padding: 7px 8px !important;
   }
 
   .orbit-card small {
-    font-size: 8.5px !important;
+    font-size: 8px !important;
   }
 
   .orbit-card-settle {
-    width: 106px !important;
+    width: 94px !important;
   }
 }
 
@@ -17152,6 +17152,74 @@ body.cu-android-app .orbit-card-match,
 body.cu-android-app .orbit-card-voice,
 body.cu-android-app .orbit-card-settle {
   display: grid !important;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.34), transparent 36%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.12) 48%, rgba(18, 23, 48, 0.72)) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow:
+    0 18px 44px rgba(10, 18, 38, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.48),
+    0 0 30px rgba(103, 232, 249, 0.16) !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.28);
+}
+
+body.cu-android-app .orbit-card svg {
+  color: #8ff5ff !important;
+  filter: drop-shadow(0 0 10px rgba(103, 232, 249, 0.45));
+}
+
+body.cu-android-app .orbit-card b {
+  color: #ffffff !important;
+}
+
+body.cu-android-app .orbit-card small {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+@media (max-width: 860px) {
+  body.cu-android-app .orbit-card {
+    width: clamp(106px, 30cqw, 142px) !important;
+    padding: 8px 10px !important;
+    border-radius: 16px !important;
+    gap: 2px !important;
+  }
+
+  body.cu-android-app .orbit-card svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  body.cu-android-app .orbit-card b {
+    font-size: clamp(10.8px, 3.18cqw, 13px) !important;
+  }
+
+  body.cu-android-app .orbit-card small {
+    font-size: clamp(8.8px, 2.55cqw, 10.8px) !important;
+  }
+
+  body.cu-android-app .orbit-card-settle {
+    width: clamp(106px, 30cqw, 142px) !important;
+  }
+}
+
+@media (min-width: 861px) {
+  body.cu-android-app .orbit-card {
+    width: clamp(152px, 16.5cqw, 218px) !important;
+    padding: clamp(11px, 1.26cqw, 17px) clamp(13px, 1.42cqw, 20px) !important;
+  }
+
+  body.cu-android-app .orbit-card b {
+    font-size: clamp(13px, 1.18cqw, 17px) !important;
+  }
+
+  body.cu-android-app .orbit-card small {
+    font-size: clamp(10.2px, 0.98cqw, 13px) !important;
+  }
+
+  body.cu-android-app .orbit-card-settle {
+    width: clamp(152px, 16.5cqw, 218px) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
