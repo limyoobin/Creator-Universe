@@ -1176,6 +1176,10 @@ main {
   letter-spacing: -0.05em;
 }
 
+.mobile-visual-chip {
+  display: none;
+}
+
 .floating-widget {
   position: absolute;
   display: grid;
@@ -14873,6 +14877,104 @@ body.cu-android-app .studio-visual {
   display: none;
 }
 
+@media (min-width: 861px) and (max-width: 1180px) {
+  .intro-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    min-height: 0;
+  }
+
+  .intro-copy {
+    max-width: 760px;
+  }
+
+  .slide-copy-stage {
+    min-height: 240px;
+  }
+
+  .studio-visual {
+    width: min(100%, 760px);
+    justify-self: center;
+  }
+
+  .visual-stage {
+    min-height: 430px;
+  }
+
+  .visual-artwork {
+    min-height: 390px;
+  }
+
+  .universe-3d-scene {
+    inset: 34px 54px 126px;
+    transform: scale(0.96);
+    transform-origin: center;
+  }
+
+  .orbit-card-work {
+    right: 36px;
+  }
+
+  .orbit-card-match {
+    left: 36px;
+  }
+
+  .orbit-card-settle {
+    right: 38px;
+    bottom: 120px;
+  }
+
+  .mobile-visual-chip {
+    position: absolute;
+    top: 166px;
+    left: 44px;
+    z-index: 9;
+    display: grid;
+    gap: 4px;
+    min-width: 132px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 18px;
+    padding: 12px 14px;
+    color: #fff;
+    background:
+      linear-gradient(135deg, rgba(8, 12, 24, 0.72), rgba(20, 28, 58, 0.42)),
+      radial-gradient(circle at 18% 16%, rgba(159, 243, 255, 0.22), transparent 4rem);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(16px);
+  }
+
+  .mobile-visual-chip b {
+    color: #9ff3ff;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+
+  .mobile-visual-chip span {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: -0.04em;
+  }
+
+  .floating-widget {
+    display: none;
+  }
+
+  .character-card {
+    right: 32px;
+    left: 32px;
+    bottom: 24px;
+    width: auto;
+    padding: 16px 18px;
+  }
+
+  .character-card strong {
+    font-size: 26px;
+    line-height: 1.1;
+  }
+}
+
 @media (max-width: 860px) {
   .visual-stage {
     min-height: 440px;
@@ -14889,12 +14991,13 @@ body.cu-android-app .studio-visual {
     transform-origin: center;
   }
 
-  .universe-3d-scene::after {
-    content: "Voice UX\A대본 싱크";
+  .mobile-visual-chip {
     position: absolute;
     top: 116px;
     left: 10px;
     z-index: 9;
+    display: grid;
+    gap: 3px;
     min-width: 104px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 16px;
@@ -14905,11 +15008,22 @@ body.cu-android-app .studio-visual {
       radial-gradient(circle at 18% 16%, rgba(159, 243, 255, 0.24), transparent 3rem);
     box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(16px);
-    white-space: pre-line;
+  }
+
+  .mobile-visual-chip b {
+    color: #9ff3ff;
     font-size: 11px;
     font-weight: 900;
     line-height: 1.38;
     letter-spacing: -0.03em;
+  }
+
+  .mobile-visual-chip span {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 10.5px;
+    font-weight: 850;
+    line-height: 1.35;
+    letter-spacing: -0.04em;
   }
 
   .orbit-card {
@@ -14967,8 +15081,8 @@ body.cu-android-app .studio-visual {
     bottom: 16px;
     z-index: 10;
     width: auto;
-    min-height: 112px;
-    padding: 14px 15px;
+    min-height: 92px;
+    padding: 12px 14px;
     border-radius: 19px;
   }
 
@@ -14978,7 +15092,7 @@ body.cu-android-app .studio-visual {
 
   .character-card strong {
     margin-top: 6px;
-    font-size: 22px;
+    font-size: 20px;
     line-height: 1.08;
   }
 }

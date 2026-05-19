@@ -710,6 +710,8 @@ const introSlides = [
     statLabel: "글 · 그림 · 목소리 · BGM",
     visualTitle: "Creator Universe Studio",
     visualLabel: "Collaboration Hub",
+    mobileChipTitle: "Role Match",
+    mobileChipText: "팀원 포트폴리오",
     tone: "pink",
   },
   {
@@ -721,6 +723,8 @@ const introSlides = [
     statLabel: "자동 정산 분배",
     visualTitle: "Smart Split Engine",
     visualLabel: "Auto Settlement",
+    mobileChipTitle: "Split Pay",
+    mobileChipText: "수익 자동 분배",
     tone: "cyan",
   },
   {
@@ -732,6 +736,8 @@ const introSlides = [
     statLabel: "First UX",
     visualTitle: "Barrier-free Access",
     visualLabel: "Accessible Audio",
+    mobileChipTitle: "Voice First",
+    mobileChipText: "접근성 오디오",
     tone: "violet",
   },
 ];
@@ -4926,6 +4932,10 @@ export function App() {
                             <b>자동 정산</b>
                             <small>30 · 30 · 40</small>
                           </div>
+                        </div>
+                        <div className="mobile-visual-chip">
+                          <b>{slide.mobileChipTitle}</b>
+                          <span>{slide.mobileChipText}</span>
                         </div>
                         <div className="city-lines" />
                         <div className="character-card">
