@@ -1705,6 +1705,7 @@ main {
 
 .flow-visual-stack {
   display: grid;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -1742,7 +1743,7 @@ main {
   z-index: 0;
 }
 
-.flow-rail div {
+.flow-step-card {
   position: relative;
   z-index: 1;
   display: grid;
@@ -1754,6 +1755,7 @@ main {
   border-radius: 24px;
   padding: 18px 12px;
   text-align: center;
+  color: var(--ink);
   background:
     linear-gradient(180deg, color-mix(in srgb, #fff 16%, transparent), transparent 34%),
     color-mix(in srgb, var(--surface) 94%, transparent);
@@ -1761,11 +1763,12 @@ main {
     0 18px 34px color-mix(in srgb, #000 7%, transparent),
     inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent);
   transform: none;
-  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
   overflow: hidden;
+  cursor: pointer;
 }
 
-.flow-rail div::before {
+.flow-step-card::before {
   content: "";
   position: absolute;
   inset: auto auto -38px 50%;
@@ -1777,7 +1780,9 @@ main {
   pointer-events: none;
 }
 
-.flow-rail div:hover {
+.flow-step-card:hover,
+.flow-step-card:focus-visible,
+.flow-step-card.active {
   border-color: color-mix(in srgb, var(--brand) 36%, var(--line));
   box-shadow:
     0 24px 46px color-mix(in srgb, var(--brand) 13%, transparent),
@@ -1785,15 +1790,20 @@ main {
   transform: translateY(-6px);
 }
 
-.flow-rail div:nth-child(2),
-.flow-rail div:nth-child(5) {
+.flow-step-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--cyan) 34%, transparent);
+  outline-offset: 3px;
+}
+
+.flow-step-card:nth-child(2),
+.flow-step-card:nth-child(5) {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--cyan) 11%, transparent), transparent 42%),
     color-mix(in srgb, var(--surface) 94%, transparent);
 }
 
-.flow-rail div:nth-child(4),
-.flow-rail div:nth-child(6) {
+.flow-step-card:nth-child(4),
+.flow-step-card:nth-child(6) {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--brand) 12%, transparent), transparent 42%),
     color-mix(in srgb, var(--surface) 94%, transparent);
@@ -1822,6 +1832,83 @@ main {
   font-size: 16px;
   line-height: 1.28;
   letter-spacing: -0.045em;
+}
+
+.flow-step-card small {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--brand) 76%, var(--ink));
+  background: color-mix(in srgb, var(--brand) 10%, transparent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.flow-detail-card {
+  display: grid;
+  gap: 10px;
+  min-height: 142px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 20%, var(--line));
+  border-radius: 26px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--cyan) 16%, transparent), transparent 15rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface) 96%, transparent), color-mix(in srgb, var(--surface-2) 92%, transparent));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 24%, transparent),
+    0 18px 42px color-mix(in srgb, #000 7%, transparent);
+}
+
+.flow-detail-card > span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.flow-detail-card > strong {
+  font-size: 24px;
+  letter-spacing: -0.055em;
+}
+
+.flow-detail-card > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.flow-mini-split {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.flow-mini-split b {
+  border: 1px solid color-mix(in srgb, var(--line) 80%, var(--cyan));
+  border-radius: 999px;
+  padding: 8px 11px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.flow-mini-split i {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), var(--cyan), var(--violet));
+  box-shadow: 0 0 20px color-mix(in srgb, var(--cyan) 32%, transparent);
 }
 
 .plan-grid {
@@ -11044,8 +11131,9 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     display: none;
   }
 
-  .flow-rail div,
-  .flow-rail div:hover {
+  .flow-step-card,
+  .flow-step-card:hover,
+  .flow-step-card.active {
     min-height: 124px;
     transform: none;
   }
@@ -11212,14 +11300,38 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     padding: 12px;
   }
 
-  .flow-rail div {
+  .flow-step-card {
     min-height: 72px;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     justify-items: start;
     gap: 8px 12px;
     border-radius: 18px;
     padding: 12px;
     text-align: left;
+  }
+
+  .flow-step-card small {
+    justify-self: end;
+  }
+
+  .flow-detail-card {
+    min-height: 0;
+    border-radius: 20px;
+    padding: 15px;
+  }
+
+  .flow-detail-card > strong {
+    font-size: 20px;
+  }
+
+  .flow-mini-split {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-mini-split i {
+    width: 3px;
+    height: 22px;
+    justify-self: center;
   }
 
   .flow-rail span {
@@ -14870,6 +14982,60 @@ body.cu-android-app .flow-section p,
 body.cu-android-app .mission-section p {
   font-size: 13px;
   line-height: 1.65;
+}
+
+body.cu-android-app .flow-visual-stack {
+  gap: 10px;
+}
+
+body.cu-android-app .flow-rail {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 20px;
+}
+
+body.cu-android-app .flow-step-card,
+body.cu-android-app .flow-step-card:hover,
+body.cu-android-app .flow-step-card.active {
+  min-height: 58px;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+  justify-items: start;
+  border-radius: 16px;
+  padding: 10px;
+  text-align: left;
+  transform: none;
+}
+
+body.cu-android-app .flow-step-card span {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+body.cu-android-app .flow-step-card strong {
+  max-width: none;
+  font-size: 14px;
+}
+
+body.cu-android-app .flow-step-card small {
+  justify-self: end;
+  min-height: 22px;
+  padding: 3px 8px;
+  font-size: 10px;
+}
+
+body.cu-android-app .flow-detail-card {
+  min-height: 0;
+  border-radius: 18px;
+  padding: 14px;
+}
+
+body.cu-android-app .flow-detail-card > strong {
+  font-size: 19px;
 }
 
 body.cu-android-app .reader-work-card {

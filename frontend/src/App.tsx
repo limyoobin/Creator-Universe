@@ -784,12 +784,36 @@ const audienceSegments = [
 ];
 
 const serviceFlow = [
-  "포트폴리오 발견",
-  "프로젝트 팀 구성",
-  "지분율 합의 등록",
-  "코인 결제 발생",
-  "수수료 차감",
-  "지갑 자동 정산",
+  {
+    title: "포트폴리오 발견",
+    metric: "Creator",
+    detail: "작가, 그림, 성우, BGM 창작자의 작업물과 응답률을 먼저 확인합니다.",
+  },
+  {
+    title: "프로젝트 팀 구성",
+    metric: "Team",
+    detail: "채팅과 매칭 제안으로 협업 조건을 맞추고 수락한 멤버가 팀에 합류합니다.",
+  },
+  {
+    title: "지분율 합의 등록",
+    metric: "Share",
+    detail: "팀장이 30:30:40처럼 수익 분배율을 저장하면 모든 정산 계산의 기준이 됩니다.",
+  },
+  {
+    title: "코인 결제 발생",
+    metric: "Coin",
+    detail: "독자가 작품을 구매하면 거래 원장이 생성되고 열람권이 즉시 발급됩니다.",
+  },
+  {
+    title: "수수료 차감",
+    metric: "13% / 8%",
+    detail: "일반 13%, 파트너 8%의 고정 플랫폼 수수료를 제외한 금액만 분배됩니다.",
+  },
+  {
+    title: "지갑 자동 정산",
+    metric: "Wallet",
+    detail: "남은 금액은 팀원별 지분율대로 각자의 지갑에 자동 반영됩니다.",
+  },
 ];
 
 const partnerPlans = [
@@ -3008,6 +3032,7 @@ export function App() {
   const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(null);
   const [activePage, setActivePage] = useState<PageId>("home");
   const [activeIntroSlide, setActiveIntroSlide] = useState(0);
+  const [activeFlowStep, setActiveFlowStep] = useState(0);
   const [status, setStatus] = useState("백엔드 연결 중");
   const [isBootLoading, setIsBootLoading] = useState(true);
   const librarySectionRef = useRef<HTMLElement | null>(null);
@@ -3086,6 +3111,7 @@ export function App() {
 
   const activeChatMessages = activeChatCreator ? creatorChatThreads[activeChatCreator.userId] ?? [] : [];
   const pendingPurchaseWork = readerWorks.find((work) => work.id === pendingPurchaseWorkId) ?? readerWorks[0];
+  const currentFlowStep = serviceFlow[activeFlowStep] ?? serviceFlow[0];
 
   const matchProposalInboxItems = useMemo(() => {
     return matchRequests
@@ -5009,13 +5035,31 @@ export function App() {
               </div>
               <div className="flow-visual-stack">
                 <div className="flow-rail">
-                  {serviceFlow.map((item, index) => (
-                    <div key={item}>
+                  {serviceFlow.map((step, index) => (
+                    <button
+                      type="button"
+                      className={`flow-step-card ${activeFlowStep === index ? "active" : ""}`}
+                      key={step.title}
+                      onClick={() => setActiveFlowStep(index)}
+                      onFocus={() => setActiveFlowStep(index)}
+                      onMouseEnter={() => setActiveFlowStep(index)}
+                    >
                       <span>{String(index + 1).padStart(2, "0")}</span>
-                      <strong>{item}</strong>
-                    </div>
+                      <strong>{step.title}</strong>
+                      <small>{step.metric}</small>
+                    </button>
                   ))}
                 </div>
+                <aside className="flow-detail-card" aria-live="polite">
+                  <span>Step {String(activeFlowStep + 1).padStart(2, "0")}</span>
+                  <strong>{currentFlowStep.title}</strong>
+                  <p>{currentFlowStep.detail}</p>
+                  <div className="flow-mini-split" aria-hidden="true">
+                    <b>독자 결제</b>
+                    <i />
+                    <b>팀 지갑</b>
+                  </div>
+                </aside>
               </div>
             </section>
 
