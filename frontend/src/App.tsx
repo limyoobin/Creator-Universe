@@ -65,8 +65,8 @@ function resolveApiUrl() {
 
 const API_URL = resolveApiUrl();
 const PROJECT_ID = "project-midnight-signal";
-const STANDARD_PLATFORM_FEE_RATE = 0.12;
-const PARTNER_PLATFORM_FEE_RATE = 0.06;
+const STANDARD_PLATFORM_FEE_RATE = 0.13;
+const PARTNER_PLATFORM_FEE_RATE = 0.08;
 
 type User = {
   id: string;
@@ -2428,7 +2428,7 @@ const policySections: Array<{
     items: [
       "회원은 타인의 저작권, 초상권, 음성권, 개인정보, 명예를 침해하지 않는 콘텐츠와 프로필만 등록해야 합니다.",
       "창작팀은 프로젝트별 지분율, 역할, 공개 범위, 수익 분배 조건을 사전에 합의하고 시스템에 등록해야 합니다.",
-      "플랫폼 수수료는 일반 12%, 공식 파트너 6%로 고정 적용됩니다.",
+      "플랫폼 수수료는 일반 13%, 공식 파트너 8%로 고정 적용됩니다.",
       "부정 결제, 무단 복제, 계정 공유, 스팸성 매칭, 괴롭힘 등 서비스 신뢰를 해치는 행위는 제한될 수 있습니다.",
       "서비스는 MVP/베타 성격의 기능을 포함할 수 있으며, 정식 결제·정산 연동 전 일부 기능은 데모 데이터로 제공될 수 있습니다.",
     ],
@@ -4328,7 +4328,7 @@ export function App() {
       return;
     }
 
-    setSettlementMessage("정산 설정이 저장되었습니다. 플랫폼 수수료는 일반 12%, 공식 파트너 6% 고정 정책으로 적용됩니다.");
+    setSettlementMessage("정산 설정이 저장되었습니다. 플랫폼 수수료는 일반 13%, 공식 파트너 8% 고정 정책으로 적용됩니다.");
   }
 
   function updateStudioDraft<K extends keyof StudioDraftState>(key: K, value: StudioDraftState[K]) {
@@ -4911,7 +4911,7 @@ export function App() {
                           <b>{slide.statLabel}</b>
                         </div>
                         <div className="floating-widget widget-right">
-                          <span>{index === 1 ? "6%" : "0%"}</span>
+                          <span>{index === 1 ? "8%" : "0%"}</span>
                           <b>{index === 1 ? "파트너 수수료" : "초기 매칭 수수료"}</b>
                         </div>
                       </div>
@@ -4924,7 +4924,7 @@ export function App() {
 
             <section className="intro-metrics reveal">
               <div><strong>0원</strong><span>초기 매칭 수수료</span></div>
-              <div><strong>12% / 6%</strong><span>일반 · 파트너 수수료</span></div>
+              <div><strong>13% / 8%</strong><span>일반 · 파트너 수수료</span></div>
               <div><strong>30:30:40</strong><span>팀 지분율 자동 분배</span></div>
               <div><strong>Voice-first</strong><span>배리어프리 UX</span></div>
             </section>
@@ -6967,7 +6967,7 @@ export function App() {
                   <div className="settlement-rule-card">
                     <i><Coins size={17} /></i>
                     <strong>{settlementConfig.platformFeeRate}%</strong>
-                    <small>{settlementConfig.platformFeeRate === 6 ? "공식 파트너 계정 고정 수수료" : "일반 계정 고정 수수료"}</small>
+                    <small>{settlementConfig.platformFeeRate === 8 ? "공식 파트너 계정 고정 수수료" : "일반 계정 고정 수수료"}</small>
                   </div>
                 </label>
                 <label>
