@@ -14893,26 +14893,29 @@ body.cu-android-app .studio-visual {
   }
 
   .studio-visual {
-    width: min(100%, 760px);
+    width: min(100%, 720px);
     justify-self: center;
   }
 
   .visual-stage {
-    min-height: 430px;
+    min-height: 410px;
   }
 
   .visual-artwork {
-    min-height: 390px;
+    justify-self: center;
+    width: 100%;
+    max-width: 720px;
+    min-height: 370px;
   }
 
   .universe-3d-scene {
-    inset: 34px 54px 126px;
-    transform: scale(0.96);
+    inset: 30px 88px 116px;
+    transform: scale(0.92);
     transform-origin: center;
   }
 
   .orbit-card-work {
-    right: 36px;
+    right: 72px;
   }
 
   .orbit-card-match {
@@ -14920,14 +14923,14 @@ body.cu-android-app .studio-visual {
   }
 
   .orbit-card-settle {
-    right: 38px;
-    bottom: 120px;
+    right: 72px;
+    bottom: 112px;
   }
 
   .mobile-visual-chip {
     position: absolute;
-    top: 166px;
-    left: 44px;
+    top: 152px;
+    left: 38px;
     z-index: 9;
     display: grid;
     gap: 4px;
@@ -14962,9 +14965,9 @@ body.cu-android-app .studio-visual {
   }
 
   .character-card {
-    right: 32px;
-    left: 32px;
-    bottom: 24px;
+    right: 28px;
+    left: 28px;
+    bottom: 22px;
     width: auto;
     padding: 16px 18px;
   }
@@ -14977,24 +14980,24 @@ body.cu-android-app .studio-visual {
 
 @media (max-width: 860px) {
   .visual-stage {
-    min-height: 440px;
+    min-height: 418px;
   }
 
   .visual-artwork {
-    min-height: 400px;
+    min-height: 378px;
   }
 
   .universe-3d-scene {
-    inset: 22px 14px 128px;
+    inset: 18px 18px 112px;
     opacity: 0.82;
-    transform: none;
+    transform: scale(0.94);
     transform-origin: center;
   }
 
   .mobile-visual-chip {
     position: absolute;
-    top: 116px;
-    left: 10px;
+    top: 108px;
+    left: 12px;
     z-index: 9;
     display: grid;
     gap: 3px;
@@ -15027,8 +15030,8 @@ body.cu-android-app .studio-visual {
   }
 
   .orbit-card {
-    min-width: 112px;
-    max-width: 148px;
+    min-width: 106px;
+    max-width: 138px;
     border-radius: 15px;
     padding: 9px;
   }
@@ -15063,7 +15066,7 @@ body.cu-android-app .studio-visual {
   }
 
   .orbit-card-settle {
-    top: 118px;
+    top: 110px;
     right: 14px;
     bottom: auto;
     z-index: 8;
@@ -15081,8 +15084,8 @@ body.cu-android-app .studio-visual {
     bottom: 16px;
     z-index: 10;
     width: auto;
-    min-height: 92px;
-    padding: 12px 14px;
+    min-height: 84px;
+    padding: 11px 13px;
     border-radius: 19px;
   }
 
@@ -15092,7 +15095,7 @@ body.cu-android-app .studio-visual {
 
   .character-card strong {
     margin-top: 6px;
-    font-size: 20px;
+    font-size: 19px;
     line-height: 1.08;
   }
 }
