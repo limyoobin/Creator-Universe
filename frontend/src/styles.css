@@ -16408,7 +16408,7 @@ body.cu-android-app .feature-3d-object {
   }
 }
 
-@media (max-width: 1360px) and (min-width: 861px) {
+@media (max-width: 1480px) and (min-width: 861px) {
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto !important;
     width: min(100% - 18px, 1180px);
@@ -16444,6 +16444,66 @@ body.cu-android-app .feature-3d-object {
   .mobile-drawer.open {
     display: block !important;
     animation: drawerDrop 220ms ease both;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 861px) {
+  .studio-visual {
+    width: min(100%, 760px);
+    justify-self: center;
+  }
+
+  .visual-stage {
+    min-height: 420px;
+  }
+
+  .visual-artwork {
+    width: 100%;
+    max-width: 760px;
+    min-height: 390px;
+  }
+
+  .universe-3d-scene {
+    inset: 34px 46px 128px;
+    transform: scale(0.9);
+    transform-origin: center;
+  }
+
+  .orbit-card {
+    min-width: 0;
+    max-width: 176px;
+    padding: 11px 12px;
+  }
+
+  .orbit-card b,
+  .orbit-card small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .orbit-card-work {
+    display: none;
+  }
+
+  .orbit-card-match {
+    top: 112px;
+    left: 28px;
+    width: 160px;
+  }
+
+  .orbit-card-settle {
+    top: 96px;
+    right: 28px;
+    bottom: auto;
+    width: 172px;
+  }
+
+  .character-card {
+    left: 28px;
+    right: 28px;
+    bottom: 20px;
+    width: auto;
   }
 }
 
