@@ -16408,6 +16408,55 @@ body.cu-android-app .feature-3d-object {
   }
 }
 
+@media (max-width: 1360px) and (min-width: 861px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    width: min(100% - 18px, 1180px);
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .brand {
+    min-width: 0;
+    max-width: min(52vw, 360px);
+  }
+
+  .brand em,
+  .desktop-nav,
+  .nav-pay-button {
+    display: none !important;
+  }
+
+  .header-actions {
+    min-width: max-content;
+    justify-self: end;
+    gap: 8px;
+  }
+
+  .mobile-menu-button {
+    display: inline-flex !important;
+  }
+
+  .mobile-drawer {
+    grid-column: 1 / -1;
+  }
+
+  .mobile-drawer.open {
+    display: block !important;
+    animation: drawerDrop 220ms ease both;
+  }
+}
+
+@media (max-width: 1080px) and (min-width: 861px) {
+  .brand {
+    max-width: min(46vw, 300px);
+  }
+
+  .header-actions .icon-button:not(.mobile-menu-button) {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
