@@ -16517,6 +16517,75 @@ body.cu-android-app .feature-3d-object {
   }
 }
 
+@media (max-width: 1180px) and (min-width: 861px) {
+  .orbit-card-work,
+  .orbit-card-match {
+    display: none !important;
+  }
+
+  .mobile-visual-chip {
+    top: 126px;
+    left: 48px;
+    min-width: 132px;
+  }
+
+  .orbit-card-settle {
+    top: 112px;
+    right: 76px;
+    width: 166px;
+    min-width: 0;
+  }
+
+  .character-card {
+    right: 42px;
+    bottom: 34px;
+    left: 42px;
+    min-height: 92px;
+    padding: 14px 18px;
+    border-radius: 20px;
+  }
+
+  .character-card strong {
+    font-size: 24px;
+    line-height: 1.08;
+  }
+}
+
+@media (max-width: 860px) {
+  .visual-stage {
+    min-height: 390px;
+  }
+
+  .visual-artwork {
+    min-height: 350px;
+    border-radius: 28px;
+  }
+
+  .universe-3d-scene {
+    inset: 16px 16px 112px;
+    transform: scale(0.88);
+  }
+
+  .character-card {
+    right: 20px;
+    bottom: 34px;
+    left: 20px;
+    min-height: 68px;
+    padding: 9px 12px;
+    border-radius: 17px;
+  }
+
+  .character-card span {
+    font-size: 10px;
+  }
+
+  .character-card strong {
+    margin-top: 4px;
+    font-size: 17px;
+    line-height: 1.08;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
