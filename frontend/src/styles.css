@@ -11207,17 +11207,31 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
   .flow-rail {
     grid-template-columns: 1fr;
+    gap: 8px;
+    border-radius: 24px;
+    padding: 12px;
   }
 
   .flow-rail div {
-    min-height: 108px;
+    min-height: 72px;
     grid-template-columns: auto 1fr;
     justify-items: start;
+    gap: 8px 12px;
+    border-radius: 18px;
+    padding: 12px;
     text-align: left;
+  }
+
+  .flow-rail span {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    font-size: 13px;
   }
 
   .flow-rail strong {
     max-width: none;
+    font-size: 15px;
   }
 
   .audience-card b,
@@ -15685,34 +15699,55 @@ body.cu-android-app .app-support-topic-grid button {
 }
 
 body.cu-android-app .settlement-3d-flow {
-  min-height: 104px !important;
-  margin: 2px 0 0 !important;
+  justify-self: center !important;
+  width: min(100%, 236px) !important;
+  min-height: 88px !important;
+  margin: 4px auto 0 !important;
+  perspective: none !important;
 }
 
 body.cu-android-app .settlement-3d-flow span {
   position: absolute !important;
   left: 50% !important;
-  top: 38px !important;
+  top: 48px !important;
   display: block !important;
-  width: 168px !important;
-  height: 78px !important;
+  width: 74% !important;
+  height: 3px !important;
   padding: 0 !important;
-  border: 1px dashed color-mix(in srgb, var(--brand) 28%, transparent) !important;
-  border-top: 0 !important;
-  border-radius: 0 0 999px 999px !important;
-  background: transparent !important;
-  transform: translateX(-50%) rotateX(58deg) !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, var(--brand), var(--cyan), var(--violet)) !important;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cyan) 24%, transparent) !important;
+  transform: translateX(-50%) !important;
 }
 
 body.cu-android-app .settlement-3d-flow .coin-source {
-  width: 52px !important;
-  height: 52px !important;
+  top: 4px !important;
+  width: 46px !important;
+  height: 46px !important;
+  transform: translateX(-50%) !important;
+  animation: none !important;
 }
 
 body.cu-android-app .settlement-3d-flow .coin-member {
-  bottom: 9px !important;
-  width: 40px !important;
-  height: 40px !important;
+  bottom: 2px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 14px !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+body.cu-android-app .settlement-3d-flow .coin-one {
+  left: 13% !important;
+}
+
+body.cu-android-app .settlement-3d-flow .coin-two {
+  left: calc(50% - 17px) !important;
+}
+
+body.cu-android-app .settlement-3d-flow .coin-three {
+  right: 13% !important;
 }
 
 body.cu-android-app .content-3d-stack,

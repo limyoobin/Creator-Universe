@@ -1,6 +1,7 @@
 import { AccessGrantType, MemberRole, Prisma, ProjectStatus, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
+import { PARTNER_PLATFORM_FEE_DECIMAL, STANDARD_PLATFORM_FEE_DECIMAL, getPlatformFeeRate } from "../constants/fees.js";
 import { ONE_HUNDRED, decimalToNumber, roundToTwo, toDecimal } from "../utils/decimal.js";
 
 type SettleContentPurchaseInput = {
@@ -81,8 +82,8 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
             synopsis: "작가, 일러스트레이터, 성우가 함께 만든 협업형 콘텐츠입니다.",
             status: ProjectStatus.PUBLISHED,
             priceCoins: input.coinAmount,
-            platformFeeRate: toDecimal(0.15),
-            partnerFeeRate: toDecimal(0.08),
+            platformFeeRate: STANDARD_PLATFORM_FEE_DECIMAL,
+            partnerFeeRate: PARTNER_PLATFORM_FEE_DECIMAL,
             settlementCurrency: "COIN",
             members: {
               create: {
@@ -152,7 +153,7 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
     }
 
     const grossAmount = toDecimal(input.coinAmount);
-    const appliedFeeRate = project.isOfficialPartner ? project.partnerFeeRate : project.platformFeeRate;
+    const appliedFeeRate = getPlatformFeeRate(project.isOfficialPartner);
     const platformFeeAmount = roundToTwo(grossAmount.mul(appliedFeeRate));
     const netAmount = grossAmount.minus(platformFeeAmount);
 

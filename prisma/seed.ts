@@ -134,8 +134,8 @@ async function main() {
       status: ProjectStatus.PUBLISHED,
       priceCoins: 1000,
       isOfficialPartner: false,
-      platformFeeRate: 0.15,
-      partnerFeeRate: 0.08,
+      platformFeeRate: 0.12,
+      partnerFeeRate: 0.06,
       members: {
         create: [
           {

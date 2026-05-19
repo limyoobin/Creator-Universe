@@ -2,6 +2,7 @@ import { MatchRequestStatus, MemberRole, Prisma, ProjectStatus, TransactionStatu
 import { Router } from "express";
 import { z } from "zod";
 import { AppError } from "../errors/app-error.js";
+import { PARTNER_PLATFORM_FEE_DECIMAL, STANDARD_PLATFORM_FEE_DECIMAL, getPlatformFeeRate } from "../constants/fees.js";
 import { prisma } from "../lib/prisma.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { roundToTwo, toDecimal } from "../utils/decimal.js";
@@ -143,7 +144,7 @@ async function ensureCreatorCommerceProject(ownerId: string, tx: Prisma.Transact
 }
 
 function getCreatorFeeRate(isPartner: boolean) {
-  return isPartner ? toDecimal(0.08) : toDecimal(0.15);
+  return getPlatformFeeRate(isPartner);
 }
 
 async function createCreatorCommerceTransaction(input: {
@@ -310,8 +311,8 @@ async function ensureMatchingProject(projectId: string, ownerId: string, project
       synopsis: "팀원이 제안을 수락하면 정산 멤버와 지분율에 자동 반영됩니다.",
       status: ProjectStatus.IN_PRODUCTION,
       priceCoins: 1000,
-      platformFeeRate: new Prisma.Decimal(0.15),
-      partnerFeeRate: new Prisma.Decimal(0.08),
+      platformFeeRate: STANDARD_PLATFORM_FEE_DECIMAL,
+      partnerFeeRate: PARTNER_PLATFORM_FEE_DECIMAL,
       settlementCurrency: "COIN",
       members: {
         create: {

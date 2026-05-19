@@ -1,6 +1,7 @@
 import { MemberRole, Prisma, ProjectStatus, TransactionStatus, UserRole } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
+import { PARTNER_PLATFORM_FEE_DECIMAL, STANDARD_PLATFORM_FEE_DECIMAL, getPlatformFeeRate } from "../constants/fees.js";
 import { ONE_HUNDRED, decimalToNumber, roundToTwo, toDecimal } from "../utils/decimal.js";
 
 const DEFAULT_PROJECT_ID = "project-midnight-signal";
@@ -153,11 +154,14 @@ async function createDefaultProjectIfNeeded(ownerId: string) {
       status: ProjectStatus.PUBLISHED,
       isOfficialPartner: false,
       priceCoins: 1000,
-      platformFeeRate: toDecimal(0.15),
-      partnerFeeRate: toDecimal(0.08),
+      platformFeeRate: STANDARD_PLATFORM_FEE_DECIMAL,
+      partnerFeeRate: PARTNER_PLATFORM_FEE_DECIMAL,
       settlementCurrency: "COIN",
     },
-    update: {},
+    update: {
+      platformFeeRate: STANDARD_PLATFORM_FEE_DECIMAL,
+      partnerFeeRate: PARTNER_PLATFORM_FEE_DECIMAL,
+    },
     select: { id: true },
   });
 
@@ -217,8 +221,8 @@ export async function createProjectWithMembers(ownerId: string, input: CreatePro
         heroArtworkUrl: input.heroArtworkUrl,
         priceCoins: input.priceCoins ?? 1000,
         isOfficialPartner: Boolean(owner?.isPartner),
-        platformFeeRate: toDecimal(0.15),
-        partnerFeeRate: toDecimal(0.08),
+        platformFeeRate: STANDARD_PLATFORM_FEE_DECIMAL,
+        partnerFeeRate: PARTNER_PLATFORM_FEE_DECIMAL,
         members: {
           create: input.members.map((member) => ({
             userId: member.userId,
@@ -376,7 +380,7 @@ export async function getProjectSettlementDashboard(projectId: string, currentUs
     grossAmount: decimalToNumber(gross),
     platformFeeAmount: decimalToNumber(fee),
     netAmount: decimalToNumber(net),
-    appliedFeeRate: decimalToNumber(project.isOfficialPartner ? project.partnerFeeRate : project.platformFeeRate),
+    appliedFeeRate: decimalToNumber(getPlatformFeeRate(project.isOfficialPartner)),
     members: project.members.map((member, index) => ({
       userId: member.userId,
       displayName: getSafeMemberLabel(member.user.displayName, member.memberRole, index),
