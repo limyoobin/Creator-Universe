@@ -14923,6 +14923,35 @@ body.cu-android-app .studio-visual {
     min-width: 128px;
     transform: translateZ(92px) rotateX(5deg) rotateY(-6deg);
   }
+
+  .floating-widget {
+    min-width: 118px;
+    border-radius: 15px;
+    padding: 10px 11px;
+  }
+
+  .floating-widget span {
+    font-size: 20px;
+  }
+
+  .floating-widget b {
+    font-size: 11px;
+  }
+
+  .widget-left {
+    top: 18px;
+    left: 18px;
+  }
+
+  .widget-right {
+    right: 16px;
+    bottom: 126px;
+    z-index: 4;
+  }
+
+  .character-card {
+    z-index: 6;
+  }
 }
 
 body.cu-android-app .universe-3d-scene {
