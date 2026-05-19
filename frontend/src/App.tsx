@@ -4931,6 +4931,7 @@ export function App() {
                         <div className="character-card">
                           <span>{slide.visualLabel}</span>
                           <strong>{slide.visualTitle}</strong>
+                          <p>{slide.description}</p>
                         </div>
                         <div className="floating-widget widget-left">
                           <span>{slide.stat}</span>

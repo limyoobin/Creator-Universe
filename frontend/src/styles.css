@@ -1176,6 +1176,10 @@ main {
   letter-spacing: -0.05em;
 }
 
+.character-card p {
+  display: none;
+}
+
 .floating-widget {
   position: absolute;
   display: grid;
@@ -14944,7 +14948,8 @@ body.cu-android-app .studio-visual {
     bottom: 16px;
     z-index: 10;
     width: auto;
-    padding: 14px;
+    min-height: 112px;
+    padding: 14px 15px;
     border-radius: 19px;
   }
 
@@ -14954,8 +14959,20 @@ body.cu-android-app .studio-visual {
 
   .character-card strong {
     margin-top: 6px;
-    font-size: 24px;
+    font-size: 22px;
     line-height: 1.08;
+  }
+
+  .character-card p {
+    display: -webkit-box;
+    margin: 8px 0 0;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 11.5px;
+    font-weight: 750;
+    line-height: 1.45;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 }
 
