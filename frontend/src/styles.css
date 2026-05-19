@@ -16923,6 +16923,237 @@ body.cu-android-app .visual-caption {
   white-space: nowrap;
 }
 
+/* Final hero visual lock: keep the 3D board balanced with four scalable info cards. */
+.visual-artwork {
+  container-name: hero-visual;
+  container-type: inline-size;
+}
+
+.orbit-card-voice {
+  display: grid;
+  left: 10%;
+  top: 42%;
+  transform: translateZ(86px) rotateY(12deg);
+  animation: orbitCardFloat 6.8s ease-in-out infinite reverse;
+}
+
+.intro-hero .floating-widget {
+  display: none !important;
+}
+
+@media (min-width: 861px) and (max-width: 1480px) {
+  .mobile-visual-chip {
+    display: none !important;
+  }
+
+  .universe-3d-scene {
+    inset: 7% 7% 23% !important;
+    transform: scale(1.02) !important;
+    transform-origin: center center;
+  }
+
+  .orbit-card {
+    display: grid !important;
+    width: clamp(142px, 15.2cqw, 218px) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: clamp(10px, 1.18cqw, 16px) clamp(11px, 1.28cqw, 18px) !important;
+    border-radius: clamp(16px, 1.55cqw, 23px) !important;
+    gap: clamp(2px, 0.4cqw, 5px) !important;
+  }
+
+  .orbit-card svg {
+    width: clamp(13px, 1.22cqw, 18px) !important;
+    height: clamp(13px, 1.22cqw, 18px) !important;
+  }
+
+  .orbit-card b {
+    font-size: clamp(12px, 1.13cqw, 16px) !important;
+    line-height: 1.12 !important;
+  }
+
+  .orbit-card small {
+    font-size: clamp(9.5px, 0.94cqw, 12.5px) !important;
+    line-height: 1.18 !important;
+  }
+
+  .orbit-card-match {
+    inset: 7% auto auto 7% !important;
+  }
+
+  .orbit-card-work {
+    inset: 7% 7% auto auto !important;
+  }
+
+  .orbit-card-voice {
+    inset: 43% auto auto 7% !important;
+    display: grid !important;
+  }
+
+  .orbit-card-settle {
+    inset: 43% 7% auto auto !important;
+    width: clamp(142px, 15.2cqw, 218px) !important;
+  }
+
+  .moon {
+    top: 15% !important;
+    right: 26% !important;
+    width: clamp(74px, 8.6cqw, 122px) !important;
+    height: clamp(74px, 8.6cqw, 122px) !important;
+  }
+
+  .character-card {
+    inset: auto auto 8% 5% !important;
+    width: min(650px, 70%) !important;
+    min-height: clamp(68px, 7.4cqw, 98px) !important;
+    padding: clamp(12px, 1.48cqw, 20px) !important;
+    border-radius: clamp(18px, 2cqw, 26px) !important;
+  }
+}
+
+@media (min-width: 861px) and (max-width: 1120px) {
+  .universe-3d-scene {
+    inset: 8% 7% 25% !important;
+    transform: scale(0.98) !important;
+  }
+
+  .orbit-card {
+    width: clamp(124px, 14.4cqw, 158px) !important;
+    padding: 9px 11px !important;
+  }
+
+  .orbit-card-match {
+    inset: 7% auto auto 6% !important;
+  }
+
+  .orbit-card-work {
+    inset: 7% 6% auto auto !important;
+  }
+
+  .orbit-card-voice {
+    inset: 41% auto auto 6% !important;
+  }
+
+  .orbit-card-settle {
+    inset: 41% 6% auto auto !important;
+    width: clamp(124px, 14.4cqw, 158px) !important;
+  }
+
+  .moon {
+    right: 23% !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .visual-stage {
+    min-height: 392px !important;
+  }
+
+  .visual-artwork {
+    min-height: 344px !important;
+  }
+
+  .mobile-visual-chip {
+    display: none !important;
+  }
+
+  .universe-3d-scene {
+    inset: 6% 5% 26% !important;
+    transform: scale(0.88) !important;
+    transform-origin: center center;
+  }
+
+  .orbit-card {
+    display: grid !important;
+    width: clamp(92px, 26cqw, 126px) !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 7px 8px !important;
+    border-radius: 14px !important;
+    gap: 1px !important;
+  }
+
+  .orbit-card svg {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  .orbit-card b {
+    font-size: clamp(9.5px, 2.9cqw, 12px) !important;
+    line-height: 1.12 !important;
+  }
+
+  .orbit-card small {
+    font-size: clamp(8px, 2.35cqw, 10px) !important;
+    line-height: 1.14 !important;
+  }
+
+  .orbit-card-match {
+    inset: 5% auto auto 5% !important;
+  }
+
+  .orbit-card-work {
+    inset: 5% 5% auto auto !important;
+  }
+
+  .orbit-card-voice {
+    inset: 39% auto auto 5% !important;
+    display: grid !important;
+  }
+
+  .orbit-card-settle {
+    inset: 39% 5% auto auto !important;
+    width: clamp(92px, 26cqw, 126px) !important;
+  }
+
+  .moon {
+    top: 16% !important;
+    right: 23% !important;
+    width: clamp(58px, 17cqw, 82px) !important;
+    height: clamp(58px, 17cqw, 82px) !important;
+  }
+
+  .character-card {
+    inset: auto 5% 9% 5% !important;
+    width: auto !important;
+    min-height: 60px !important;
+    padding: 9px 12px !important;
+    border-radius: 17px !important;
+  }
+
+  .character-card strong {
+    font-size: clamp(17px, 5.1cqw, 21px) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .universe-3d-scene {
+    inset: 6% 4.5% 27% !important;
+    transform: scale(0.84) !important;
+  }
+
+  .orbit-card {
+    width: 94px !important;
+    padding: 7px 8px !important;
+  }
+
+  .orbit-card small {
+    font-size: 8px !important;
+  }
+
+  .orbit-card-settle {
+    width: 94px !important;
+  }
+}
+
+body.cu-android-app .orbit-card,
+body.cu-android-app .orbit-card-work,
+body.cu-android-app .orbit-card-match,
+body.cu-android-app .orbit-card-voice,
+body.cu-android-app .orbit-card-settle {
+  display: grid !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

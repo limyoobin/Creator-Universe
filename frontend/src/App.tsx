@@ -4927,6 +4927,11 @@ export function App() {
                             <b>팀 매칭</b>
                             <small>글 · 그림 · 목소리</small>
                           </div>
+                          <div className="orbit-card orbit-card-voice">
+                            <Headphones size={15} />
+                            <b>보이스 UX</b>
+                            <small>대본 · 음성 싱크</small>
+                          </div>
                           <div className="orbit-card orbit-card-settle">
                             <Split size={15} />
                             <b>자동 정산</b>
