@@ -97,6 +97,7 @@ a {
   align-items: center;
   gap: 11px;
   min-width: 214px;
+  max-width: 100%;
   border: 0;
   padding: 0;
   color: var(--text);
@@ -133,6 +134,9 @@ a {
 }
 
 .brand strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   letter-spacing: -0.03em;
   white-space: nowrap;
   word-break: keep-all;
@@ -241,6 +245,11 @@ a {
   gap: 10px;
 }
 
+.header-actions {
+  justify-self: end;
+  min-width: max-content;
+}
+
 .user-chip,
 .notice {
   border: 1px solid var(--line);
@@ -285,17 +294,19 @@ a {
 
 @media (max-width: 1240px) {
   .topbar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
     width: min(100% - 18px, 1180px);
     gap: 8px;
+    padding: 9px;
   }
 
   .brand {
     min-width: auto;
+    max-width: min(44vw, 310px);
   }
 
   .brand strong {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .brand span {
@@ -305,25 +316,46 @@ a {
   }
 
   .desktop-nav {
-    gap: 3px;
-    padding: 5px;
-  }
-
-  .desktop-nav button {
-    min-width: 62px;
-    padding: 8px 8px;
-  }
-
-  .desktop-nav button span {
-    font-size: 12px;
-  }
-
-  .desktop-nav button small {
     display: none;
+  }
+
+  .brand em {
+    display: none;
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+
+  .mobile-drawer.open {
+    display: block;
+    animation: drawerDrop 220ms ease both;
   }
 
   .account-trigger b {
     max-width: 64px;
+  }
+}
+
+@media (max-width: 1040px) {
+  .nav-pay-button {
+    display: none;
+  }
+
+  .brand {
+    max-width: min(48vw, 280px);
+  }
+}
+
+@media (max-width: 920px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .header-actions .icon-button:not(.mobile-menu-button),
+  .account-trigger b,
+  .account-trigger svg {
+    display: none;
   }
 }
 
