@@ -14874,15 +14874,24 @@ body.cu-android-app .studio-visual {
 }
 
 @media (max-width: 860px) {
+  .visual-stage {
+    min-height: 440px;
+  }
+
+  .visual-artwork {
+    min-height: 400px;
+  }
+
   .universe-3d-scene {
-    inset: 24px 14px 72px;
+    inset: 22px 14px 128px;
     opacity: 0.82;
-    transform: scale(0.88);
+    transform: none;
     transform-origin: center;
   }
 
   .orbit-card {
-    min-width: 116px;
+    min-width: 112px;
+    max-width: 148px;
     border-radius: 15px;
     padding: 9px;
   }
@@ -14903,54 +14912,50 @@ body.cu-android-app .studio-visual {
   }
 
   .orbit-card-work {
-    top: 12px;
+    top: 8px;
     right: 8px;
     z-index: 4;
     transform: translateZ(74px) rotateY(-12deg);
   }
 
   .orbit-card-match {
-    top: auto;
-    bottom: 42px;
-    left: 6px;
+    top: 8px;
+    bottom: auto;
+    left: 8px;
     transform: translateZ(62px) rotateY(12deg);
   }
 
   .orbit-card-settle {
-    right: 8px;
-    bottom: 8px;
+    top: 118px;
+    right: 14px;
+    bottom: auto;
     z-index: 8;
-    min-width: 128px;
+    min-width: 124px;
     transform: translateZ(92px) rotateX(5deg) rotateY(-6deg);
   }
 
   .floating-widget {
-    min-width: 118px;
-    border-radius: 15px;
-    padding: 10px 11px;
-  }
-
-  .floating-widget span {
-    font-size: 20px;
-  }
-
-  .floating-widget b {
-    font-size: 11px;
-  }
-
-  .widget-left {
-    top: 18px;
-    left: 18px;
-  }
-
-  .widget-right {
-    right: 16px;
-    bottom: 126px;
-    z-index: 4;
+    display: none;
   }
 
   .character-card {
-    z-index: 6;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 10;
+    width: auto;
+    padding: 14px;
+    border-radius: 19px;
+  }
+
+  .character-card span {
+    font-size: 11px;
+  }
+
+  .character-card strong {
+    margin-top: 6px;
+    font-size: 24px;
+    line-height: 1.08;
   }
 }
 
