@@ -14875,15 +14875,53 @@ body.cu-android-app .studio-visual {
 
 @media (max-width: 860px) {
   .universe-3d-scene {
-    inset: 28px 18px 86px;
+    inset: 24px 14px 72px;
     opacity: 0.82;
     transform: scale(0.88);
     transform-origin: center;
   }
 
   .orbit-card {
-    min-width: 126px;
-    padding: 10px;
+    min-width: 116px;
+    border-radius: 15px;
+    padding: 9px;
+  }
+
+  .orbit-card svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .orbit-card b {
+    font-size: 12px;
+    line-height: 1.15;
+  }
+
+  .orbit-card small {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .orbit-card-work {
+    top: 12px;
+    right: 8px;
+    z-index: 4;
+    transform: translateZ(74px) rotateY(-12deg);
+  }
+
+  .orbit-card-match {
+    top: auto;
+    bottom: 42px;
+    left: 6px;
+    transform: translateZ(62px) rotateY(12deg);
+  }
+
+  .orbit-card-settle {
+    right: 8px;
+    bottom: 8px;
+    z-index: 8;
+    min-width: 128px;
+    transform: translateZ(92px) rotateX(5deg) rotateY(-6deg);
   }
 }
 
