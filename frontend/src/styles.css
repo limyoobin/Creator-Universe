@@ -16586,6 +16586,205 @@ body.cu-android-app .feature-3d-object {
   }
 }
 
+@media (min-width: 861px) and (max-width: 1480px) {
+  .studio-visual {
+    width: min(100%, 1040px) !important;
+    justify-self: center;
+  }
+
+  .visual-stage {
+    min-height: clamp(430px, 39vw, 540px) !important;
+  }
+
+  .visual-artwork {
+    width: 100% !important;
+    max-width: 1040px !important;
+    min-height: clamp(390px, 35vw, 490px) !important;
+    border-radius: clamp(26px, 2.4vw, 34px);
+  }
+
+  .visual-artwork::after {
+    inset: clamp(20px, 2.6vw, 34px);
+  }
+
+  .universe-3d-scene {
+    inset: 7% 7% 23% !important;
+    opacity: 1;
+    transform: scale(clamp(0.96, 0.82 + 0.012vw, 1.16)) !important;
+    transform-origin: center center;
+  }
+
+  .mobile-visual-chip {
+    display: none !important;
+  }
+
+  .constellation-core {
+    width: clamp(130px, 12vw, 174px);
+    height: clamp(130px, 12vw, 174px);
+    border-radius: clamp(30px, 3vw, 42px);
+  }
+
+  .constellation-core img {
+    width: clamp(72px, 7vw, 96px);
+    height: clamp(72px, 7vw, 96px);
+  }
+
+  .orbit-ring {
+    width: clamp(320px, 34vw, 470px);
+    height: clamp(136px, 14vw, 198px);
+    margin: calc(clamp(136px, 14vw, 198px) / -2) 0 0 calc(clamp(320px, 34vw, 470px) / -2);
+  }
+
+  .ring-two {
+    width: clamp(390px, 42vw, 560px);
+    height: clamp(172px, 18vw, 246px);
+    margin: calc(clamp(172px, 18vw, 246px) / -2) 0 0 calc(clamp(390px, 42vw, 560px) / -2);
+  }
+
+  .ring-three {
+    width: clamp(250px, 26vw, 360px);
+    height: clamp(102px, 11vw, 150px);
+    margin: calc(clamp(102px, 11vw, 150px) / -2) 0 0 calc(clamp(250px, 26vw, 360px) / -2);
+  }
+
+  .orbit-card {
+    display: grid !important;
+    min-width: 0;
+    width: clamp(150px, 15vw, 196px);
+    max-width: none;
+    padding: clamp(11px, 1.15vw, 15px);
+    border-radius: clamp(16px, 1.5vw, 21px);
+  }
+
+  .orbit-card b {
+    font-size: clamp(12px, 1.15vw, 15px);
+    line-height: 1.14;
+  }
+
+  .orbit-card small {
+    font-size: clamp(10px, 0.95vw, 12px);
+    line-height: 1.2;
+  }
+
+  .orbit-card-work {
+    top: 8% !important;
+    right: 7% !important;
+    bottom: auto !important;
+  }
+
+  .orbit-card-match {
+    top: 9% !important;
+    left: 7% !important;
+    bottom: auto !important;
+  }
+
+  .orbit-card-settle {
+    top: 43% !important;
+    right: 7.5% !important;
+    bottom: auto !important;
+    width: clamp(160px, 16vw, 210px);
+  }
+
+  .orb-one {
+    top: 24%;
+    left: 15%;
+    width: clamp(118px, 13vw, 176px);
+    height: clamp(118px, 13vw, 176px);
+  }
+
+  .orb-two {
+    right: 10%;
+    bottom: 24%;
+    width: clamp(86px, 10vw, 132px);
+    height: clamp(86px, 10vw, 132px);
+  }
+
+  .moon {
+    top: 10%;
+    right: 30%;
+    width: clamp(82px, 9vw, 122px);
+    height: clamp(82px, 9vw, 122px);
+  }
+
+  .character-card {
+    right: auto !important;
+    bottom: 10% !important;
+    left: 5% !important;
+    width: min(620px, 74%) !important;
+    min-height: clamp(70px, 7vw, 96px);
+    padding: clamp(13px, 1.5vw, 20px);
+    border-radius: clamp(18px, 2vw, 25px);
+  }
+
+  .character-card span {
+    font-size: clamp(11px, 1vw, 13px);
+  }
+
+  .character-card strong {
+    margin-top: clamp(5px, 0.7vw, 9px);
+    font-size: clamp(21px, 2.05vw, 30px) !important;
+    line-height: 1.05;
+  }
+}
+
+@media (min-width: 861px) and (max-width: 1120px) {
+  .visual-stage {
+    min-height: 430px !important;
+  }
+
+  .visual-artwork {
+    min-height: 390px !important;
+  }
+
+  .universe-3d-scene {
+    inset: 8% 8% 25% !important;
+    transform: scale(0.94) !important;
+  }
+
+  .orbit-card-work {
+    display: none !important;
+  }
+
+  .orbit-card-match {
+    top: 12% !important;
+    left: 7% !important;
+  }
+
+  .orbit-card-settle {
+    top: 38% !important;
+    right: 7% !important;
+  }
+
+  .character-card {
+    bottom: 10% !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .orbit-card-work,
+  .orbit-card-match {
+    display: none !important;
+  }
+
+  .mobile-visual-chip {
+    display: grid !important;
+    top: 30% !important;
+    left: 5% !important;
+  }
+
+  .orbit-card-settle {
+    top: 34% !important;
+    right: 5% !important;
+    width: 132px;
+    min-width: 0;
+  }
+
+  .character-card {
+    bottom: 12% !important;
+    min-height: 62px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
