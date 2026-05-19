@@ -16863,6 +16863,66 @@ body.cu-android-app .feature-3d-object {
   }
 }
 
+@media (max-width: 860px) {
+  .visual-slide {
+    gap: 9px;
+  }
+
+  .visual-stage {
+    min-height: 404px !important;
+  }
+
+  .visual-caption {
+    display: inline-flex !important;
+    justify-self: center;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+}
+
+body.cu-android-app .studio-visual {
+  display: grid !important;
+  margin-top: 14px;
+}
+
+body.cu-android-app .visual-stage {
+  min-height: 404px !important;
+}
+
+body.cu-android-app .visual-artwork {
+  min-height: 350px !important;
+}
+
+body.cu-android-app .universe-3d-scene {
+  display: block !important;
+}
+
+body.cu-android-app .orbit-card,
+body.cu-android-app .orbit-card-work,
+body.cu-android-app .orbit-card-match,
+body.cu-android-app .orbit-card-settle {
+  display: grid !important;
+}
+
+body.cu-android-app .visual-caption {
+  display: inline-flex !important;
+  justify-self: center;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
