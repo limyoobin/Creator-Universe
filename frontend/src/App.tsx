@@ -1934,6 +1934,14 @@ function CreatorDetailModal({
   const portfolio = getCreatorPortfolio(creator);
   const creatorWorks = readerWorks.filter((work) => work.participantUserIds.includes(creator.userId));
   const creatorPosts = creatorFanPosts.filter((post) => post.creatorUserId === creator.userId);
+  const featuredWork = creatorWorks[0];
+  const featuredPortfolio = portfolio[0];
+  const recentPost = creatorPosts[0];
+  const paidPostCount = creatorPosts.filter((post) => post.priceCoins > 0 || post.access.includes("구독")).length;
+  const lowestMembershipPlan = creatorMembershipPlans.reduce(
+    (lowest, plan) => (plan.price < lowest.price ? plan : lowest),
+    creatorMembershipPlans[0],
+  );
   const [profileTab, setProfileTab] = useState<"portfolio" | "fanclub" | "works">("portfolio");
   const [donationAmount, setDonationAmount] = useState(1000);
   const [donationMessage, setDonationMessage] = useState("");
@@ -2045,6 +2053,42 @@ function CreatorDetailModal({
             <span>{formatDuration(creator.voiceDemo.durationSeconds)}</span>
           </div>
         )}
+
+        <section className="creator-storefront-strip" aria-label="창작자 대표 활동 요약">
+          <article className="creator-storefront-card primary">
+            <span>대표작</span>
+            <strong>{featuredWork?.title || featuredPortfolio?.title || "새 프로젝트 준비 중"}</strong>
+            <p>
+              {featuredWork
+                ? `${featuredWork.format} · ${featuredWork.genre} · ${featuredWork.episodes}화`
+                : featuredPortfolio?.category || "포트폴리오와 팬 포스트가 곧 공개됩니다."}
+            </p>
+            <button type="button" onClick={() => setProfileTab(featuredWork ? "works" : "portfolio")}>
+              {featuredWork ? "참여 작품 보기" : "포트폴리오 보기"}
+            </button>
+          </article>
+
+          <article className="creator-storefront-card">
+            <span>최근 업로드</span>
+            <strong>{recentPost?.title || "아직 업로드 전"}</strong>
+            <p>{recentPost ? `${recentPost.type} · ${recentPost.access}` : "새 팬 포스트가 올라오면 구독자에게 먼저 알려요."}</p>
+            <button type="button" onClick={() => setProfileTab("fanclub")}>팬 포스트 보기</button>
+          </article>
+
+          <article className="creator-storefront-card">
+            <span>유료 포스트</span>
+            <strong>{paidPostCount}개</strong>
+            <p>러프, 이미지팩, 보이스 샘플을 코인으로 열람할 수 있습니다.</p>
+            <button type="button" onClick={() => setProfileTab("fanclub")}>유료 콘텐츠 보기</button>
+          </article>
+
+          <article className="creator-storefront-card support">
+            <span>후원/구독</span>
+            <strong>{formatCoins(lowestMembershipPlan.price)}부터</strong>
+            <p>월 구독과 자유 후원으로 창작자의 다음 작품을 응원합니다.</p>
+            <button type="button" onClick={() => setProfileTab("fanclub")}>후원하러 가기</button>
+          </article>
+        </section>
 
         <div className="creator-profile-tabs" aria-label="창작자 프로필 탭">
           <button className={profileTab === "portfolio" ? "active" : ""} onClick={() => setProfileTab("portfolio")}>포트폴리오</button>

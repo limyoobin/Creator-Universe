@@ -8464,6 +8464,103 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   background: transparent;
 }
 
+.creator-storefront-strip {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.creator-storefront-card {
+  position: relative;
+  display: grid;
+  align-content: space-between;
+  gap: 10px;
+  min-height: 184px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 24px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 13%, transparent), transparent 8rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 92%, transparent), var(--surface));
+  box-shadow: 0 16px 44px color-mix(in srgb, #000 7%, transparent);
+}
+
+.creator-storefront-card::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  bottom: -34px;
+  width: 112px;
+  height: 112px;
+  border-radius: 36px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 18%, transparent), color-mix(in srgb, var(--cyan) 15%, transparent));
+  transform: rotate(18deg);
+}
+
+.creator-storefront-card.primary {
+  background:
+    radial-gradient(circle at 14% 8%, color-mix(in srgb, var(--cyan) 18%, transparent), transparent 10rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 9rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 94%, transparent), var(--surface-2));
+}
+
+.creator-storefront-card.support {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--violet) 18%, transparent), transparent 9rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 92%, transparent), var(--surface));
+}
+
+.creator-storefront-card span {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 7%, var(--surface));
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.creator-storefront-card strong {
+  position: relative;
+  z-index: 1;
+  color: var(--text);
+  font-size: clamp(19px, 2vw, 25px);
+  letter-spacing: -0.045em;
+  line-height: 1.18;
+}
+
+.creator-storefront-card p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.62;
+}
+
+.creator-storefront-card button {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--line));
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font-weight: 900;
+  box-shadow: 0 10px 26px color-mix(in srgb, #000 7%, transparent);
+}
+
+.creator-storefront-card.primary button,
+.creator-storefront-card.support button {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+}
+
 .portfolio-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11062,6 +11159,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .intro-metrics,
   .audience-grid,
   .plan-grid,
+  .creator-storefront-strip,
   .portfolio-list,
   .reader-work-grid,
   .library-shelf,
@@ -12473,6 +12571,26 @@ body.cu-android-app .auth-modal {
 
 body.cu-android-app .fanclub-overview {
   gap: 9px;
+}
+
+body.cu-android-app .creator-storefront-strip {
+  grid-template-columns: 1fr;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+body.cu-android-app .creator-storefront-card {
+  min-height: auto;
+  border-radius: 18px;
+  padding: 13px;
+}
+
+body.cu-android-app .creator-storefront-card strong {
+  font-size: 19px;
+}
+
+body.cu-android-app .creator-storefront-card p {
+  font-size: 12.5px;
 }
 
 body.cu-android-app .fanclub-overview article,
