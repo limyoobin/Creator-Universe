@@ -16930,7 +16930,7 @@ body.cu-android-app .visual-caption {
 }
 
 .orbit-card-voice {
-  display: none;
+  display: grid;
   left: 10%;
   top: 42%;
   transform: translateZ(86px) rotateY(12deg);
@@ -16986,12 +16986,12 @@ body.cu-android-app .visual-caption {
   }
 
   .orbit-card-voice {
-    inset: 43% auto auto 7% !important;
-    display: none !important;
+    inset: 34% auto auto 7% !important;
+    display: grid !important;
   }
 
   .orbit-card-settle {
-    inset: 43% 7% auto auto !important;
+    inset: 34% 7% auto auto !important;
     width: clamp(142px, 15.2cqw, 218px) !important;
   }
 
@@ -17003,11 +17003,15 @@ body.cu-android-app .visual-caption {
   }
 
   .character-card {
-    inset: auto auto 8% 5% !important;
-    width: min(650px, 70%) !important;
-    min-height: clamp(68px, 7.4cqw, 98px) !important;
+    inset: auto auto 5% 5% !important;
+    width: min(600px, 64%) !important;
+    min-height: clamp(62px, 6.6cqw, 88px) !important;
     padding: clamp(12px, 1.48cqw, 20px) !important;
     border-radius: clamp(18px, 2cqw, 26px) !important;
+  }
+
+  .character-card strong {
+    font-size: clamp(20px, 1.75cqw, 26px) !important;
   }
 }
 
@@ -17031,17 +17035,26 @@ body.cu-android-app .visual-caption {
   }
 
   .orbit-card-voice {
-    inset: 41% auto auto 6% !important;
-    display: none !important;
+    inset: 32% auto auto 6% !important;
+    display: grid !important;
   }
 
   .orbit-card-settle {
-    inset: 41% 6% auto auto !important;
+    inset: 32% 6% auto auto !important;
     width: clamp(124px, 14.4cqw, 158px) !important;
   }
 
   .moon {
     right: 23% !important;
+  }
+
+  .character-card {
+    bottom: 5% !important;
+    width: min(520px, 62%) !important;
+  }
+
+  .character-card strong {
+    font-size: clamp(18px, 1.7cqw, 23px) !important;
   }
 }
 
@@ -17099,7 +17112,7 @@ body.cu-android-app .visual-caption {
 
   .orbit-card-voice {
     inset: 39% auto auto 5% !important;
-    display: none !important;
+    display: grid !important;
   }
 
   .orbit-card-settle {
