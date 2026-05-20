@@ -712,6 +712,12 @@ const introSlides = [
     visualLabel: "Collaboration Hub",
     mobileChipTitle: "Role Match",
     mobileChipText: "팀원 포트폴리오",
+    visualCards: {
+      work: ["작품 IP", "웹툰 · 소설 · 오디오"],
+      match: ["팀 매칭", "글 · 그림 · 목소리"],
+      voice: ["보이스 UX", "대본 · 음성 싱크"],
+      settle: ["수익 설계", "30 · 30 · 40"],
+    },
     tone: "pink",
   },
   {
@@ -725,6 +731,12 @@ const introSlides = [
     visualLabel: "Auto Settlement",
     mobileChipTitle: "Split Pay",
     mobileChipText: "수익 자동 분배",
+    visualCards: {
+      work: ["결제 로그", "코인 · 열람권"],
+      match: ["팀 동의", "지분율 확정"],
+      voice: ["정산 원장", "투명한 기록"],
+      settle: ["자동 정산", "13% · 8%"],
+    },
     tone: "cyan",
   },
   {
@@ -738,6 +750,12 @@ const introSlides = [
     visualLabel: "Accessible Audio",
     mobileChipTitle: "Voice First",
     mobileChipText: "접근성 오디오",
+    visualCards: {
+      work: ["접근성 IP", "텍스트 · 오디오"],
+      match: ["성우 협업", "감정 연기"],
+      voice: ["대본 싱크", "고대비 감상"],
+      settle: ["팬 확장", "누구나 감상"],
+    },
     tone: "violet",
   },
 ];
@@ -4919,23 +4937,23 @@ export function App() {
                           </div>
                           <div className="orbit-card orbit-card-work">
                             <BookOpen size={15} />
-                            <b>작품 IP</b>
-                            <small>웹툰 · 소설 · 오디오</small>
+                            <b>{slide.visualCards.work[0]}</b>
+                            <small>{slide.visualCards.work[1]}</small>
                           </div>
                           <div className="orbit-card orbit-card-match">
                             <Users size={15} />
-                            <b>팀 매칭</b>
-                            <small>글 · 그림 · 목소리</small>
+                            <b>{slide.visualCards.match[0]}</b>
+                            <small>{slide.visualCards.match[1]}</small>
                           </div>
                           <div className="orbit-card orbit-card-voice">
                             <Headphones size={15} />
-                            <b>보이스 UX</b>
-                            <small>대본 · 음성 싱크</small>
+                            <b>{slide.visualCards.voice[0]}</b>
+                            <small>{slide.visualCards.voice[1]}</small>
                           </div>
                           <div className="orbit-card orbit-card-settle">
                             <Split size={15} />
-                            <b>자동 정산</b>
-                            <small>30 · 30 · 40</small>
+                            <b>{slide.visualCards.settle[0]}</b>
+                            <small>{slide.visualCards.settle[1]}</small>
                           </div>
                         </div>
                         <div className="mobile-visual-chip">
