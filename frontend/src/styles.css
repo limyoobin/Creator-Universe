@@ -742,7 +742,8 @@ main {
 .reveal.revealed .audience-card,
 .reveal.revealed .plan-card,
 .reveal.revealed .mock-card,
-.reveal.revealed .start-guide-card {
+.reveal.revealed .start-guide-card,
+.reveal.revealed .trust-safety-grid article {
   animation: cardFloatIn 680ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -750,14 +751,16 @@ main {
 .reveal.revealed .audience-card:nth-child(2),
 .reveal.revealed .plan-card:nth-child(2),
 .reveal.revealed .mock-card:nth-child(2),
-.reveal.revealed .start-guide-card:nth-child(2) {
+.reveal.revealed .start-guide-card:nth-child(2),
+.reveal.revealed .trust-safety-grid article:nth-child(2) {
   animation-delay: 90ms;
 }
 
 .reveal.revealed .feature-card:nth-child(3),
 .reveal.revealed .audience-card:nth-child(3),
 .reveal.revealed .mock-card:nth-child(3),
-.reveal.revealed .start-guide-card:nth-child(3) {
+.reveal.revealed .start-guide-card:nth-child(3),
+.reveal.revealed .trust-safety-grid article:nth-child(3) {
   animation-delay: 180ms;
 }
 
@@ -1307,6 +1310,7 @@ main {
 .ecosystem-section,
 .flow-section,
 .premium-section,
+.trust-safety-section,
 .timeline-section,
 .mission-section,
 .final-cta {
@@ -3858,6 +3862,93 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   color: #111827;
   background: #fff;
   font-weight: 900;
+}
+
+.trust-safety-section {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 32px;
+  padding-right: clamp(18px, 3vw, 30px);
+  padding-left: clamp(18px, 3vw, 30px);
+  background:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--green) 12%, transparent), transparent 17rem),
+    radial-gradient(circle at 94% 6%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 17rem),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 78%, transparent), color-mix(in srgb, var(--surface) 92%, transparent));
+  box-shadow: 0 24px 80px color-mix(in srgb, #000 8%, transparent);
+}
+
+.trust-safety-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.trust-safety-grid article {
+  position: relative;
+  overflow: hidden;
+  min-height: 250px;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: 26px;
+  padding: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 9rem),
+    var(--surface);
+}
+
+.trust-safety-grid article::after {
+  content: "";
+  position: absolute;
+  right: -34px;
+  bottom: -38px;
+  width: 124px;
+  height: 124px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand) 18%, transparent), transparent 68%);
+}
+
+.trust-safety-grid span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--green), var(--cyan), var(--violet));
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--cyan) 20%, transparent);
+}
+
+.trust-safety-grid em {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: 18px;
+  color: var(--cyan);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trust-safety-grid h3 {
+  position: relative;
+  z-index: 1;
+  margin: 8px 0 10px;
+  color: var(--text);
+  font-size: clamp(24px, 2.4vw, 32px);
+  letter-spacing: -0.06em;
+  line-height: 1.16;
+}
+
+.trust-safety-grid p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.72;
+  word-break: keep-all;
 }
 
 .reader-toolbar {
@@ -11287,6 +11378,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .plan-grid,
   .creator-storefront-strip,
   .start-guide-grid,
+  .trust-safety-grid,
   .portfolio-list,
   .reader-work-grid,
   .library-shelf,
@@ -14146,6 +14238,44 @@ body.cu-android-app .app-home-recommend > div:first-child button {
   font-weight: 950;
 }
 
+body.cu-android-app .app-trust-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+body.cu-android-app .app-trust-strip button {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  min-width: 0;
+  min-height: 70px;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: 18px;
+  padding: 10px 7px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--green) 10%, transparent), transparent 5rem),
+    var(--surface);
+  text-align: center;
+  box-shadow: 0 12px 26px color-mix(in srgb, #000 6%, transparent);
+}
+
+body.cu-android-app .app-trust-strip svg {
+  color: var(--cyan);
+}
+
+body.cu-android-app .app-trust-strip span {
+  overflow: hidden;
+  max-width: 100%;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 body.cu-android-app .app-home-recommend {
   display: grid;
   gap: 12px;
@@ -15693,6 +15823,7 @@ body.cu-android-app .showcase-section,
 body.cu-android-app .ecosystem-section,
 body.cu-android-app .flow-section,
 body.cu-android-app .premium-section,
+body.cu-android-app .trust-safety-section,
 body.cu-android-app .timeline-section,
 body.cu-android-app .mission-section,
 body.cu-android-app .final-cta {

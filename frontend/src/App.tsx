@@ -837,6 +837,27 @@ const onboardingGuides = [
   },
 ];
 
+const trustSignals = [
+  {
+    icon: <ShieldCheck size={22} />,
+    title: "정산 원장 기록",
+    label: "Settlement Ledger",
+    text: "결제 ID, 적용 수수료, 팀원별 분배액을 거래 단위로 남겨 창작팀이 같은 기준을 확인합니다.",
+  },
+  {
+    icon: <CreditCard size={22} />,
+    title: "코인·열람권 보호",
+    label: "Coin Safety",
+    text: "충전, 사용, 열람권 지급 내역을 지갑에 분리 기록해 결제 오류나 중복 차감을 빠르게 추적합니다.",
+  },
+  {
+    icon: <Bell size={22} />,
+    title: "알림과 신고 동선",
+    label: "Trust Support",
+    text: "새 회차, 스크랩 작품 업데이트, 매칭 제안, 신고 접수 상태를 사용자에게 바로 알려줍니다.",
+  },
+];
+
 const serviceFlow = [
   {
     title: "포트폴리오 발견",
@@ -4997,6 +5018,19 @@ export function App() {
                 </article>
               </div>
 
+              <div className="app-trust-strip" aria-label="앱 신뢰 기능 요약">
+                {trustSignals.map((signal) => (
+                  <button
+                    type="button"
+                    key={signal.title}
+                    onClick={() => navigate(signal.title.includes("정산") ? "settlement" : signal.title.includes("코인") ? "wallet" : "support")}
+                  >
+                    {signal.icon}
+                    <span>{signal.title}</span>
+                  </button>
+                ))}
+              </div>
+
               <div className="app-home-recommend">
                 <div>
                   <span>추천 작품</span>
@@ -5290,6 +5324,29 @@ export function App() {
               <div>
                 <strong>7,900 Coin</strong>
                 {universePremiumBenefits.map((benefit) => <span key={benefit}><CheckCircle2 size={16} /> {benefit}</span>)}
+              </div>
+            </section>
+
+            <section className="trust-safety-section reveal">
+              <div className="section-head intro-head">
+                <div>
+                  <p className="kicker">Trust & Safety</p>
+                  <h2>돈과 권리가 오가는 플랫폼이라서 신뢰 흐름을 먼저 설계했습니다</h2>
+                </div>
+                <p>
+                  코인 결제, 콘텐츠 열람권, 창작자 정산, 사용자 신고를 서로 분리하지 않고
+                  하나의 기록 흐름으로 연결해 문제 상황을 빠르게 확인할 수 있게 했습니다.
+                </p>
+              </div>
+              <div className="trust-safety-grid">
+                {trustSignals.map((signal) => (
+                  <article key={signal.title}>
+                    <span>{signal.icon}</span>
+                    <em>{signal.label}</em>
+                    <h3>{signal.title}</h3>
+                    <p>{signal.text}</p>
+                  </article>
+                ))}
               </div>
             </section>
 
