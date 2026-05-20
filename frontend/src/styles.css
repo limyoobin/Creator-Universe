@@ -16930,7 +16930,7 @@ body.cu-android-app .visual-caption {
 }
 
 .orbit-card-voice {
-  display: grid;
+  display: none;
   left: 10%;
   top: 42%;
   transform: translateZ(86px) rotateY(12deg);
@@ -16987,7 +16987,7 @@ body.cu-android-app .visual-caption {
 
   .orbit-card-voice {
     inset: 43% auto auto 7% !important;
-    display: grid !important;
+    display: none !important;
   }
 
   .orbit-card-settle {
@@ -17032,6 +17032,7 @@ body.cu-android-app .visual-caption {
 
   .orbit-card-voice {
     inset: 41% auto auto 6% !important;
+    display: none !important;
   }
 
   .orbit-card-settle {
@@ -17098,7 +17099,7 @@ body.cu-android-app .visual-caption {
 
   .orbit-card-voice {
     inset: 39% auto auto 5% !important;
-    display: grid !important;
+    display: none !important;
   }
 
   .orbit-card-settle {
