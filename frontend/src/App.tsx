@@ -807,6 +807,36 @@ const audienceSegments = [
   },
 ];
 
+const onboardingGuides = [
+  {
+    audience: "독자",
+    icon: <BookOpen size={22} />,
+    title: "취향 작품을 찾고 이어보기",
+    text: "소설, 웹툰, 만화, 오디오드라마를 장르별로 탐색하고 코인으로 열람권을 구매합니다.",
+    steps: ["장르 탐색", "코인 열람", "스크랩 저장"],
+    page: "discover" as PageId,
+    cta: "작품 보러가기",
+  },
+  {
+    audience: "창작자",
+    icon: <Rocket size={22} />,
+    title: "내 프로필을 올리고 팀원 찾기",
+    text: "대표 작업, 가능 장르, 포트폴리오를 등록하면 다른 창작자가 협업 제안을 보낼 수 있습니다.",
+    steps: ["프로필 등록", "포트폴리오 공개", "제안 받기"],
+    page: "studio" as PageId,
+    cta: "창작자 등록",
+  },
+  {
+    audience: "팀장",
+    icon: <Split size={22} />,
+    title: "수익 지분을 정하고 자동 정산",
+    text: "팀원이 제안을 수락하면 프로젝트 팀에 합류하고, 합의한 지분율대로 정산 미리보기를 확인합니다.",
+    steps: ["지분 제안", "팀원 수락", "정산 확인"],
+    page: "settlement" as PageId,
+    cta: "정산 보기",
+  },
+];
+
 const serviceFlow = [
   {
     title: "포트폴리오 발견",
@@ -4834,6 +4864,16 @@ export function App() {
                 </button>
               </div>
 
+              <div className="app-onboarding-rail" aria-label="앱 시작 가이드">
+                {onboardingGuides.map((guide) => (
+                  <button type="button" key={guide.audience} onClick={() => navigate(guide.page)}>
+                    {guide.icon}
+                    <span>{guide.audience}</span>
+                    <strong>{guide.cta}</strong>
+                  </button>
+                ))}
+              </div>
+
               <section className={`app-purpose-panel ${appMode}`} aria-label={appMode === "reader" ? "독자 추천 동선" : "창작자 추천 동선"}>
                 <div className="app-purpose-head">
                   <span>{appMode === "reader" ? "Reader Flow" : "Creator Flow"}</span>
@@ -5078,6 +5118,37 @@ export function App() {
               <div><strong>13% / 8%</strong><span>일반 · 파트너 수수료</span></div>
               <div><strong>30:30:40</strong><span>팀 지분율 자동 분배</span></div>
               <div><strong>Voice-first</strong><span>배리어프리 UX</span></div>
+            </section>
+
+            <section className="start-guide-section reveal">
+              <div className="section-head intro-head">
+                <div>
+                  <p className="kicker">Start Guide</p>
+                  <h2>처음 들어와도 바로 이해되는 3가지 시작 동선</h2>
+                </div>
+                <p>
+                  독자는 작품을 보고, 창작자는 프로필을 올리고, 팀장은 제안과 정산을 관리합니다.
+                  각 역할별 핵심 행동을 한 화면에서 바로 시작할 수 있게 정리했습니다.
+                </p>
+              </div>
+              <div className="start-guide-grid">
+                {onboardingGuides.map((guide) => (
+                  <article key={guide.audience} className="start-guide-card">
+                    <span>{guide.icon}</span>
+                    <em>{guide.audience}</em>
+                    <h3>{guide.title}</h3>
+                    <p>{guide.text}</p>
+                    <div>
+                      {guide.steps.map((step) => (
+                        <b key={step}>{step}</b>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => navigate(guide.page)}>
+                      {guide.cta}
+                    </button>
+                  </article>
+                ))}
+              </div>
             </section>
 
             <section className="intro-section reveal">
