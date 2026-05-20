@@ -2242,6 +2242,9 @@ function WorkDetailModal({
   const currentEpisodeNumber = Math.min(progress?.episodeNumber ?? 1, episodes.length);
   const progressPercent = progress?.percent ?? (isPurchased ? 12 : 0);
   const currentEpisode = episodes.find((episode) => episode.episodeNumber === currentEpisodeNumber) ?? episodes[0];
+  const relatedWorks = readerWorks
+    .filter((candidate) => candidate.id !== work.id && (candidate.genre === work.genre || candidate.format === work.format || candidate.tags.some((tag) => work.tags.includes(tag))))
+    .slice(0, 3);
 
   return (
     <div className="modal-backdrop work-detail-backdrop" role="dialog" aria-modal="true">
@@ -2358,6 +2361,23 @@ function WorkDetailModal({
             </div>
             <p>무료 회차와 구매 후 열리는 회차를 구분해서 보여줍니다.</p>
           </div>
+          <div className="episode-access-summary">
+            <article>
+              <span>무료 시작</span>
+              <strong>1화 무료</strong>
+              <p>처음 보는 독자도 바로 분위기를 확인할 수 있어요.</p>
+            </article>
+            <article>
+              <span>열람권</span>
+              <strong>{isPurchased ? "구매 완료" : `${formatCoins(work.priceCoins)} 전체 열람`}</strong>
+              <p>{isPurchased ? "모든 유료 회차가 열려 있습니다." : "구매하면 잠긴 회차를 이어서 볼 수 있습니다."}</p>
+            </article>
+            <article>
+              <span>진행률</span>
+              <strong>{progressPercent}%</strong>
+              <p>{progress ? `${currentEpisodeNumber}화까지 감상 기록이 있어요.` : "감상하면 자동으로 이어보기가 저장됩니다."}</p>
+            </article>
+          </div>
           <div className="episode-list">
             {episodes.map((episode) => {
               const unlocked = episode.isFree || isPurchased;
@@ -2441,6 +2461,35 @@ function WorkDetailModal({
             )}
           </div>
         </section>
+
+        {relatedWorks.length > 0 && (
+          <section className="work-detail-section related-work-section">
+            <div className="section-head compact-head">
+              <div>
+                <p className="kicker">Related Works</p>
+                <h3>이 작품을 좋아한다면</h3>
+              </div>
+              <p>같은 장르나 형식의 추천 작품입니다.</p>
+            </div>
+            <div className="related-work-grid">
+              {relatedWorks.map((related) => (
+                <article className={related.tone} key={related.id}>
+                  <img src={related.coverImage} alt="" />
+                  <div>
+                    <span>{related.format} · {related.genre}</span>
+                    <strong>{related.title}</strong>
+                    <p>{related.tagline}</p>
+                    <div>
+                      <b><Star size={13} /> {related.rating}</b>
+                      <b>{related.episodes}화</b>
+                      <b>{formatCoins(related.priceCoins)}</b>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
