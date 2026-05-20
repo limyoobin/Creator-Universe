@@ -17211,22 +17211,22 @@ body.cu-android-app .orbit-card-settle {
 
   .intro-hero .character-card {
     right: auto !important;
-    bottom: 6% !important;
+    bottom: 5.2% !important;
     left: 5% !important;
-    width: min(560px, 61%) !important;
-    min-height: clamp(58px, 6.1cqw, 78px) !important;
-    padding: clamp(10px, 1.2cqw, 16px) !important;
-    border-radius: clamp(17px, 1.8cqw, 23px) !important;
+    width: min(620px, 66%) !important;
+    min-height: clamp(68px, 6.9cqw, 92px) !important;
+    padding: clamp(13px, 1.42cqw, 20px) !important;
+    border-radius: clamp(19px, 1.95cqw, 26px) !important;
     z-index: 7 !important;
   }
 
   .intro-hero .character-card span {
-    font-size: clamp(10px, 0.92cqw, 12px) !important;
+    font-size: clamp(11px, 1.02cqw, 13px) !important;
   }
 
   .intro-hero .character-card strong {
     margin-top: 5px !important;
-    font-size: clamp(19px, 1.68cqw, 25px) !important;
+    font-size: clamp(22px, 1.92cqw, 30px) !important;
     line-height: 1.08 !important;
   }
 }
@@ -17304,6 +17304,23 @@ body.cu-android-app .orbit-card-settle {
     margin-top: 5px !important;
     font-size: clamp(19px, 1.68cqw, 25px) !important;
     line-height: 1.08 !important;
+  }
+}
+
+@media (min-width: 1121px) and (max-width: 1480px) {
+  .intro-hero .character-card {
+    bottom: 5.4% !important;
+    width: min(610px, 65%) !important;
+    min-height: clamp(66px, 6.7cqw, 88px) !important;
+    padding: clamp(12px, 1.34cqw, 19px) !important;
+  }
+
+  .intro-hero .character-card span {
+    font-size: clamp(10.8px, 1cqw, 12.8px) !important;
+  }
+
+  .intro-hero .character-card strong {
+    font-size: clamp(21px, 1.82cqw, 28px) !important;
   }
 }
 
