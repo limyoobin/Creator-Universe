@@ -633,6 +633,14 @@ type NotificationPreferences = {
   marketing: boolean;
 };
 
+type AccessibilityPreferences = {
+  highContrast: boolean;
+  largeText: boolean;
+  reducedMotion: boolean;
+};
+
+type AccessibilityPreferenceKey = keyof AccessibilityPreferences;
+
 type NotificationItem = {
   id: string;
   title: string;
@@ -858,6 +866,32 @@ const trustSignals = [
   },
 ];
 
+const accessibilityControls: Array<{
+  key: AccessibilityPreferenceKey;
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}> = [
+  {
+    key: "highContrast",
+    icon: <Sun size={22} />,
+    title: "고대비 모드",
+    text: "배경과 글자 대비를 높여 저시력 사용자도 주요 정보를 더 또렷하게 볼 수 있게 합니다.",
+  },
+  {
+    key: "largeText",
+    icon: <BookOpen size={22} />,
+    title: "큰 글자",
+    text: "작품 설명, 카드, 버튼의 기본 글자 크기를 살짝 키워 모바일 감상 피로도를 줄입니다.",
+  },
+  {
+    key: "reducedMotion",
+    icon: <RefreshCw size={22} />,
+    title: "모션 줄이기",
+    text: "슬라이드와 장식 애니메이션을 줄여 어지러움 없이 핵심 기능에 집중할 수 있게 합니다.",
+  },
+];
+
 const serviceFlow = [
   {
     title: "포트폴리오 발견",
@@ -1005,6 +1039,12 @@ const defaultNotificationPreferences: NotificationPreferences = {
   marketing: false,
 };
 
+const defaultAccessibilityPreferences: AccessibilityPreferences = {
+  highContrast: false,
+  largeText: false,
+  reducedMotion: false,
+};
+
 function readNotificationPreferences(): NotificationPreferences {
   try {
     const parsed = JSON.parse(localStorage.getItem("creator-universe-notification-preferences") || "null");
@@ -1014,6 +1054,18 @@ function readNotificationPreferences(): NotificationPreferences {
     };
   } catch {
     return defaultNotificationPreferences;
+  }
+}
+
+function readAccessibilityPreferences(): AccessibilityPreferences {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("creator-universe-accessibility-preferences") || "null");
+    return {
+      ...defaultAccessibilityPreferences,
+      ...(parsed && typeof parsed === "object" ? parsed : {}),
+    };
+  } catch {
+    return defaultAccessibilityPreferences;
   }
 }
 
@@ -3193,6 +3245,7 @@ export function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
+  const [accessibilityPreferences, setAccessibilityPreferences] = useState<AccessibilityPreferences>(() => readAccessibilityPreferences());
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
   const [isMobileQuickOpen, setIsMobileQuickOpen] = useState(false);
@@ -3826,6 +3879,13 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
+    document.body.dataset.highContrast = accessibilityPreferences.highContrast ? "true" : "false";
+    document.body.dataset.largeText = accessibilityPreferences.largeText ? "true" : "false";
+    document.body.dataset.reducedMotion = accessibilityPreferences.reducedMotion ? "true" : "false";
+    localStorage.setItem("creator-universe-accessibility-preferences", JSON.stringify(accessibilityPreferences));
+  }, [accessibilityPreferences]);
+
+  useEffect(() => {
     localStorage.setItem("creator-universe-app-mode", appMode);
   }, [appMode]);
 
@@ -4157,6 +4217,13 @@ export function App() {
 
   function toggleNotificationPreference(key: keyof NotificationPreferences) {
     setNotificationPreferences((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
+
+  function toggleAccessibilityPreference(key: AccessibilityPreferenceKey) {
+    setAccessibilityPreferences((current) => ({
       ...current,
       [key]: !current[key],
     }));
@@ -5031,6 +5098,27 @@ export function App() {
                 ))}
               </div>
 
+              <section className="app-accessibility-card" aria-label="앱 접근성 빠른 설정">
+                <div>
+                  <span>Accessibility</span>
+                  <strong>내 눈과 손에 맞게 보기</strong>
+                  <p>고대비, 큰 글자, 모션 줄이기를 바로 켜서 감상 화면을 더 편하게 조정합니다.</p>
+                </div>
+                <div>
+                  {accessibilityControls.map((control) => (
+                    <button
+                      type="button"
+                      className={accessibilityPreferences[control.key] ? "active" : ""}
+                      key={control.key}
+                      onClick={() => toggleAccessibilityPreference(control.key)}
+                    >
+                      {control.icon}
+                      <span>{control.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
               <div className="app-home-recommend">
                 <div>
                   <span>추천 작품</span>
@@ -5345,6 +5433,31 @@ export function App() {
                     <em>{signal.label}</em>
                     <h3>{signal.title}</h3>
                     <p>{signal.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="accessibility-preference-section reveal">
+              <div>
+                <p className="kicker">Accessible Reading</p>
+                <h2>사용자가 직접 조절하는 감상 환경</h2>
+                <p>
+                  배리어프리 오디오뿐 아니라 웹과 앱 전체에서 읽기 편한 색, 글자 크기, 움직임 정도를
+                  직접 고를 수 있게 했습니다. 설정은 브라우저에 저장되어 다음 방문에도 유지됩니다.
+                </p>
+              </div>
+              <div className="accessibility-preference-grid">
+                {accessibilityControls.map((control) => (
+                  <article className={accessibilityPreferences[control.key] ? "active" : ""} key={control.key}>
+                    <span>{control.icon}</span>
+                    <div>
+                      <h3>{control.title}</h3>
+                      <p>{control.text}</p>
+                    </div>
+                    <button type="button" onClick={() => toggleAccessibilityPreference(control.key)}>
+                      {accessibilityPreferences[control.key] ? "켜짐" : "켜기"}
+                    </button>
                   </article>
                 ))}
               </div>

@@ -35,6 +35,49 @@ body[data-theme="dark"] {
   --nav-glow: rgba(255, 109, 147, 0.22);
 }
 
+body[data-high-contrast="true"] {
+  --surface: #ffffff;
+  --surface-2: #eef3ff;
+  --text: #050816;
+  --muted: #334155;
+  --line: #9aa8c5;
+  --brand: #d91f5c;
+  --cyan: #007c99;
+  --violet: #4f46e5;
+}
+
+body[data-theme="dark"][data-high-contrast="true"] {
+  --bg: #000000;
+  --surface: #080b12;
+  --surface-2: #101827;
+  --text: #ffffff;
+  --muted: #d5dbea;
+  --line: #5f6f91;
+  --brand: #ff7aa8;
+  --cyan: #8ff4ff;
+  --violet: #c4b5fd;
+}
+
+body[data-large-text="true"] {
+  font-size: 17px;
+}
+
+body[data-large-text="true"] button,
+body[data-large-text="true"] input,
+body[data-large-text="true"] textarea,
+body[data-large-text="true"] select {
+  font-size: 1.02em;
+}
+
+body[data-reduced-motion="true"] *,
+body[data-reduced-motion="true"] *::before,
+body[data-reduced-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1311,6 +1354,7 @@ main {
 .flow-section,
 .premium-section,
 .trust-safety-section,
+.accessibility-preference-section,
 .timeline-section,
 .mission-section,
 .final-cta {
@@ -3949,6 +3993,104 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   color: var(--muted);
   line-height: 1.72;
   word-break: keep-all;
+}
+
+.accessibility-preference-section {
+  display: grid;
+  grid-template-columns: 0.72fr 1.28fr;
+  gap: 20px;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 32px;
+  padding-right: clamp(18px, 3vw, 30px);
+  padding-left: clamp(18px, 3vw, 30px);
+  background:
+    radial-gradient(circle at 0% 12%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 15rem),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--violet) 12%, transparent), transparent 16rem),
+    var(--surface);
+  box-shadow: 0 24px 80px color-mix(in srgb, #000 7%, transparent);
+}
+
+.accessibility-preference-section > div:first-child {
+  display: grid;
+  align-content: center;
+}
+
+.accessibility-preference-section h2 {
+  margin: 8px 0 12px;
+  color: var(--text);
+  font-size: clamp(32px, 4vw, 52px);
+  letter-spacing: -0.07em;
+  line-height: 1.08;
+}
+
+.accessibility-preference-section p {
+  color: var(--muted);
+  line-height: 1.78;
+  word-break: keep-all;
+}
+
+.accessibility-preference-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.accessibility-preference-grid article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: 24px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 8rem),
+    var(--surface-2);
+}
+
+.accessibility-preference-grid article.active {
+  border-color: color-mix(in srgb, var(--cyan) 42%, var(--line));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 8rem),
+    color-mix(in srgb, var(--surface-2) 92%, var(--cyan));
+}
+
+.accessibility-preference-grid span {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+}
+
+.accessibility-preference-grid h3 {
+  margin: 0 0 5px;
+  color: var(--text);
+  font-size: 20px;
+  letter-spacing: -0.045em;
+}
+
+.accessibility-preference-grid p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.accessibility-preference-grid button {
+  border: 1px solid color-mix(in srgb, var(--cyan) 28%, var(--line));
+  border-radius: 999px;
+  padding: 9px 13px;
+  color: var(--text);
+  background: var(--surface);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.accessibility-preference-grid article.active button {
+  color: #08111f;
+  background: linear-gradient(135deg, #c9fbff, #fff);
 }
 
 .reader-toolbar {
@@ -11360,6 +11502,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .settlement-hero,
   .settlement-main-grid,
   .creator-detail-hero,
+  .accessibility-preference-section,
   .ranking-layout,
   .work-detail-hero,
   .work-audio-panel,
@@ -14272,6 +14415,83 @@ body.cu-android-app .app-trust-strip span {
   font-size: 11.5px;
   font-weight: 950;
   letter-spacing: -0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-accessibility-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 15px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 10rem),
+    var(--surface);
+  box-shadow: 0 16px 42px color-mix(in srgb, #000 8%, transparent);
+}
+
+body.cu-android-app .app-accessibility-card > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+body.cu-android-app .app-accessibility-card > div:first-child span {
+  color: var(--cyan);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body.cu-android-app .app-accessibility-card strong {
+  color: var(--text);
+  font-size: 18px;
+  letter-spacing: -0.055em;
+}
+
+body.cu-android-app .app-accessibility-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
+body.cu-android-app .app-accessibility-card > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+body.cu-android-app .app-accessibility-card button {
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  min-width: 0;
+  min-height: 66px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  padding: 9px 6px;
+  color: var(--muted);
+  background: var(--surface-2);
+  text-align: center;
+}
+
+body.cu-android-app .app-accessibility-card button.active {
+  border-color: color-mix(in srgb, var(--cyan) 42%, var(--line));
+  color: var(--text);
+  background: color-mix(in srgb, var(--cyan) 12%, var(--surface));
+}
+
+body.cu-android-app .app-accessibility-card button svg {
+  color: var(--brand);
+}
+
+body.cu-android-app .app-accessibility-card button span {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 10.8px;
+  font-weight: 950;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
