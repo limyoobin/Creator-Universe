@@ -17273,6 +17273,116 @@ body.cu-android-app .orbit-card-settle {
   }
 }
 
+@media (max-width: 860px) {
+  .intro-hero .visual-stage {
+    min-height: 392px !important;
+  }
+
+  .intro-hero .visual-artwork {
+    min-height: 344px !important;
+  }
+
+  .intro-hero .universe-3d-scene {
+    inset: 6% 5.5% 25% !important;
+    transform: scale(0.92) !important;
+    transform-origin: center center !important;
+  }
+
+  .intro-hero .orbit-card {
+    width: clamp(104px, 25cqw, 126px) !important;
+    padding: 7px 8px !important;
+    border-radius: 14px !important;
+    gap: 1px 6px !important;
+    z-index: 8 !important;
+  }
+
+  .intro-hero .orbit-card svg {
+    width: 11px !important;
+    height: 11px !important;
+  }
+
+  .intro-hero .orbit-card b {
+    font-size: clamp(9.6px, 2.25cqw, 11.5px) !important;
+    line-height: 1.08 !important;
+  }
+
+  .intro-hero .orbit-card small {
+    font-size: clamp(7.8px, 1.92cqw, 9.5px) !important;
+    line-height: 1.12 !important;
+  }
+
+  .intro-hero .orbit-card-match {
+    top: 6% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 6% !important;
+  }
+
+  .intro-hero .orbit-card-work {
+    top: 6% !important;
+    right: 6% !important;
+    bottom: auto !important;
+    left: auto !important;
+  }
+
+  .intro-hero .orbit-card-voice {
+    top: 35% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 6% !important;
+    display: grid !important;
+  }
+
+  .intro-hero .orbit-card-settle {
+    top: 35% !important;
+    right: 6% !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: clamp(104px, 25cqw, 126px) !important;
+  }
+
+  .intro-hero .character-card {
+    right: auto !important;
+    bottom: 6% !important;
+    left: 6% !important;
+    width: min(320px, 56%) !important;
+    min-height: 62px !important;
+    padding: 9px 11px !important;
+    border-radius: 17px !important;
+    z-index: 7 !important;
+  }
+
+  .intro-hero .character-card span {
+    font-size: 9.5px !important;
+  }
+
+  .intro-hero .character-card strong {
+    margin-top: 4px !important;
+    font-size: clamp(16px, 3.75cqw, 20px) !important;
+    line-height: 1.08 !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .intro-hero .universe-3d-scene {
+    inset: 6% 4.5% 26% !important;
+    transform: scale(0.86) !important;
+  }
+
+  .intro-hero .orbit-card {
+    width: clamp(92px, 28cqw, 112px) !important;
+    padding: 6px 7px !important;
+  }
+
+  .intro-hero .orbit-card-settle {
+    width: clamp(92px, 28cqw, 112px) !important;
+  }
+
+  .intro-hero .character-card {
+    width: min(280px, 60%) !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
