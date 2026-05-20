@@ -17155,6 +17155,82 @@ body.cu-android-app .orbit-card-settle {
 }
 
 /* Web hero final composition: four cards, no overlaps, compact title plate. */
+@media (min-width: 1481px) {
+  .intro-hero .universe-3d-scene {
+    inset: 7% 6.5% 24% !important;
+    transform: scale(1) !important;
+    transform-origin: center center !important;
+  }
+
+  .intro-hero .orbit-card {
+    width: clamp(132px, 14cqw, 176px) !important;
+    padding: clamp(9px, 1.02cqw, 13px) clamp(10px, 1.16cqw, 15px) !important;
+    border-radius: clamp(15px, 1.45cqw, 19px) !important;
+    z-index: 8 !important;
+  }
+
+  .intro-hero .orbit-card b {
+    font-size: clamp(11.5px, 1.02cqw, 14px) !important;
+    line-height: 1.08 !important;
+  }
+
+  .intro-hero .orbit-card small {
+    font-size: clamp(9px, 0.82cqw, 11px) !important;
+    line-height: 1.12 !important;
+  }
+
+  .intro-hero .orbit-card-match {
+    top: 6% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 5.5% !important;
+  }
+
+  .intro-hero .orbit-card-work {
+    top: 6% !important;
+    right: 5.5% !important;
+    bottom: auto !important;
+    left: auto !important;
+  }
+
+  .intro-hero .orbit-card-voice {
+    top: 36% !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: 5.5% !important;
+    display: grid !important;
+  }
+
+  .intro-hero .orbit-card-settle {
+    top: 36% !important;
+    right: 5.5% !important;
+    bottom: auto !important;
+    left: auto !important;
+    width: clamp(132px, 14cqw, 176px) !important;
+  }
+
+  .intro-hero .character-card {
+    right: auto !important;
+    bottom: 6% !important;
+    left: 5% !important;
+    width: min(560px, 61%) !important;
+    min-height: clamp(58px, 6.1cqw, 78px) !important;
+    padding: clamp(10px, 1.2cqw, 16px) !important;
+    border-radius: clamp(17px, 1.8cqw, 23px) !important;
+    z-index: 7 !important;
+  }
+
+  .intro-hero .character-card span {
+    font-size: clamp(10px, 0.92cqw, 12px) !important;
+  }
+
+  .intro-hero .character-card strong {
+    margin-top: 5px !important;
+    font-size: clamp(19px, 1.68cqw, 25px) !important;
+    line-height: 1.08 !important;
+  }
+}
+
 @media (min-width: 861px) and (max-width: 1480px) {
   .intro-hero .universe-3d-scene {
     inset: 7% 6.5% 24% !important;
