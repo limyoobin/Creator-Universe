@@ -17163,19 +17163,19 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card {
-    width: clamp(132px, 14cqw, 176px) !important;
-    padding: clamp(9px, 1.02cqw, 13px) clamp(10px, 1.16cqw, 15px) !important;
+    width: clamp(148px, 15.2cqw, 198px) !important;
+    padding: clamp(10px, 1.12cqw, 15px) clamp(11px, 1.25cqw, 17px) !important;
     border-radius: clamp(15px, 1.45cqw, 19px) !important;
     z-index: 8 !important;
   }
 
   .intro-hero .orbit-card b {
-    font-size: clamp(11.5px, 1.02cqw, 14px) !important;
+    font-size: clamp(13px, 1.14cqw, 16px) !important;
     line-height: 1.08 !important;
   }
 
   .intro-hero .orbit-card small {
-    font-size: clamp(9px, 0.82cqw, 11px) !important;
+    font-size: clamp(10px, 0.9cqw, 12px) !important;
     line-height: 1.12 !important;
   }
 
@@ -17206,7 +17206,7 @@ body.cu-android-app .orbit-card-settle {
     right: 5.5% !important;
     bottom: auto !important;
     left: auto !important;
-    width: clamp(132px, 14cqw, 176px) !important;
+    width: clamp(148px, 15.2cqw, 198px) !important;
   }
 
   .intro-hero .character-card {
@@ -17239,19 +17239,19 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card {
-    width: clamp(132px, 14cqw, 176px) !important;
-    padding: clamp(9px, 1.02cqw, 13px) clamp(10px, 1.16cqw, 15px) !important;
+    width: clamp(148px, 15.2cqw, 198px) !important;
+    padding: clamp(10px, 1.12cqw, 15px) clamp(11px, 1.25cqw, 17px) !important;
     border-radius: clamp(15px, 1.45cqw, 19px) !important;
     z-index: 8 !important;
   }
 
   .intro-hero .orbit-card b {
-    font-size: clamp(11.5px, 1.02cqw, 14px) !important;
+    font-size: clamp(13px, 1.14cqw, 16px) !important;
     line-height: 1.08 !important;
   }
 
   .intro-hero .orbit-card small {
-    font-size: clamp(9px, 0.82cqw, 11px) !important;
+    font-size: clamp(10px, 0.9cqw, 12px) !important;
     line-height: 1.12 !important;
   }
 
@@ -17282,7 +17282,7 @@ body.cu-android-app .orbit-card-settle {
     right: 5.5% !important;
     bottom: auto !important;
     left: auto !important;
-    width: clamp(132px, 14cqw, 176px) !important;
+    width: clamp(148px, 15.2cqw, 198px) !important;
   }
 
   .intro-hero .character-card {
@@ -17313,16 +17313,16 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card {
-    width: clamp(118px, 13.3cqw, 142px) !important;
-    padding: 8px 9px !important;
+    width: clamp(128px, 14.3cqw, 154px) !important;
+    padding: 9px 10px !important;
   }
 
   .intro-hero .orbit-card b {
-    font-size: clamp(10.5px, 1.08cqw, 12px) !important;
+    font-size: clamp(11.5px, 1.18cqw, 13px) !important;
   }
 
   .intro-hero .orbit-card small {
-    font-size: clamp(8px, 0.92cqw, 9.5px) !important;
+    font-size: clamp(8.8px, 0.98cqw, 10.2px) !important;
   }
 
   .intro-hero .orbit-card-match,
@@ -17336,7 +17336,7 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card-settle {
-    width: clamp(118px, 13.3cqw, 142px) !important;
+    width: clamp(128px, 14.3cqw, 154px) !important;
   }
 
   .intro-hero .character-card {
@@ -17365,7 +17365,7 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card {
-    width: clamp(104px, 25cqw, 126px) !important;
+    width: clamp(112px, 27cqw, 136px) !important;
     padding: 7px 8px !important;
     border-radius: 14px !important;
     gap: 1px 6px !important;
@@ -17378,12 +17378,12 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card b {
-    font-size: clamp(9.6px, 2.25cqw, 11.5px) !important;
+    font-size: clamp(10.4px, 2.45cqw, 12.4px) !important;
     line-height: 1.08 !important;
   }
 
   .intro-hero .orbit-card small {
-    font-size: clamp(7.8px, 1.92cqw, 9.5px) !important;
+    font-size: clamp(8.4px, 2.02cqw, 10px) !important;
     line-height: 1.12 !important;
   }
 
@@ -17414,7 +17414,7 @@ body.cu-android-app .orbit-card-settle {
     right: 6% !important;
     bottom: auto !important;
     left: auto !important;
-    width: clamp(104px, 25cqw, 126px) !important;
+    width: clamp(112px, 27cqw, 136px) !important;
   }
 
   .intro-hero .character-card {
@@ -17446,12 +17446,12 @@ body.cu-android-app .orbit-card-settle {
   }
 
   .intro-hero .orbit-card {
-    width: clamp(92px, 28cqw, 112px) !important;
+    width: clamp(100px, 30cqw, 118px) !important;
     padding: 6px 7px !important;
   }
 
   .intro-hero .orbit-card-settle {
-    width: clamp(92px, 28cqw, 112px) !important;
+    width: clamp(100px, 30cqw, 118px) !important;
   }
 
   .intro-hero .character-card {
