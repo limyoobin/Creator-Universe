@@ -12512,6 +12512,42 @@ body.cu-android-app .floating-messenger-panel:not(.fullscreen) {
   font-weight: 800;
 }
 
+.quick-sheet-primary-actions,
+.quick-sheet-secondary-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.quick-sheet-primary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-sheet-secondary-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.quick-sheet-primary-actions button {
+  min-height: 78px;
+}
+
+.quick-sheet-primary-actions button:first-child {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--brand) 22%, transparent);
+}
+
+.quick-sheet-primary-actions button:first-child svg,
+.quick-sheet-primary-actions button:first-child small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.quick-sheet-secondary-actions button {
+  min-height: 58px;
+  padding: 9px 5px 8px;
+}
+
 .app-primary-tabs {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   overflow: visible;
@@ -16100,6 +16136,62 @@ body.cu-android-app .quick-sheet-summary {
   border-radius: 18px !important;
   padding: 8px !important;
   background: var(--surface) !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions,
+body.cu-android-app .quick-sheet-secondary-actions {
+  grid-column: 1 / -1 !important;
+  display: grid !important;
+  gap: 9px !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button {
+  display: grid !important;
+  justify-items: start !important;
+  align-content: center !important;
+  gap: 4px !important;
+  min-height: 78px !important;
+  border-radius: 20px !important;
+  padding: 12px !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button:first-child {
+  border-color: transparent !important;
+  color: #fff !important;
+  background: linear-gradient(135deg, var(--brand), var(--violet)) !important;
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--brand) 24%, transparent) !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button:first-child svg,
+body.cu-android-app .quick-sheet-primary-actions button:first-child small {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions button {
+  display: grid !important;
+  justify-items: center !important;
+  align-content: center !important;
+  gap: 3px !important;
+  min-height: 58px !important;
+  border-radius: 16px !important;
+  padding: 8px 5px !important;
+  text-align: center !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions button small {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 
 body.cu-android-app .notification-panel {
