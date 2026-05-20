@@ -4831,9 +4831,7 @@ export function App() {
 
               <div className="app-home-quick-grid">
                 <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 보기</span></button>
-                <button type="button" onClick={openPayment}><Coins size={18} /><span>코인 충전</span></button>
-                <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 올리기</span></button>
-                <button type="button" onClick={() => navigate("matching")}><Users size={18} /><span>팀원 찾기</span></button>
+                <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>창작자 등록</span></button>
               </div>
 
               <div className="app-home-mini-panels">
@@ -4903,8 +4901,8 @@ export function App() {
                   ))}
                 </div>
                 <div className="intro-actions">
-                  <button className="primary-button" onClick={() => navigate("matching")}><Users size={18} /> 매칭 둘러보기</button>
-                  <button className="ghost-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 둘러보기</button>
+                  <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보기</button>
+                  <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 창작자 등록하기</button>
                 </div>
                 <div className="slide-dots" aria-label="소개 슬라이드 선택">
                   {introSlides.map((slide, index) => (

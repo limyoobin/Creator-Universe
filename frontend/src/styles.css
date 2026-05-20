@@ -13620,21 +13620,29 @@ body.cu-android-app .app-home-main-card button {
 
 body.cu-android-app .app-home-quick-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 body.cu-android-app .app-home-quick-grid button {
-  display: grid;
-  place-items: center;
-  gap: 6px;
-  min-height: 70px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 58px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 18px;
   color: var(--text);
   background: var(--surface);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 950;
+}
+
+body.cu-android-app .app-home-quick-grid button:first-child {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--brand) 22%, transparent);
 }
 
 body.cu-android-app .app-home-quick-grid button span {
