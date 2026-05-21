@@ -5219,7 +5219,11 @@ export function App() {
 
               <div className="app-home-quick-grid">
                 <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 보기</span></button>
-                <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>창작자 등록</span></button>
+                {isCreatorAccount ? (
+                  <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span></button>
+                ) : (
+                  <button type="button" onClick={openPayment}><Coins size={18} /><span>코인 충전</span></button>
+                )}
               </div>
 
               <div className="app-home-mini-panels">
@@ -5253,7 +5257,7 @@ export function App() {
               </div>
 
               <div className="app-trust-strip" aria-label="앱 신뢰 기능 요약">
-                {trustSignals.map((signal) => (
+                {trustSignals.filter((signal) => isCreatorAccount || !signal.title.includes("정산")).map((signal) => (
                   <button
                     type="button"
                     key={signal.title}
@@ -5324,7 +5328,11 @@ export function App() {
                 </div>
                 <div className="intro-actions">
                   <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보기</button>
-                  <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 창작자 등록하기</button>
+                  {isCreatorAccount ? (
+                    <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 스튜디오 열기</button>
+                  ) : (
+                    <button className="ghost-button" onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /> 스크랩 보관함</button>
+                  )}
                 </div>
                 <div className="slide-dots" aria-label="소개 슬라이드 선택">
                   {introSlides.map((slide, index) => (
@@ -5666,7 +5674,11 @@ export function App() {
               <h2>창작자가 모이고, 독자가 듣고, 수익이 공정하게 흐르는 오디오 유니버스</h2>
               <p>이제 매칭, 작품 결제, 정산, 고객센터 화면에서 실제 MVP 흐름을 확인해보세요.</p>
               <div>
-                <button className="primary-button" onClick={() => navigate("matching")}><Users size={18} /> 매칭 화면 보기</button>
+                {isCreatorAccount ? (
+                  <button className="primary-button" onClick={() => navigate("matching")}><Users size={18} /> 매칭 화면 보기</button>
+                ) : (
+                  <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 추천 작품 보기</button>
+                )}
                 <button className="ghost-button" onClick={openPayment}><Coins size={18} /> 결제창 열기</button>
               </div>
             </section>
