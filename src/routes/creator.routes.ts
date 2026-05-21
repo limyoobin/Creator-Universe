@@ -1,7 +1,14 @@
 import { MemberRole } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
-import { deleteCreatorProfile, listCreatorProfiles, upsertCreatorProfile } from "../services/discovery.service.js";
+import {
+  deleteCreatorProfile,
+  followCreator,
+  listCreatorProfiles,
+  listFollowedCreatorIds,
+  unfollowCreator,
+  upsertCreatorProfile,
+} from "../services/discovery.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 
@@ -55,11 +62,50 @@ creatorRouter.post(
   }),
 );
 
+creatorRouter.get(
+  "/me/follows",
+  asyncHandler(async (req, res) => {
+    const userId = await getCurrentUserId(req);
+    const creatorUserIds = await listFollowedCreatorIds(userId);
+
+    res.json({
+      success: true,
+      data: { creatorUserIds },
+    });
+  }),
+);
+
 creatorRouter.delete(
   "/me",
   asyncHandler(async (req, res) => {
     const userId = await getCurrentUserId(req);
     const result = await deleteCreatorProfile(userId);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+);
+
+creatorRouter.post(
+  "/:creatorUserId/follow",
+  asyncHandler(async (req, res) => {
+    const userId = await getCurrentUserId(req);
+    const result = await followCreator(userId, String(req.params.creatorUserId));
+
+    res.status(201).json({
+      success: true,
+      data: result,
+    });
+  }),
+);
+
+creatorRouter.delete(
+  "/:creatorUserId/follow",
+  asyncHandler(async (req, res) => {
+    const userId = await getCurrentUserId(req);
+    const result = await unfollowCreator(userId, String(req.params.creatorUserId));
 
     res.json({
       success: true,

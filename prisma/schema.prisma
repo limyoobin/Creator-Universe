@@ -92,6 +92,8 @@ model User {
   creatorSubscriptions CreatorSubscription[] @relation("SubscriptionSubscriber")
   creatorSubscribers CreatorSubscription[] @relation("SubscriptionCreator")
   fanPostUnlocks FanPostUnlock[]
+  followingCreators CreatorFollow[] @relation("CreatorFollower")
+  creatorFollowers CreatorFollow[] @relation("CreatorFollowed")
 }
 
 model Project {
@@ -226,6 +228,20 @@ model CreatorProfile {
   user                     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([primaryRole, featured])
+}
+
+model CreatorFollow {
+  id             String   @id @default(cuid())
+  followerId     String
+  creatorUserId  String
+  createdAt      DateTime @default(now())
+
+  follower       User     @relation("CreatorFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  creator        User     @relation("CreatorFollowed", fields: [creatorUserId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, creatorUserId])
+  @@index([creatorUserId])
+  @@index([followerId])
 }
 
 model ProjectEpisode {

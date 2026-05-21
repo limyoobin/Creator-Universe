@@ -2598,15 +2598,30 @@ h2 {
   padding-top: 12px;
 }
 
-.studio-channel-stats b,
-.studio-channel-stats span {
+.studio-channel-stats div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+  border-radius: 16px;
+  padding: 12px 8px;
   text-align: center;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 84%, transparent), color-mix(in srgb, var(--surface) 92%, transparent));
 }
 
 .studio-channel-stats b {
   color: var(--text);
-  font-size: 20px;
+  font-size: 22px;
   letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.studio-channel-stats span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.2;
 }
 
 .studio-revenue-snapshot {
@@ -8754,6 +8769,43 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   border-radius: 26px;
   padding: 20px;
   background: var(--surface);
+}
+
+.creator-detail-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creator-follow-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  border: 1px solid color-mix(in srgb, var(--brand) 26%, var(--line));
+  border-radius: 999px;
+  padding: 0 14px;
+  color: var(--brand);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 10%, transparent), color-mix(in srgb, var(--violet) 8%, transparent)),
+    var(--surface);
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.creator-follow-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--brand) 52%, var(--line));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--brand) 15%, transparent);
+}
+
+.creator-follow-button.active {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
 }
 
 .detail-headline {

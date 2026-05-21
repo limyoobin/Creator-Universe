@@ -998,7 +998,10 @@ function readStoredIds(key: string, fallback: string[] = []) {
   }
 }
 
-function getUserLibraryStorageKey(userId: string, key: "purchased-works" | "scrapped-works" | "recent-works" | "read-notifications" | "work-progress") {
+function getUserLibraryStorageKey(
+  userId: string,
+  key: "purchased-works" | "scrapped-works" | "recent-works" | "read-notifications" | "work-progress" | "followed-creators",
+) {
   return `creator-universe-user-${userId}-${key}`;
 }
 
@@ -2027,12 +2030,16 @@ function CreatorDetailModal({
   onClose,
   onLoginRequired,
   onActionComplete,
+  isFollowing,
+  onToggleFollow,
 }: {
   creator: Creator;
   token: string | null;
   onClose: () => void;
   onLoginRequired: () => void;
   onActionComplete: (message: string) => Promise<void>;
+  isFollowing: boolean;
+  onToggleFollow: () => void;
 }) {
   const portfolio = getCreatorPortfolio(creator);
   const creatorWorks = readerWorks.filter((work) => work.participantUserIds.includes(creator.userId));
@@ -2041,6 +2048,7 @@ function CreatorDetailModal({
   const featuredPortfolio = portfolio[0];
   const recentPost = creatorPosts[0];
   const paidPostCount = creatorPosts.filter((post) => post.priceCoins > 0 || post.access.includes("구독")).length;
+  const visibleFollowerCount = creator.followerCount;
   const lowestMembershipPlan = creatorMembershipPlans.reduce(
     (lowest, plan) => (plan.price < lowest.price ? plan : lowest),
     creatorMembershipPlans[0],
@@ -2130,16 +2138,26 @@ function CreatorDetailModal({
                 <p className="kicker">Creator Portfolio</p>
                 <h2>{creator.displayName} 포트폴리오</h2>
               </div>
-              <button className="icon-button" onClick={onClose} aria-label="포트폴리오 닫기">
-                <X size={19} />
-              </button>
+              <div className="creator-detail-actions">
+                <button
+                  className={`creator-follow-button ${isFollowing ? "active" : ""}`}
+                  type="button"
+                  onClick={onToggleFollow}
+                >
+                  <Heart size={16} fill={isFollowing ? "currentColor" : "none"} />
+                  {isFollowing ? "팔로잉" : "팔로우"}
+                </button>
+                <button className="icon-button" onClick={onClose} aria-label="포트폴리오 닫기">
+                  <X size={19} />
+                </button>
+              </div>
             </div>
             <p className="detail-headline">{creator.headline}</p>
             <p>{creator.portfolioSummary || creator.bio}</p>
             <div className="detail-stats">
               <div><strong>{creator.responseRate}%</strong><span>응답률</span></div>
               <div><strong>{creator.completedProjects}</strong><span>완료 프로젝트</span></div>
-              <div><strong>{creator.followerCount.toLocaleString("ko-KR")}</strong><span>팔로워</span></div>
+              <div><strong>{visibleFollowerCount.toLocaleString("ko-KR")}</strong><span>팔로워</span></div>
             </div>
           </div>
         </div>
@@ -3159,6 +3177,7 @@ export function App() {
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("all");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
   const [scrappedWorkIds, setScrappedWorkIds] = useState<string[]>([]);
+  const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>([]);
   const [recentWorkIds, setRecentWorkIds] = useState(() => readStoredIds("creator-universe-recent-works"));
   const [workProgress, setWorkProgress] = useState<Record<string, WorkProgressEntry>>(() => readWorkProgress("creator-universe-work-progress"));
   const [libraryStorageOwner, setLibraryStorageOwner] = useState("anonymous");
@@ -3818,7 +3837,11 @@ export function App() {
         : Promise.resolve(null),
     ]);
 
-    setCreators(creatorData.map(normalizeCreator));
+    const normalizedCreators = creatorData.map(normalizeCreator);
+    setCreators(normalizedCreators);
+    setSelectedCreator((current) =>
+      current ? normalizedCreators.find((creator) => creator.userId === current.userId) ?? current : current,
+    );
     setProject(projectData);
     setSettlement(settlementData);
     try {
@@ -3845,6 +3868,12 @@ export function App() {
         setCreatorChatThreads(mapChatThreads(chatThreads));
       } catch {
         setCreatorChatThreads({});
+      }
+      try {
+        const follows = await request<{ creatorUserIds: string[] }>("/api/creators/me/follows", currentToken);
+        setFollowedCreatorIds(follows.creatorUserIds);
+      } catch {
+        setFollowedCreatorIds((current) => current);
       }
       try {
         setMatchRequests(await request<MatchRequestRecord[]>("/api/matching/requests", currentToken));
@@ -3919,6 +3948,13 @@ export function App() {
   }, [libraryStorageOwner, scrappedWorkIds, user?.id]);
 
   useEffect(() => {
+    if (!user?.id || libraryStorageOwner !== user.id) {
+      return;
+    }
+    localStorage.setItem(getUserLibraryStorageKey(user.id, "followed-creators"), JSON.stringify(followedCreatorIds));
+  }, [followedCreatorIds, libraryStorageOwner, user?.id]);
+
+  useEffect(() => {
     const owner = user?.id ?? "anonymous";
     if (libraryStorageOwner !== owner) {
       return;
@@ -3962,6 +3998,7 @@ export function App() {
       setPremiumSubscription(readUserPremiumSubscription(user.id));
       setPurchasedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "purchased-works")));
       setScrappedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "scrapped-works")));
+      setFollowedCreatorIds(readStoredIds(getUserLibraryStorageKey(user.id, "followed-creators")));
       setRecentWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "recent-works")));
       setWorkProgress(readWorkProgress(getUserLibraryStorageKey(user.id, "work-progress")));
       setReadNotificationIds(readStoredIds(getUserLibraryStorageKey(user.id, "read-notifications")));
@@ -3970,6 +4007,7 @@ export function App() {
       setPremiumSubscription(createInactivePremiumSubscription());
       setPurchasedWorkIds([]);
       setScrappedWorkIds([]);
+      setFollowedCreatorIds([]);
       setRecentWorkIds(readStoredIds("creator-universe-recent-works"));
       setWorkProgress(readWorkProgress("creator-universe-work-progress"));
       setReadNotificationIds(readStoredIds("creator-universe-read-notifications"));
@@ -4164,6 +4202,34 @@ export function App() {
     setScrappedWorkIds((current) =>
       current.includes(workId) ? current.filter((id) => id !== workId) : [workId, ...current],
     );
+  }
+
+  async function toggleCreatorFollow(creatorUserId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const wasFollowing = followedCreatorIds.includes(creatorUserId);
+    setFollowedCreatorIds((current) =>
+      wasFollowing ? current.filter((id) => id !== creatorUserId) : [creatorUserId, ...current],
+    );
+
+    try {
+      await request(`/api/creators/${creatorUserId}/follow`, token, {
+        method: wasFollowing ? "DELETE" : "POST",
+      });
+      await loadData(token);
+    } catch (error) {
+      setFollowedCreatorIds((current) =>
+        wasFollowing
+          ? current.includes(creatorUserId)
+            ? current
+            : [creatorUserId, ...current]
+          : current.filter((id) => id !== creatorUserId),
+      );
+      setCommunityMessage(error instanceof Error ? error.message : "팔로우 상태를 저장하지 못했습니다.");
+    }
   }
 
   function openReaderLibrary(view: (typeof libraryViewItems)[number]["id"]) {
@@ -6086,9 +6152,9 @@ export function App() {
                 <p>{myCreatorProfile?.portfolioSummary ?? "대표작, 포트폴리오, 멤버십을 연결하면 독자와 팀원이 보는 창작자 채널이 완성됩니다."}</p>
               </div>
               <div className="studio-channel-stats">
-                <b>{myCreatorProfile?.followerCount.toLocaleString("ko-KR") ?? 0}</b><span>팔로워</span>
-                <b>{myCreatorProfile?.responseRate ?? 0}%</b><span>응답률</span>
-                <b>{myStudioWorks.length}</b><span>대표작</span>
+                <div><b>{myCreatorProfile?.followerCount.toLocaleString("ko-KR") ?? 0}</b><span>팔로워</span></div>
+                <div><b>{myCreatorProfile?.responseRate ?? 0}%</b><span>응답률</span></div>
+                <div><b>{myStudioWorks.length}</b><span>대표작</span></div>
               </div>
             </article>
 
@@ -7992,6 +8058,8 @@ export function App() {
           onClose={() => setSelectedCreator(null)}
           onLoginRequired={() => setAuthMode("login")}
           onActionComplete={refreshAfterCommunityAction}
+          isFollowing={followedCreatorIds.includes(selectedCreator.userId)}
+          onToggleFollow={() => void toggleCreatorFollow(selectedCreator.userId)}
         />
       )}
       {selectedWork && (

@@ -1,4 +1,5 @@
 import { MemberRole, Prisma, UserRole } from "@prisma/client";
+import { AppError } from "../errors/app-error.js";
 import { prisma } from "../lib/prisma.js";
 
 type CreatorFilter = {
@@ -146,4 +147,85 @@ export async function deleteCreatorProfile(userId: string) {
   return {
     deleted: result.count > 0,
   };
+}
+
+export async function listFollowedCreatorIds(userId: string) {
+  const follows = await prisma.creatorFollow.findMany({
+    where: { followerId: userId },
+    select: { creatorUserId: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return follows.map((follow) => follow.creatorUserId);
+}
+
+export async function followCreator(followerId: string, creatorUserId: string) {
+  if (followerId === creatorUserId) {
+    throw new AppError("내 창작자 채널은 팔로우할 수 없습니다.", 422);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const creatorProfile = await tx.creatorProfile.findUnique({
+      where: { userId: creatorUserId },
+      select: { userId: true },
+    });
+
+    if (!creatorProfile) {
+      throw new AppError("Creator not found.", 404);
+    }
+
+    const existingFollow = await tx.creatorFollow.findUnique({
+      where: {
+        followerId_creatorUserId: {
+          followerId,
+          creatorUserId,
+        },
+      },
+    });
+
+    if (!existingFollow) {
+      await tx.creatorFollow.create({
+        data: {
+          followerId,
+          creatorUserId,
+        },
+      });
+
+      await tx.creatorProfile.update({
+        where: { userId: creatorUserId },
+        data: { followerCount: { increment: 1 } },
+      });
+    }
+
+    return {
+      creatorUserId,
+      isFollowing: true,
+    };
+  });
+}
+
+export async function unfollowCreator(followerId: string, creatorUserId: string) {
+  return prisma.$transaction(async (tx) => {
+    const deleted = await tx.creatorFollow.deleteMany({
+      where: {
+        followerId,
+        creatorUserId,
+      },
+    });
+
+    if (deleted.count > 0) {
+      await tx.creatorProfile.updateMany({
+        where: {
+          userId: creatorUserId,
+          followerCount: { gt: 0 },
+        },
+        data: { followerCount: { decrement: 1 } },
+      });
+    }
+
+    return {
+      creatorUserId,
+      isFollowing: false,
+    };
+  });
 }
