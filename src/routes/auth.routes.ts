@@ -1,3 +1,4 @@
+import { UserRole } from "@prisma/client";
 import { Router } from "express";
 import { z } from "zod";
 import {
@@ -21,6 +22,7 @@ const signupSchema = z.object({
   username: z.string().trim().min(2).max(24).regex(/^[a-zA-Z0-9_]+$/, "Username can contain only letters, numbers, and underscores."),
   displayName: z.string().trim().min(1).max(20),
   password: z.string().min(8).regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/, PASSWORD_RULE_MESSAGE),
+  role: z.enum([UserRole.READER, UserRole.CREATOR]).default(UserRole.READER),
 });
 
 const loginSchema = z.object({

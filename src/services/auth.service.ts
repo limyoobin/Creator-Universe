@@ -10,6 +10,7 @@ type SignupInput = {
   username: string;
   displayName: string;
   password: string;
+  role?: UserRole;
 };
 
 export const PASSWORD_RULE_MESSAGE = "Password must be at least 8 characters and include a special character.";
@@ -84,7 +85,7 @@ export async function signup(input: SignupInput) {
       username: input.username,
       displayName: input.displayName,
       passwordHash,
-      role: UserRole.READER,
+      role: input.role ?? UserRole.READER,
       wallet: {
         create: {
           currency: "COIN",

@@ -73,6 +73,7 @@ type User = {
   email: string;
   username: string;
   displayName: string;
+  role: "CREATOR" | "READER" | "ADMIN";
 };
 
 type CreatorChatMessage = {
@@ -688,6 +689,7 @@ const newEpisodeAlertMap: Record<string, { title: string; episodeLabel: string; 
 };
 
 const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement"]);
+const creatorOnlyPages = new Set<PageId>(["studio", "matching", "settlement"]);
 
 const walletFallback: WalletDetail = {
   balance: 0,
@@ -1437,6 +1439,7 @@ function AuthModal({
   const [view, setView] = useState(mode);
   const [recoveryMode, setRecoveryMode] = useState<"find-id" | "reset-password">("find-id");
   const [message, setMessage] = useState("");
+  const [signupRole, setSignupRole] = useState<"READER" | "CREATOR">("READER");
   const [checkedUsername, setCheckedUsername] = useState("");
   const [checkedNickname, setCheckedNickname] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
@@ -1497,6 +1500,7 @@ function AuthModal({
           email,
           username,
           password,
+          role: signupRole,
         }),
       });
       onAuth(result.user, result.token);
@@ -1637,6 +1641,29 @@ function AuthModal({
 
         {view === "signup" && (
           <form className="auth-form" onSubmit={submitSignup}>
+            <fieldset className="auth-role-selector">
+              <legend>가입 유형</legend>
+              <div>
+                <button
+                  type="button"
+                  className={signupRole === "READER" ? "active" : ""}
+                  onClick={() => setSignupRole("READER")}
+                >
+                  <BookOpen size={18} />
+                  <strong>독자</strong>
+                  <span>작품 감상, 코인 지갑, 스크랩 중심</span>
+                </button>
+                <button
+                  type="button"
+                  className={signupRole === "CREATOR" ? "active" : ""}
+                  onClick={() => setSignupRole("CREATOR")}
+                >
+                  <Rocket size={18} />
+                  <strong>창작자</strong>
+                  <span>스튜디오, 매칭, 정산 기능 사용</span>
+                </button>
+              </div>
+            </fieldset>
             <label>
               닉네임
               <div className="auth-inline-field">
@@ -2797,6 +2824,7 @@ function AccountModal({
   workProgress,
   premiumSubscription,
   notificationPreferences,
+  isCreatorAccount,
   onClose,
   onLogout,
   onDeleteAccount,
@@ -2815,6 +2843,7 @@ function AccountModal({
   workProgress: Record<string, WorkProgressEntry>;
   premiumSubscription: PremiumSubscriptionState;
   notificationPreferences: NotificationPreferences;
+  isCreatorAccount: boolean;
   onClose: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
@@ -2952,13 +2981,17 @@ function AccountModal({
                 <strong>작품 구매 · 후원 · 프리미엄 구독</strong>
               </article>
               <article>
-                <span>정산 연결</span>
-                <strong>창작팀 수익은 지갑으로 자동 입금</strong>
+                <span>{isCreatorAccount ? "정산 연결" : "독자 지갑"}</span>
+                <strong>{isCreatorAccount ? "창작팀 수익은 지갑으로 자동 입금" : "작품 구매와 프리미엄 구독에 사용"}</strong>
               </article>
             </div>
             <div className="account-quick-actions">
               <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
-              <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
+              {isCreatorAccount ? (
+                <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
+              ) : (
+                <button onClick={() => { onClose(); onOpenLibrary("purchased"); }}><BookOpen size={15} /> 결제 작품</button>
+              )}
             </div>
           </section>
 
@@ -3278,6 +3311,35 @@ export function App() {
   const [isBootLoading, setIsBootLoading] = useState(true);
   const librarySectionRef = useRef<HTMLElement | null>(null);
 
+  const accountRole = user?.role ?? "READER";
+  const isCreatorAccount = accountRole === "CREATOR" || accountRole === "ADMIN";
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) => {
+        if (!user) {
+          return ["home", "discover", "support"].includes(item.id);
+        }
+
+        if (isCreatorAccount) {
+          return true;
+        }
+
+        return !creatorOnlyPages.has(item.id);
+      }),
+    [isCreatorAccount, user],
+  );
+  const visibleOnboardingGuides = useMemo(
+    () =>
+      onboardingGuides.filter((guide) => {
+        if (!user || isCreatorAccount) {
+          return true;
+        }
+
+        return !creatorOnlyPages.has(guide.page);
+      }),
+    [isCreatorAccount, user],
+  );
+
   const allPortfolioItems = useMemo(
     () =>
       creators.flatMap((creator) =>
@@ -3530,7 +3592,7 @@ export function App() {
     const latestScrappedWork = scrappedWorks[0];
     const latestRecentWork = recentWorks[0];
 
-    if (pendingReceivedProposal) {
+    if (isCreatorAccount && pendingReceivedProposal) {
       const partnerName = pendingReceivedProposal.partner?.displayName ?? pendingReceivedProposal.proposal.requesterName ?? "창작자";
       items.push({
         id: `proposal-pending-${pendingReceivedProposal.proposal.id}`,
@@ -3543,7 +3605,7 @@ export function App() {
       });
     }
 
-    if (acceptedProposal && notificationPreferences.settlement) {
+    if (isCreatorAccount && acceptedProposal && notificationPreferences.settlement) {
       items.push({
         id: `proposal-accepted-${acceptedProposal.proposal.id}`,
         title: "팀원 합류가 완료됐어요",
@@ -3650,7 +3712,7 @@ export function App() {
       });
     }
 
-    if (myCreatorProfile && !pendingReceivedProposal) {
+    if (isCreatorAccount && myCreatorProfile && !pendingReceivedProposal) {
       items.push({
         id: `studio-profile-${myCreatorProfile.id}`,
         title: "창작자 프로필이 공개 중입니다",
@@ -3678,6 +3740,7 @@ export function App() {
   }, [
     currentWalletDetail.transactions,
     followedNewEpisodeWorks,
+    isCreatorAccount,
     matchProposalInboxItems,
     myCreatorProfile,
     notificationPreferences.marketing,
@@ -3917,6 +3980,21 @@ export function App() {
   useEffect(() => {
     localStorage.setItem("creator-universe-app-mode", appMode);
   }, [appMode]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setAppMode(isCreatorAccount ? "creator" : "reader");
+  }, [isCreatorAccount, user]);
+
+  useEffect(() => {
+    if (user && creatorOnlyPages.has(activePage) && !isCreatorAccount) {
+      setActivePage("home");
+      setCommunityMessage("독자 계정에서는 작품과 지갑 중심으로 이용할 수 있어요. 창작자 기능은 창작자 계정에서 열립니다.");
+    }
+  }, [activePage, isCreatorAccount, user]);
 
   useEffect(() => {
     if (!/CreatorUniverseAndroid/i.test(navigator.userAgent)) {
@@ -4247,6 +4325,15 @@ export function App() {
       setAuthMode("login");
       setIsMobileMenuOpen(false);
       setIsAccountMenuOpen(false);
+      return;
+    }
+
+    if (creatorOnlyPages.has(page) && !isCreatorAccount) {
+      setCommunityMessage("스튜디오, 매칭, 정산은 창작자 계정으로 가입하거나 로그인해야 이용할 수 있어요.");
+      setActivePage("home");
+      setIsMobileMenuOpen(false);
+      setIsAccountMenuOpen(false);
+      setIsMobileQuickOpen(false);
       return;
     }
 
@@ -4718,6 +4805,7 @@ export function App() {
   function completeAuth(nextUser: User, nextToken: string) {
     setUser(nextUser);
     setToken(nextToken);
+    setAppMode(nextUser.role === "CREATOR" || nextUser.role === "ADMIN" ? "creator" : "reader");
     localStorage.setItem("creator-universe-token", nextToken);
   }
 
@@ -4848,7 +4936,7 @@ export function App() {
           <em>Audio Studio</em>
         </button>
         <nav className="desktop-nav">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <button className={activePage === item.id ? "active" : ""} onClick={() => navigate(item.id)} key={item.id}>
               <span>{item.label}</span>
               <small>{item.helper}</small>
@@ -4961,9 +5049,13 @@ export function App() {
                   <button onClick={() => { openReaderLibrary("recent"); setIsAccountMenuOpen(false); }}><RefreshCw size={17} /> 최근 본 작품</button>
                   <button onClick={() => { openReaderLibrary("purchased"); setIsAccountMenuOpen(false); }}><BookOpen size={17} /> 결제한 작품</button>
                   <button onClick={() => { openReaderLibrary("scrapped"); setIsAccountMenuOpen(false); }}><Heart size={17} /> 스크랩한 작품</button>
-                  <button onClick={() => { navigate("studio"); setIsAccountMenuOpen(false); }}><Rocket size={17} /> 창작자 스튜디오</button>
+                  {isCreatorAccount && (
+                    <button onClick={() => { navigate("studio"); setIsAccountMenuOpen(false); }}><Rocket size={17} /> 창작자 스튜디오</button>
+                  )}
                   <button onClick={() => { navigate("wallet"); setIsAccountMenuOpen(false); }}><Wallet size={17} /> 내 지갑</button>
-                  <button onClick={() => { navigate("settlement"); setIsAccountMenuOpen(false); }}><Split size={17} /> 정산 콘솔</button>
+                  {isCreatorAccount && (
+                    <button onClick={() => { navigate("settlement"); setIsAccountMenuOpen(false); }}><Split size={17} /> 정산 콘솔</button>
+                  )}
                   <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><Settings size={17} /> 정보 변경</button>
                   <button className="danger" onClick={logout}><LogOut size={17} /> 로그아웃</button>
                 </div>
@@ -4984,7 +5076,7 @@ export function App() {
         <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
           <div className="mobile-drawer-card">
             <p><Sparkles size={16} /> Creator Universe Menu</p>
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => navigate(item.id)}>
                 <span>{item.label}</span>
                 <small>{item.helper}</small>
@@ -5007,19 +5099,28 @@ export function App() {
                 <p>앱에서는 긴 소개보다 감상, 코인, 알림, 스튜디오 이동을 먼저 보여줍니다.</p>
               </div>
 
-              <div className="app-mode-switch" aria-label="앱 사용 목적 선택">
-                <button type="button" className={appMode === "reader" ? "active" : ""} onClick={() => setAppMode("reader")}>
-                  <BookOpen size={16} />
-                  독자 모드
-                </button>
-                <button type="button" className={appMode === "creator" ? "active" : ""} onClick={() => setAppMode("creator")}>
-                  <Rocket size={16} />
-                  창작자 모드
-                </button>
-              </div>
+              {user ? (
+                <div className="app-mode-switch role-locked" aria-label="현재 계정 유형">
+                  <button type="button" className="active" disabled>
+                    {isCreatorAccount ? <Rocket size={16} /> : <BookOpen size={16} />}
+                    {isCreatorAccount ? "창작자 계정" : "독자 계정"}
+                  </button>
+                </div>
+              ) : (
+                <div className="app-mode-switch" aria-label="앱 사용 목적 선택">
+                  <button type="button" className={appMode === "reader" ? "active" : ""} onClick={() => setAppMode("reader")}>
+                    <BookOpen size={16} />
+                    독자 모드
+                  </button>
+                  <button type="button" className={appMode === "creator" ? "active" : ""} onClick={() => setAppMode("creator")}>
+                    <Rocket size={16} />
+                    창작자 모드
+                  </button>
+                </div>
+              )}
 
               <div className="app-onboarding-rail" aria-label="앱 시작 가이드">
-                {onboardingGuides.map((guide) => (
+                {visibleOnboardingGuides.map((guide) => (
                   <button type="button" key={guide.audience} onClick={() => navigate(guide.page)}>
                     {guide.icon}
                     <span>{guide.audience}</span>
@@ -7725,24 +7826,45 @@ export function App() {
       <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
         <div className="quick-sheet-head">
           <strong>빠른 시작</strong>
-          <span>작품을 만들거나, 팀을 찾거나, 바로 대화하세요</span>
+          <span>{isCreatorAccount ? "작품을 만들거나, 팀을 찾거나, 바로 대화하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
         </div>
         <div className="quick-sheet-primary-actions" aria-label="핵심 빠른 실행">
-          <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 등록</span><small>원고·웹툰·오디오</small></button>
-          <button onClick={() => navigate("matching")}><Users size={18} /><span>매칭 프로필</span><small>팀원 찾기</small></button>
-          <button
-            onClick={() => {
-              setIsMobileQuickOpen(false);
-              openCreatorMessenger();
-            }}
-          >
-            <MessageCircle size={18} /><span>채팅</span><small>협업 DM</small>
-          </button>
+          {isCreatorAccount ? (
+            <>
+              <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 등록</span><small>원고·웹툰·오디오</small></button>
+              <button onClick={() => navigate("matching")}><Users size={18} /><span>매칭 프로필</span><small>팀원 찾기</small></button>
+              <button
+                onClick={() => {
+                  setIsMobileQuickOpen(false);
+                  openCreatorMessenger();
+                }}
+              >
+                <MessageCircle size={18} /><span>채팅</span><small>협업 DM</small>
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 탐색</span><small>장르별 추천</small></button>
+              <button onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /><span>스크랩</span><small>{scrappedWorks.length}개 저장</small></button>
+              <button
+                onClick={() => {
+                  setIsMobileQuickOpen(false);
+                  openPayment();
+                }}
+              >
+                <Coins size={18} /><span>코인 충전</span><small>{formatCoins(wallet ?? 0)}</small>
+              </button>
+            </>
+          )}
           <button onClick={() => navigate("support")}><ShieldCheck size={18} /><span>고객센터</span><small>문의·신고</small></button>
         </div>
 
         <div className="quick-sheet-secondary-actions" aria-label="보조 빠른 실행">
-          <button onClick={() => navigate("settlement")}><Split size={17} /><span>정산</span><small>{formatCoins(settlementPreview.mySettlementAmount)}</small></button>
+          {isCreatorAccount ? (
+            <button onClick={() => navigate("settlement")}><Split size={17} /><span>정산</span><small>{formatCoins(settlementPreview.mySettlementAmount)}</small></button>
+          ) : (
+            <button onClick={() => openReaderLibrary("recent")}><RefreshCw size={17} /><span>최근 본 작품</span><small>{recentWorks.length}개</small></button>
+          )}
           <button
             onClick={() => {
               setIsMobileQuickOpen(false);
@@ -8037,6 +8159,7 @@ export function App() {
           workProgress={workProgress}
           premiumSubscription={premiumSubscription}
           notificationPreferences={notificationPreferences}
+          isCreatorAccount={isCreatorAccount}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
           onDeleteAccount={() => void deleteAccount()}
