@@ -22,3 +22,5 @@ id_rsa
 id_ed25519
 *.sqlite
 *.db
+qa-screens/
+.edge-profile*/

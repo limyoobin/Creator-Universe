@@ -18664,6 +18664,264 @@ body.cu-android-app .floating-messenger.open:not(.fullscreen-mode) {
   bottom: calc(var(--app-bottom-nav-height, 76px) + 12px + env(safe-area-inset-bottom)) !important;
 }
 
+/* Final responsive guardrails: prevent app/web compact layouts from spilling sideways. */
+@media (max-width: 860px) {
+  html,
+  body,
+  .app {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  main,
+  .topbar,
+  .page-panel,
+  .section,
+  .home-page {
+    min-width: 0;
+  }
+
+  body:not(.cu-android-app) .floating-help {
+    bottom: calc(126px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body:not(.cu-android-app) .floating-messenger {
+    bottom: calc(194px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .slide-copy-panel,
+  .visual-slide {
+    filter: none !important;
+    transition: none !important;
+  }
+}
+
+body.cu-android-app .app,
+body.cu-android-app main,
+body.cu-android-app .topbar,
+body.cu-android-app .page-panel,
+body.cu-android-app .section,
+body.cu-android-app .home-page,
+body.cu-android-app .app-home-dashboard,
+body.cu-android-app .app-mode-switch,
+body.cu-android-app .app-onboarding-rail,
+body.cu-android-app .app-purpose-panel,
+body.cu-android-app .app-purpose-grid,
+body.cu-android-app .app-role-action-strip,
+body.cu-android-app .app-home-main-card,
+body.cu-android-app .app-primary-tabs,
+body.cu-android-app .mobile-quick-sheet {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+body.cu-android-app main {
+  width: min(calc(100vw - 64px), 500px) !important;
+  margin-inline: auto !important;
+}
+
+body.cu-android-app .topbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: min(calc(100vw - 64px), 500px) !important;
+  max-width: calc(100vw - 64px) !important;
+  margin-inline: auto !important;
+}
+
+body.cu-android-app .topbar .desktop-nav {
+  display: none !important;
+}
+
+body.cu-android-app .topbar .brand,
+body.cu-android-app .topbar .header-actions {
+  flex: 0 0 auto;
+}
+
+body.cu-android-app .topbar .header-actions {
+  position: absolute !important;
+  top: 50% !important;
+  right: 7px !important;
+  margin-left: auto !important;
+  transform: translateY(-50%) !important;
+}
+
+body.cu-android-app .app-home-dashboard > * {
+  width: 100% !important;
+  max-width: calc(100vw - 64px) !important;
+  justify-self: center;
+}
+
+body.cu-android-app .app-mode-switch {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-mode-switch.role-locked {
+  grid-template-columns: 1fr !important;
+}
+
+body.cu-android-app .app-mode-switch button {
+  min-width: 0 !important;
+  padding-inline: 6px !important;
+  overflow: hidden;
+  font-size: clamp(11px, 3.1vw, 12.5px) !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-mode-switch button svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+}
+
+body.cu-android-app .header-actions > .primary-button.compact {
+  width: 46px !important;
+  min-width: 46px !important;
+  max-width: 46px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden;
+  font-size: 0 !important;
+}
+
+body.cu-android-app .header-actions > .primary-button.compact svg {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+}
+
+body.cu-android-app .app-onboarding-rail {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-onboarding-rail button:last-child {
+  grid-column: 1 / -1;
+}
+
+body.cu-android-app .app-role-action-strip {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-role-action-strip button {
+  min-height: 76px !important;
+  padding: 11px 10px !important;
+}
+
+body.cu-android-app .app-role-action-strip button:last-child {
+  grid-column: 1 / -1;
+}
+
+body.cu-android-app .app-primary-tabs {
+  left: 50% !important;
+  right: auto !important;
+  width: min(calc(100vw - 64px), 440px) !important;
+  max-width: calc(100vw - 64px) !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 58px minmax(0, 1fr) minmax(0, 1fr) !important;
+  transform: translateX(-50%) !important;
+}
+
+body.cu-android-app .app-primary-tabs button {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 400px) {
+  body.cu-android-app {
+    --app-bottom-nav-height: 70px;
+  }
+
+  body.cu-android-app main,
+  body.cu-android-app .topbar {
+    width: calc(100vw - 12px) !important;
+  }
+
+  body.cu-android-app .app-home-dashboard > * {
+    max-width: calc(100vw - 12px) !important;
+  }
+
+  body.cu-android-app .app-mode-switch {
+    gap: 5px !important;
+    padding: 5px !important;
+    border-radius: 18px !important;
+  }
+
+  body.cu-android-app .app-mode-switch button {
+    min-height: 38px !important;
+    border-radius: 14px !important;
+    font-size: 10.8px !important;
+  }
+
+  body.cu-android-app .app-primary-tabs {
+    width: calc(100vw - 12px) !important;
+    max-width: calc(100vw - 12px) !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 54px minmax(0, 1fr) minmax(0, 1fr) !important;
+    padding: 5px 6px !important;
+  }
+
+  body.cu-android-app .app-primary-tabs button {
+    gap: 2px !important;
+    font-size: 9.8px !important;
+  }
+
+  body.cu-android-app .app-primary-tabs .mobile-plus-tab {
+    width: 52px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  body.cu-android-app main,
+  body.cu-android-app .topbar {
+    width: min(calc(100vw - 28px), 338px) !important;
+    max-width: min(calc(100vw - 28px), 338px) !important;
+    margin-left: max(14px, env(safe-area-inset-left)) !important;
+    margin-right: auto !important;
+  }
+
+  body.cu-android-app .app-home-dashboard > * {
+    max-width: min(calc(100vw - 28px), 338px) !important;
+  }
+
+  body.cu-android-app .app-primary-tabs {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    right: auto !important;
+    width: min(calc(100vw - 28px), 338px) !important;
+    max-width: min(calc(100vw - 28px), 338px) !important;
+    transform: none !important;
+  }
+
+  body.cu-android-app .mobile-quick-sheet {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    right: auto !important;
+    width: min(calc(100vw - 28px), 338px) !important;
+    max-width: min(calc(100vw - 28px), 338px) !important;
+    transform: none !important;
+  }
+}
+
+.slide-copy-panel,
+.visual-slide {
+  filter: none !important;
+  transition-property: transform !important;
+}
+
+.slide-copy-panel:not(.active),
+.visual-slide:not(.active) {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+.slide-copy-panel.active,
+.visual-slide.active {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
