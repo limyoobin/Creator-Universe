@@ -18365,6 +18365,84 @@ body.cu-android-app .orbit-card-settle {
   }
 }
 
+/* Keep floating chat/help controls clear of the bottom tab bar on compact screens. */
+@media (max-width: 860px) {
+  body:not(.cu-android-app) .floating-help {
+    right: 14px !important;
+    bottom: calc(102px + env(safe-area-inset-bottom)) !important;
+    z-index: 32 !important;
+  }
+
+  body:not(.cu-android-app) .floating-messenger {
+    right: 14px !important;
+    bottom: calc(174px + env(safe-area-inset-bottom)) !important;
+    z-index: 33 !important;
+  }
+
+  body:not(.cu-android-app) .floating-help-button,
+  body:not(.cu-android-app) .floating-messenger-button {
+    width: 58px !important;
+    height: 58px !important;
+    border-radius: 21px !important;
+  }
+
+  body:not(.cu-android-app) .floating-help.open,
+  body:not(.cu-android-app) .floating-messenger.open:not(.fullscreen-mode) {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: calc(96px + env(safe-area-inset-bottom)) !important;
+    justify-items: stretch !important;
+    width: auto !important;
+  }
+
+  body:not(.cu-android-app) .floating-help.open .floating-help-panel,
+  body:not(.cu-android-app) .floating-messenger.open .floating-messenger-panel:not(.fullscreen) {
+    width: 100% !important;
+    max-height: min(62dvh, calc(100dvh - 178px)) !important;
+    overflow-y: auto !important;
+  }
+
+  body:not(.cu-android-app) .floating-messenger.fullscreen-mode {
+    inset: 8px !important;
+    bottom: 8px !important;
+  }
+}
+
+@media (max-width: 860px) and (max-height: 760px) {
+  body:not(.cu-android-app) .floating-help {
+    bottom: calc(94px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body:not(.cu-android-app) .floating-messenger {
+    bottom: calc(158px + env(safe-area-inset-bottom)) !important;
+  }
+
+  body:not(.cu-android-app) .floating-help-button,
+  body:not(.cu-android-app) .floating-messenger-button {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 19px !important;
+  }
+}
+
+body.cu-android-app .floating-help,
+body.cu-android-app .floating-messenger {
+  right: max(12px, env(safe-area-inset-right)) !important;
+}
+
+body.cu-android-app .floating-help {
+  bottom: calc(var(--app-bottom-nav-height, 76px) + 16px + env(safe-area-inset-bottom)) !important;
+}
+
+body.cu-android-app .floating-messenger {
+  bottom: calc(var(--app-bottom-nav-height, 76px) + 86px + env(safe-area-inset-bottom)) !important;
+}
+
+body.cu-android-app .floating-help.open,
+body.cu-android-app .floating-messenger.open:not(.fullscreen-mode) {
+  bottom: calc(var(--app-bottom-nav-height, 76px) + 12px + env(safe-area-inset-bottom)) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
