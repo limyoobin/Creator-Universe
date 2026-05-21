@@ -2831,6 +2831,7 @@ function AccountModal({
   onOpenPayment,
   onStartPremium,
   onCancelPremium,
+  onUpgradeToCreator,
   onToggleNotificationPreference,
   onNavigate,
   onOpenLibrary,
@@ -2850,6 +2851,7 @@ function AccountModal({
   onOpenPayment: () => void;
   onStartPremium: () => void;
   onCancelPremium: () => void;
+  onUpgradeToCreator: () => void;
   onToggleNotificationPreference: (key: keyof NotificationPreferences) => void;
   onNavigate: (page: PageId) => void;
   onOpenLibrary: (view: (typeof libraryViewItems)[number]["id"]) => void;
@@ -3055,6 +3057,24 @@ function AccountModal({
             </div>
           </section>
 
+          {!isCreatorAccount && (
+            <section className="account-panel reader-creator-upgrade-panel">
+              <div className="account-panel-head">
+                <Rocket size={20} />
+                <strong>창작자로도 활동하기</strong>
+              </div>
+              <p>독자 계정은 작품과 지갑 중심으로 유지됩니다. 전환하면 스튜디오, 매칭, 정산 메뉴가 열리고 내 포트폴리오를 등록할 수 있어요.</p>
+              <div className="creator-upgrade-preview">
+                <span><Users size={14} /> 팀원 찾기</span>
+                <span><Split size={14} /> 지분 제안</span>
+                <span><Wallet size={14} /> 정산 확인</span>
+              </div>
+              <button onClick={() => { onClose(); onUpgradeToCreator(); }}>
+                <Rocket size={16} /> 창작자 계정으로 전환
+              </button>
+            </section>
+          )}
+
           <section className="account-panel wide">
             <div className="account-panel-head">
               <BookOpen size={20} />
@@ -3164,14 +3184,18 @@ function AccountModal({
               />
               새 회차 알림
             </label>
-            <label className="account-check">
-              <input
-                type="checkbox"
-                checked={notificationPreferences.settlement}
-                onChange={() => onToggleNotificationPreference("settlement")}
-              />
-              정산 완료 알림
-            </label>
+            {isCreatorAccount ? (
+              <label className="account-check">
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences.settlement}
+                  onChange={() => onToggleNotificationPreference("settlement")}
+                />
+                정산 완료 알림
+              </label>
+            ) : (
+              <p className="account-role-note">독자 계정은 새 회차, 스크랩 작품 업데이트, 결제 알림을 중심으로 보여줍니다.</p>
+            )}
             <label className="account-check">
               <input
                 type="checkbox"
@@ -4847,6 +4871,23 @@ export function App() {
     setStatus("계정 탈퇴가 완료되었습니다.");
   }
 
+  async function upgradeToCreatorAccount() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const result = await request<{ user: User }>("/api/auth/me/creator-mode", token, { method: "POST" });
+    setUser(result.user);
+    setAppMode("creator");
+    setIsAccountMenuOpen(false);
+    setIsAccountModalOpen(false);
+    setCommunityMessage("창작자 계정으로 전환되었습니다. 스튜디오에서 내 프로필과 대표작을 먼저 등록해보세요.");
+    await loadData(token);
+    setActivePage("studio");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   function startPremiumSubscription() {
     if (!token) {
       setAuthMode("login");
@@ -4970,6 +5011,7 @@ export function App() {
                     <div>
                       <strong>알림센터</strong>
                       <small>{unreadNotificationCount > 0 ? `${unreadNotificationCount}개의 새 알림` : "모두 확인했어요"}</small>
+                      <em>{isCreatorAccount ? "매칭 · 채팅 · 정산 알림 중심" : "새 회차 · 스크랩 · 결제 알림 중심"}</em>
                     </div>
                     <button type="button" onClick={markAllNotificationsRead}>모두 읽음</button>
                   </div>
@@ -5010,13 +5052,15 @@ export function App() {
                     >
                       새 회차
                     </button>
-                    <button
-                      className={notificationPreferences.settlement ? "active" : ""}
-                      type="button"
-                      onClick={() => toggleNotificationPreference("settlement")}
-                    >
-                      정산
-                    </button>
+                    {isCreatorAccount && (
+                      <button
+                        className={notificationPreferences.settlement ? "active" : ""}
+                        type="button"
+                        onClick={() => toggleNotificationPreference("settlement")}
+                      >
+                        정산
+                      </button>
+                    )}
                     <button
                       className={notificationPreferences.marketing ? "active" : ""}
                       type="button"
@@ -5189,6 +5233,46 @@ export function App() {
                   )}
                 </div>
               </section>
+
+              <div className="app-role-action-strip" aria-label={isCreatorAccount ? "창작자 오늘 할 일" : "독자 오늘 추천 동선"}>
+                {isCreatorAccount ? (
+                  <>
+                    <button type="button" onClick={() => navigate("studio")}>
+                      <Rocket size={18} />
+                      <span>오늘 할 일</span>
+                      <strong>프로필 {studioProfileCompletion.percent}%</strong>
+                    </button>
+                    <button type="button" onClick={() => navigate("matching")}>
+                      <MessageCircle size={18} />
+                      <span>제안 확인</span>
+                      <strong>{matchInboxCounts.pending}건 대기</strong>
+                    </button>
+                    <button type="button" onClick={() => navigate("settlement")}>
+                      <ShieldCheck size={18} />
+                      <span>정산 신뢰</span>
+                      <strong>수수료 13% · 파트너 8%</strong>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => openReaderLibrary("recent")}>
+                      <Play size={18} />
+                      <span>이어보기</span>
+                      <strong>{recentWorks.length || purchasedWorks.length}개 준비</strong>
+                    </button>
+                    <button type="button" onClick={() => openReaderLibrary("scrapped")}>
+                      <Bell size={18} />
+                      <span>새 회차 알림</span>
+                      <strong>{followedNewEpisodeWorks.length}개 업데이트</strong>
+                    </button>
+                    <button type="button" onClick={() => navigate("wallet")}>
+                      <CreditCard size={18} />
+                      <span>안전 결제</span>
+                      <strong>코인 원장 기록</strong>
+                    </button>
+                  </>
+                )}
+              </div>
 
               <div className="app-home-main-card">
                 {(() => {
@@ -8181,6 +8265,7 @@ export function App() {
           }}
           onStartPremium={startPremiumSubscription}
           onCancelPremium={cancelPremiumSubscription}
+          onUpgradeToCreator={() => void upgradeToCreatorAccount()}
           onToggleNotificationPreference={toggleNotificationPreference}
           onNavigate={navigate}
           onOpenLibrary={openReaderLibrary}

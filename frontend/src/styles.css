@@ -525,6 +525,14 @@ a {
   font-weight: 800;
 }
 
+.notification-panel-head em {
+  display: block;
+  color: color-mix(in srgb, var(--brand) 84%, var(--text));
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .notification-panel-head button {
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -8309,6 +8317,33 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     var(--surface);
 }
 
+.reader-creator-upgrade-panel {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--cyan) 13%, transparent), transparent 9rem),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 9rem),
+    var(--surface);
+}
+
+.creator-upgrade-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.creator-upgrade-preview span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
 .recent-account-panel {
   background:
     radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 11rem),
@@ -8704,6 +8739,18 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   grid-template-columns: auto 1fr !important;
   align-items: center;
   color: var(--text) !important;
+}
+
+.account-role-note {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--cyan) 18%, var(--line));
+  border-radius: 16px;
+  padding: 11px 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--cyan) 6%, var(--surface-2));
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.55;
 }
 
 .creator-detail-hero {
@@ -14388,6 +14435,52 @@ body.cu-android-app .app-purpose-grid strong {
   letter-spacing: -0.045em;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+body.cu-android-app .app-role-action-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.cu-android-app .app-role-action-strip button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  min-height: 88px;
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  padding: 12px 9px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 11%, transparent), transparent 5.5rem),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+  text-align: left;
+  box-shadow: 0 12px 28px color-mix(in srgb, #000 7%, transparent);
+}
+
+body.cu-android-app .app-role-action-strip svg {
+  color: var(--brand);
+}
+
+body.cu-android-app .app-role-action-strip span,
+body.cu-android-app .app-role-action-strip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-role-action-strip span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-role-action-strip strong {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
 }
 
 body.cu-android-app .app-home-main-card {

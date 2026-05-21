@@ -155,6 +155,24 @@ export async function getUserIdBySessionToken(token: string) {
   return session.userId;
 }
 
+export async function enableCreatorMode(userId: string) {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { role: UserRole.CREATOR },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      displayName: true,
+      role: true,
+      isPartner: true,
+      partnerTier: true,
+    },
+  });
+
+  return publicUser(user);
+}
+
 export async function logout(token: string) {
   await prisma.authSession.deleteMany({
     where: { tokenHash: hashToken(token) },

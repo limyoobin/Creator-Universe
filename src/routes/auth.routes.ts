@@ -7,6 +7,7 @@ import {
   checkUsernameAvailability,
   findUsernameByEmail,
   deactivateAccount,
+  enableCreatorMode,
   getUserBySessionToken,
   login,
   logout,
@@ -14,6 +15,7 @@ import {
   signup,
 } from "../services/auth.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import { getCurrentUserId } from "../utils/request-context.js";
 import { getBearerToken } from "../utils/token.js";
 import { AppError } from "../errors/app-error.js";
 
@@ -85,6 +87,19 @@ authRouter.get(
     res.json({
       success: true,
       data: user,
+    });
+  }),
+);
+
+authRouter.post(
+  "/me/creator-mode",
+  asyncHandler(async (req, res) => {
+    const userId = await getCurrentUserId(req);
+    const user = await enableCreatorMode(userId);
+
+    res.json({
+      success: true,
+      data: { user },
     });
   }),
 );
