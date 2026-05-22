@@ -17616,7 +17616,7 @@ body.cu-android-app .feature-3d-object {
   }
 }
 
-@media (max-width: 1480px) and (min-width: 861px) {
+@media (max-width: 1240px) and (min-width: 861px) {
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto !important;
     width: min(100% - 18px, 1180px);
@@ -17932,6 +17932,54 @@ body.cu-android-app .feature-3d-object {
     margin-top: clamp(5px, 0.7vw, 9px);
     font-size: clamp(21px, 2.05vw, 30px) !important;
     line-height: 1.05;
+  }
+}
+
+@media (min-width: 1080px) and (max-width: 1240px) {
+  body:not(.cu-android-app) .intro-hero {
+    grid-template-columns: minmax(0, 0.98fr) minmax(420px, 0.82fr) !important;
+    gap: 24px !important;
+    align-items: center !important;
+    padding: 34px !important;
+  }
+
+  body:not(.cu-android-app) .intro-copy {
+    min-width: 0;
+  }
+
+  body:not(.cu-android-app) .slide-copy-stage {
+    min-height: 318px !important;
+  }
+
+  body:not(.cu-android-app) .slide-copy-panel h1 {
+    font-size: clamp(54px, 5.3vw, 68px) !important;
+    line-height: 1.08;
+  }
+
+  body:not(.cu-android-app) .slide-copy-panel .lead {
+    max-width: 560px;
+    font-size: 17px;
+  }
+
+  body:not(.cu-android-app) .studio-visual {
+    width: 100% !important;
+    max-width: 520px !important;
+    justify-self: end !important;
+  }
+
+  body:not(.cu-android-app) .visual-stage {
+    min-height: 420px !important;
+  }
+
+  body:not(.cu-android-app) .visual-artwork {
+    width: 100% !important;
+    max-width: 520px !important;
+    min-height: 390px !important;
+  }
+
+  body:not(.cu-android-app) .universe-3d-scene {
+    inset: 8% 7% 25% !important;
+    transform: scale(1) !important;
   }
 }
 
