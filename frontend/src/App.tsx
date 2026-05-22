@@ -3355,13 +3355,17 @@ export function App() {
   const visibleOnboardingGuides = useMemo(
     () =>
       onboardingGuides.filter((guide) => {
-        if (!user || isCreatorAccount) {
+        if (!user) {
+          return appMode === "reader" ? guide.page === "discover" : creatorOnlyPages.has(guide.page);
+        }
+
+        if (isCreatorAccount) {
           return true;
         }
 
         return !creatorOnlyPages.has(guide.page);
       }),
-    [isCreatorAccount, user],
+    [appMode, isCreatorAccount, user],
   );
 
   const allPortfolioItems = useMemo(
@@ -5140,7 +5144,15 @@ export function App() {
               <div className="app-home-greeting">
                 <span>Creator Universe App</span>
                 <h1>{user ? `${user.displayName}님, 이어서 볼까요?` : "오늘 볼 작품을 바로 찾아볼까요?"}</h1>
-                <p>앱에서는 긴 소개보다 감상, 코인, 알림, 스튜디오 이동을 먼저 보여줍니다.</p>
+                <p>
+                  {user
+                    ? isCreatorAccount
+                      ? "오늘 확인할 제안, 프로필 준비도, 정산 상태를 먼저 정리했습니다."
+                      : "이어보기, 새 회차, 코인 상태를 먼저 보여줘 바로 감상으로 들어갈 수 있어요."
+                    : appMode === "creator"
+                      ? "창작자로 시작하면 프로필, 매칭, 정산 흐름을 먼저 체험할 수 있어요."
+                      : "독자로 시작하면 작품 탐색, 스크랩, 코인 흐름을 먼저 체험할 수 있어요."}
+                </p>
               </div>
 
               {user ? (
@@ -5163,15 +5175,63 @@ export function App() {
                 </div>
               )}
 
-              <div className="app-onboarding-rail" aria-label="앱 시작 가이드">
-                {visibleOnboardingGuides.map((guide) => (
-                  <button type="button" key={guide.audience} onClick={() => navigate(guide.page)}>
-                    {guide.icon}
-                    <span>{guide.audience}</span>
-                    <strong>{guide.cta}</strong>
-                  </button>
-                ))}
-              </div>
+              {user ? (
+                <div className="app-today-strip" aria-label={isCreatorAccount ? "창작자 오늘 요약" : "독자 오늘 요약"}>
+                  {isCreatorAccount ? (
+                    <>
+                      <button type="button" className="app-today-card primary" onClick={() => navigate("matching")}>
+                        <MessageCircle size={17} />
+                        <span>오늘의 제안</span>
+                        <strong>{matchInboxCounts.pending}건 확인</strong>
+                        <small>조건 보고 바로 수락</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => navigate("studio")}>
+                        <Rocket size={17} />
+                        <span>채널 준비</span>
+                        <strong>{studioProfileCompletion.percent}%</strong>
+                        <small>대표작/프로필 점검</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => navigate("settlement")}>
+                        <Split size={17} />
+                        <span>정산 예정</span>
+                        <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+                        <small>매월 15일 기준</small>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="app-today-card primary" onClick={() => openReaderLibrary("recent")}>
+                        <Play size={17} />
+                        <span>바로 이어보기</span>
+                        <strong>{recentWorks.length || purchasedWorks.length}개</strong>
+                        <small>최근 본 작품부터</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => openReaderLibrary("scrapped")}>
+                        <Bell size={17} />
+                        <span>새 회차</span>
+                        <strong>{followedNewEpisodeWorks.length}개</strong>
+                        <small>스크랩 작품 알림</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => navigate("wallet")}>
+                        <Wallet size={17} />
+                        <span>보유 코인</span>
+                        <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+                        <small>충전/사용 내역</small>
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className={`app-onboarding-rail ${visibleOnboardingGuides.length === 1 ? "single" : ""}`} aria-label="앱 시작 가이드">
+                  {visibleOnboardingGuides.map((guide) => (
+                    <button type="button" key={guide.audience} onClick={() => navigate(guide.page)}>
+                      {guide.icon}
+                      <span>{guide.audience}</span>
+                      <strong>{guide.cta}</strong>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <section className={`app-purpose-panel ${appMode}`} aria-label={appMode === "reader" ? "독자 추천 동선" : "창작자 추천 동선"}>
                 <div className="app-purpose-head">

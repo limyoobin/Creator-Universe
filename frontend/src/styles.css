@@ -14296,10 +14296,92 @@ body.cu-android-app .app-mode-switch button.active {
   box-shadow: 0 12px 26px color-mix(in srgb, var(--brand) 20%, transparent);
 }
 
+body.cu-android-app .app-today-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body.cu-android-app .app-today-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  min-height: 104px;
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  border-radius: 21px;
+  padding: 12px 10px;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--cyan) 12%, transparent), transparent 5.6rem),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+  text-align: left;
+  box-shadow:
+    0 14px 32px color-mix(in srgb, #000 7%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+}
+
+body.cu-android-app .app-today-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -18px -28px auto;
+  width: 78px;
+  height: 78px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  filter: blur(2px);
+}
+
+body.cu-android-app .app-today-card.primary {
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 6.5rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface) 94%, transparent), color-mix(in srgb, var(--cyan) 9%, var(--surface)));
+}
+
+body.cu-android-app .app-today-card svg {
+  color: var(--brand);
+}
+
+body.cu-android-app .app-today-card span,
+body.cu-android-app .app-today-card strong,
+body.cu-android-app .app-today-card small {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.cu-android-app .app-today-card span {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 950;
+}
+
+body.cu-android-app .app-today-card strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+body.cu-android-app .app-today-card small {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
 body.cu-android-app .app-onboarding-rail {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
+}
+
+body.cu-android-app .app-onboarding-rail.single {
+  grid-template-columns: 1fr;
 }
 
 body.cu-android-app .app-onboarding-rail button {
@@ -18704,6 +18786,7 @@ body.cu-android-app .section,
 body.cu-android-app .home-page,
 body.cu-android-app .app-home-dashboard,
 body.cu-android-app .app-mode-switch,
+body.cu-android-app .app-today-strip,
 body.cu-android-app .app-onboarding-rail,
 body.cu-android-app .app-purpose-panel,
 body.cu-android-app .app-purpose-grid,
@@ -18775,6 +18858,14 @@ body.cu-android-app .app-mode-switch button svg {
   height: 14px;
 }
 
+body.cu-android-app .app-today-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-today-card {
+  min-width: 0 !important;
+}
+
 body.cu-android-app .header-actions > .primary-button.compact {
   width: 46px !important;
   min-width: 46px !important;
@@ -18793,6 +18884,10 @@ body.cu-android-app .header-actions > .primary-button.compact svg {
 
 body.cu-android-app .app-onboarding-rail {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-onboarding-rail.single {
+  grid-template-columns: 1fr !important;
 }
 
 body.cu-android-app .app-onboarding-rail button:last-child {
@@ -18829,6 +18924,20 @@ body.cu-android-app .app-primary-tabs button {
   text-overflow: ellipsis;
 }
 
+body.cu-android-app .app-primary-tabs button.active:not(.mobile-plus-tab) {
+  border-radius: 16px !important;
+  color: var(--brand) !important;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--brand) 16%, transparent), transparent 3.5rem),
+    color-mix(in srgb, var(--brand) 8%, var(--surface)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+
+body.cu-android-app .app-primary-tabs button.active:not(.mobile-plus-tab) svg {
+  color: var(--brand) !important;
+  stroke-width: 2.5;
+}
+
 @media (max-width: 400px) {
   body.cu-android-app {
     --app-bottom-nav-height: 70px;
@@ -18853,6 +18962,19 @@ body.cu-android-app .app-primary-tabs button {
     min-height: 38px !important;
     border-radius: 14px !important;
     font-size: 10.8px !important;
+  }
+
+  body.cu-android-app .app-today-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.cu-android-app .app-today-card {
+    min-height: 88px !important;
+    padding: 11px 10px !important;
+  }
+
+  body.cu-android-app .app-today-card:first-child {
+    grid-column: 1 / -1;
   }
 
   body.cu-android-app .app-primary-tabs {

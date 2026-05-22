@@ -24,3 +24,4 @@ id_ed25519
 *.db
 qa-screens/
 .edge-profile*/
+.edge-cdp*/
