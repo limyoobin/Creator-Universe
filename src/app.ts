@@ -1,15 +1,18 @@
 import express from "express";
+import { PUBLIC_UPLOAD_PATH, UPLOAD_ROOT } from "./constants/uploads.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { creatorRouter } from "./routes/creator.routes.js";
 import { communityRouter } from "./routes/community.routes.js";
 import { homeRouter } from "./routes/home.routes.js";
 import { projectRouter } from "./routes/project.routes.js";
 import { settlementRouter } from "./routes/settlement.routes.js";
+import { uploadRouter } from "./routes/upload.routes.js";
 import { userRouter } from "./routes/user.routes.js";
 import { viewerRouter } from "./routes/viewer.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
 const app = express();
+app.set("trust proxy", 1);
 
 const defaultAllowedOrigins = [
   "http://localhost:5173",
@@ -63,7 +66,8 @@ app.options("*", (_req, res) => {
   res.sendStatus(204);
 });
 
-app.use(express.json());
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT ?? "40mb" }));
+app.use(PUBLIC_UPLOAD_PATH, express.static(UPLOAD_ROOT, { maxAge: "1h" }));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
@@ -74,6 +78,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/creators", creatorRouter);
 app.use("/api/projects", projectRouter);
+app.use("/api/uploads", uploadRouter);
 app.use("/api/settlements", settlementRouter);
 app.use("/api", communityRouter);
 app.use("/api", viewerRouter);

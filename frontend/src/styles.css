@@ -2797,6 +2797,87 @@ h2 {
   resize: vertical;
 }
 
+.studio-upload-field input[type="file"] {
+  cursor: pointer;
+  border-style: dashed;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, var(--soft)), color-mix(in srgb, var(--cyan) 7%, var(--soft)));
+}
+
+.studio-upload-field input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+  font-weight: 950;
+}
+
+.studio-upload-list {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.studio-upload-list article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, transparent);
+  border-radius: 18px;
+  padding: 13px;
+  background: color-mix(in srgb, var(--surface-2) 82%, transparent);
+}
+
+.studio-upload-list article.ready {
+  border-color: color-mix(in srgb, var(--cyan) 36%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--cyan) 10%, var(--surface)), color-mix(in srgb, var(--brand) 8%, var(--surface)));
+}
+
+.studio-upload-list span {
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.studio-upload-list strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-upload-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: keep-all;
+}
+
+.studio-upload-list a {
+  width: fit-content;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.studio-upload-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--cyan) 22%, var(--line));
+  border-radius: 16px;
+  padding: 11px 13px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--cyan) 8%, var(--surface));
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .studio-publish-form {
   align-content: start;
 }
@@ -11720,6 +11801,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   .studio-kpi-grid,
   .studio-form,
   .studio-form-section,
+  .studio-upload-list,
   .fan-editor-row,
   .fan-tier-preview,
   .growth-metric-grid,

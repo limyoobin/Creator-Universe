@@ -608,6 +608,18 @@ type StudioDraftState = {
   uploadMemo: string;
 };
 
+type StudioUploadKind = "audio" | "image" | "document";
+
+type UploadedAsset = {
+  id: string;
+  kind: StudioUploadKind;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  publicPath: string;
+  url: string;
+};
+
 type StudioFanPostDraftState = {
   title: string;
   postType: string;
@@ -960,6 +972,50 @@ function formatDuration(seconds = 0) {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
   const rest = Math.floor(seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${rest}`;
+}
+
+function formatBytes(bytes = 0) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("ko-KR")}KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("파일을 읽을 수 없습니다.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getUploadMimeType(file: File) {
+  if (file.type) {
+    return file.type;
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const fallbackMimeTypes: Record<string, string> = {
+    md: "text/markdown",
+    txt: "text/plain",
+    json: "application/json",
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    m4a: "audio/x-m4a",
+    ogg: "audio/ogg",
+    webm: "audio/webm",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+  };
+
+  return extension ? fallbackMimeTypes[extension] ?? "application/octet-stream" : "application/octet-stream";
 }
 
 function formatDateTime(value: string) {
@@ -3271,6 +3327,9 @@ export function App() {
     previewText: "무료 미리보기에서는 첫 장면의 분위기와 주인공의 목표가 선명하게 보이도록 구성합니다.",
     uploadMemo: "원고, 콘티, 표지 이미지, 접근성 대본, 오디오 큐시트를 발행 전까지 연결합니다.",
   });
+  const [studioEpisodeUploads, setStudioEpisodeUploads] = useState<Partial<Record<StudioUploadKind, UploadedAsset>>>({});
+  const [isStudioUploading, setIsStudioUploading] = useState(false);
+  const [studioUploadMessage, setStudioUploadMessage] = useState("");
   const [studioFanPostDraft, setStudioFanPostDraft] = useState<StudioFanPostDraftState>({
     title: "1화 러프 컷과 성우 코멘터리",
     postType: "이미지팩",
@@ -4818,11 +4877,53 @@ export function App() {
     setCommunityMessage(`접근성 검수 리포트가 저장되었습니다. 현재 상태는 ${studioAccessibilityChecklist.status}, 준비도는 ${studioAccessibilityChecklist.percent}%입니다.`);
   }
 
+  async function uploadStudioEpisodeFile(kind: StudioUploadKind, file: File | null) {
+    if (!file) {
+      return;
+    }
+
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    setIsStudioUploading(true);
+    setStudioUploadMessage("");
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const uploaded = await request<UploadedAsset>("/api/uploads", token, {
+        method: "POST",
+        body: JSON.stringify({
+          kind,
+          originalName: file.name,
+          mimeType: getUploadMimeType(file),
+          dataUrl,
+        }),
+      });
+
+      setStudioEpisodeUploads((current) => ({
+        ...current,
+        [kind]: uploaded,
+      }));
+      setStudioUploadMessage(`${uploaded.originalName} 업로드 완료 · ${formatBytes(uploaded.sizeBytes)}`);
+    } catch (error) {
+      setStudioUploadMessage(error instanceof Error ? `업로드 실패: ${error.message}` : "업로드 실패: 다시 시도해 주세요.");
+    } finally {
+      setIsStudioUploading(false);
+    }
+  }
+
   function submitStudioEpisode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const title = String(data.get("episodeTitle") || "새 회차");
-    setCommunityMessage(`${title} 회차 업로드 초안이 저장되었습니다. 실제 파일 업로드 기능은 다음 단계에서 연결하면 됩니다.`);
+    const uploadedCount = Object.values(studioEpisodeUploads).filter(Boolean).length;
+    setCommunityMessage(
+      uploadedCount > 0
+        ? `${title} 회차 초안에 업로드 파일 ${uploadedCount}개가 연결되었습니다. 오디오/이미지 URL은 서버에서 바로 접근할 수 있어요.`
+        : `${title} 회차 메모가 저장되었습니다. 오디오, 표지, 대본 파일을 연결하면 업로드 초안으로 관리할 수 있어요.`,
+    );
     event.currentTarget.reset();
   }
 
@@ -6669,8 +6770,54 @@ export function App() {
                     <option>구독자 선공개</option>
                   </select>
                 </label>
+                <label className="studio-upload-field">오디오 파일
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    disabled={isStudioUploading}
+                    onChange={(event) => void uploadStudioEpisodeFile("audio", event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <label className="studio-upload-field">표지/웹툰 이미지
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={isStudioUploading}
+                    onChange={(event) => void uploadStudioEpisodeFile("image", event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <label className="wide studio-upload-field">대본/원고 파일
+                  <input
+                    type="file"
+                    accept=".txt,.md,.json,.pdf,.docx,text/plain,text/markdown,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    disabled={isStudioUploading}
+                    onChange={(event) => void uploadStudioEpisodeFile("document", event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <div className="studio-upload-list">
+                  {(["audio", "image", "document"] as const).map((kind) => {
+                    const uploaded = studioEpisodeUploads[kind];
+                    const labels: Record<StudioUploadKind, string> = {
+                      audio: "오디오",
+                      image: "이미지",
+                      document: "대본/원고",
+                    };
+
+                    return (
+                      <article className={uploaded ? "ready" : ""} key={kind}>
+                        <span>{labels[kind]}</span>
+                        <strong>{uploaded ? uploaded.originalName : "파일 대기 중"}</strong>
+                        <p>{uploaded ? `${formatBytes(uploaded.sizeBytes)} · ${uploaded.mimeType}` : "파일을 선택하면 서버 URL이 생성됩니다."}</p>
+                        {uploaded && <a href={uploaded.url} target="_blank" rel="noreferrer">업로드 파일 열기</a>}
+                      </article>
+                    );
+                  })}
+                </div>
+                {studioUploadMessage && <p className="studio-upload-message">{studioUploadMessage}</p>}
                 <label className="wide">업로드 메모<textarea name="uploadMemo" placeholder="원고, 콘티, 음성 파일, 대본 싱크 등 업로드할 자료를 적어주세요." /></label>
-                <button className="primary-button" type="submit"><BookOpen size={17} /> 회차 초안 저장</button>
+                <button className="primary-button" type="submit" disabled={isStudioUploading}>
+                  <BookOpen size={17} /> {isStudioUploading ? "파일 업로드 중" : "회차 초안 저장"}
+                </button>
               </form>
             </section>
           </div>
