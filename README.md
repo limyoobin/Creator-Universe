@@ -3,7 +3,7 @@
 창작자들이 혼자 버티지 않아도 되는 플랫폼을 만들고 싶어서 시작한 프로젝트입니다.  
 `Creator Universe`는 작가, 일러스트레이터, 성우, BGM 크리에이터가 서로를 찾고, 같이 작품을 만들고, 수익까지 투명하게 나눌 수 있도록 만든 서브컬처 협업 웹/앱 서비스입니다.
 
-[서비스 바로가기](https://project-limyoobins-projects.vercel.app) · [개인정보 처리방침](https://project-limyoobins-projects.vercel.app/privacy-policy.html) · [계정 삭제 안내](https://project-limyoobins-projects.vercel.app/account-deletion.html) · [백엔드 상태 확인](https://creator-universe-api-7qfc.onrender.com/health)
+[서비스 바로가기](https://project-limyoobins-projects.vercel.app) ·[Open Notion Documentation](https://complex-license-b0c.notion.site/Creator-Universe-Service-Portfolio-36bcba32990e80b2af9afdd04b4d1e4e?source=copy_link)· [개인정보 처리방침](https://project-limyoobins-projects.vercel.app/privacy-policy.html) · [계정 삭제 안내](https://project-limyoobins-projects.vercel.app/account-deletion.html) · [백엔드 상태 확인](https://creator-universe-api-7qfc.onrender.com/health)
 
 ## 기획 의도
 
