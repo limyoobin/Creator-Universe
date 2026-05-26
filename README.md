@@ -199,3 +199,6 @@ https://project-limyoobins-projects.vercel.app/privacy-policy.html
 ```
 
 앱에서 백엔드 연결이 안 될 경우, 앱이 접속하는 실제 프론트 도메인이 Render의 `CORS_ORIGINS`에 들어가 있는지 확인하면 됩니다.
+
+<img width="1850" height="906" alt="image" src="https://github.com/user-attachments/assets/2910246c-6ec8-4ef3-9daa-8c6e477c8903" />
+
