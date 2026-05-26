@@ -27,8 +27,6 @@ type MatchRequestWithUsers = Prisma.MatchRequestGetPayload<{
 }>;
 
 const reviews: unknown[] = [];
-const tickets: unknown[] = [];
-const reports: unknown[] = [];
 
 const CREATOR_COMMERCE_PROJECT_ID = "system-creator-fanclub";
 
@@ -523,14 +521,13 @@ communityRouter.post(
   asyncHandler(async (req, res) => {
     const userId = await getCurrentUserId(req);
     const payload = ticketSchema.parse(req.body);
-    const ticket = {
-      id: `ticket-${Date.now()}`,
-      userId,
-      status: "OPEN",
-      ...payload,
-      createdAt: new Date().toISOString(),
-    };
-    tickets.push(ticket);
+    const ticket = await prisma.supportTicket.create({
+      data: {
+        userId,
+        category: payload.category,
+        body: payload.body,
+      },
+    });
     res.status(201).json({ success: true, data: ticket });
   }),
 );
@@ -540,14 +537,14 @@ communityRouter.post(
   asyncHandler(async (req, res) => {
     const reporterId = await getCurrentUserId(req);
     const payload = reportSchema.parse(req.body);
-    const report = {
-      id: `report-${Date.now()}`,
-      reporterId,
-      status: "RECEIVED",
-      ...payload,
-      createdAt: new Date().toISOString(),
-    };
-    reports.push(report);
+    const report = await prisma.userReport.create({
+      data: {
+        reporterId,
+        targetUserId: payload.targetUserId || null,
+        reason: payload.reason,
+        context: payload.context,
+      },
+    });
     res.status(201).json({ success: true, data: report });
   }),
 );

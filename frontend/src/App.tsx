@@ -224,6 +224,64 @@ type WalletDetail = {
   transactions: WalletTransaction[];
 };
 
+type AdminUserRef = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "CREATOR" | "READER" | "ADMIN";
+};
+
+type AdminModerationDashboard = {
+  summary: {
+    users: number;
+    creators: number;
+    openTickets: number;
+    openReports: number;
+  };
+  playReviewChecklist: Array<{
+    title: string;
+    status: string;
+    detail: string;
+  }>;
+  tickets: Array<{
+    id: string;
+    category: string;
+    body: string;
+    status: string;
+    createdAt: string;
+    user: AdminUserRef;
+  }>;
+  reports: Array<{
+    id: string;
+    reason: string;
+    context?: string | null;
+    status: string;
+    createdAt: string;
+    reporter: AdminUserRef;
+    targetUser?: AdminUserRef | null;
+  }>;
+  transactions: Array<{
+    id: string;
+    transactionType: string;
+    status: string;
+    grossAmount: string | number;
+    coinAmount?: number | null;
+    createdAt: string;
+    buyer: AdminUserRef;
+    project: { id: string; title: string; slug: string };
+  }>;
+  matchRequests: Array<{
+    id: string;
+    projectTitle: string;
+    projectType: string;
+    sharePercentage: string | number;
+    status: string;
+    createdAt: string;
+    requester: AdminUserRef;
+    targetUser: AdminUserRef;
+  }>;
+};
+
 type PremiumSubscriptionState = {
   isActive: boolean;
   nextBillingDate: string;
@@ -583,7 +641,7 @@ const universePremiumBenefits = [
   "오디오 백그라운드 재생과 오프라인 저장 데모",
 ];
 
-type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support";
+type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support" | "admin";
 type LibraryViewId = (typeof libraryViewItems)[number]["id"];
 type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
 type AppMode = "reader" | "creator";
@@ -674,6 +732,7 @@ const navItems: Array<{ id: PageId; label: string; helper: string }> = [
   { id: "wallet", label: "지갑", helper: "코인 관리" },
   { id: "settlement", label: "정산", helper: "수익 분배" },
   { id: "support", label: "고객센터", helper: "문의/신고" },
+  { id: "admin", label: "운영", helper: "관리 콘솔" },
 ];
 
 const marketingAnnouncements = [
@@ -700,8 +759,9 @@ const newEpisodeAlertMap: Record<string, { title: string; episodeLabel: string; 
   "neon-pulse-zero": { title: "5화. 파일럿 컷 공개", episodeLabel: "신규 애니메이션 회차", publishedAt: "오늘" },
 };
 
-const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement"]);
+const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement", "admin"]);
 const creatorOnlyPages = new Set<PageId>(["studio", "matching", "settlement"]);
+const adminOnlyPages = new Set<PageId>(["admin"]);
 
 const walletFallback: WalletDetail = {
   balance: 0,
@@ -3352,6 +3412,8 @@ export function App() {
   const [supportChatMessages, setSupportChatMessages] = useState([
     { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
   ]);
+  const [adminDashboard, setAdminDashboard] = useState<AdminModerationDashboard | null>(null);
+  const [adminMessage, setAdminMessage] = useState("");
   const [matchingActionMessage, setMatchingActionMessage] = useState("");
   const [isCreatorProfileFormOpen, setIsCreatorProfileFormOpen] = useState(false);
   const [isPublishingCreatorProfile, setIsPublishingCreatorProfile] = useState(false);
@@ -3395,10 +3457,15 @@ export function App() {
   const librarySectionRef = useRef<HTMLElement | null>(null);
 
   const accountRole = user?.role ?? "READER";
+  const isAdminAccount = accountRole === "ADMIN";
   const isCreatorAccount = accountRole === "CREATOR" || accountRole === "ADMIN";
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
+        if (item.id === "admin") {
+          return isAdminAccount;
+        }
+
         if (!user) {
           return ["home", "discover", "support"].includes(item.id);
         }
@@ -3409,7 +3476,7 @@ export function App() {
 
         return !creatorOnlyPages.has(item.id);
       }),
-    [isCreatorAccount, user],
+    [isAdminAccount, isCreatorAccount, user],
   );
   const visibleOnboardingGuides = useMemo(
     () =>
@@ -4084,6 +4151,21 @@ export function App() {
   }, [activePage, isCreatorAccount, user]);
 
   useEffect(() => {
+    if (user && adminOnlyPages.has(activePage) && !isAdminAccount) {
+      setActivePage("home");
+      setCommunityMessage("운영 콘솔은 관리자 계정에서만 열 수 있어요.");
+    }
+  }, [activePage, isAdminAccount, user]);
+
+  useEffect(() => {
+    if (activePage !== "admin" || !token || !isAdminAccount) {
+      return;
+    }
+
+    void loadAdminDashboard(token).catch((error) => setAdminMessage(error instanceof Error ? error.message : "운영 콘솔을 불러오지 못했습니다."));
+  }, [activePage, isAdminAccount, token]);
+
+  useEffect(() => {
     if (!/CreatorUniverseAndroid/i.test(navigator.userAgent)) {
       return;
     }
@@ -4424,6 +4506,15 @@ export function App() {
       return;
     }
 
+    if (adminOnlyPages.has(page) && !isAdminAccount) {
+      setCommunityMessage("운영 콘솔은 관리자 계정에서만 열 수 있어요.");
+      setActivePage("home");
+      setIsMobileMenuOpen(false);
+      setIsAccountMenuOpen(false);
+      setIsMobileQuickOpen(false);
+      return;
+    }
+
     setActivePage(page);
     setIsMobileMenuOpen(false);
     setIsMobileQuickOpen(false);
@@ -4536,6 +4627,31 @@ export function App() {
     });
     setReportReason("");
     setCommunityMessage("사용자 신고가 접수되었습니다.");
+  }
+
+  async function loadAdminDashboard(currentToken = token) {
+    if (!currentToken) {
+      setAdminDashboard(null);
+      return;
+    }
+
+    const dashboard = await request<AdminModerationDashboard>("/api/admin/moderation", currentToken);
+    setAdminDashboard(dashboard);
+  }
+
+  async function updateAdminItemStatus(kind: "ticket" | "report", id: string, status: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const path = kind === "ticket" ? `/api/admin/support/tickets/${id}/status` : `/api/admin/reports/${id}/status`;
+    await request(path, token, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    setAdminMessage(`${kind === "ticket" ? "문의" : "신고"} 상태가 ${status}로 변경되었습니다.`);
+    await loadAdminDashboard(token);
   }
 
   function sendSupportBotMessage(message = supportChatInput) {
@@ -5204,6 +5320,9 @@ export function App() {
                   <button onClick={() => { navigate("wallet"); setIsAccountMenuOpen(false); }}><Wallet size={17} /> 내 지갑</button>
                   {isCreatorAccount && (
                     <button onClick={() => { navigate("settlement"); setIsAccountMenuOpen(false); }}><Split size={17} /> 정산 콘솔</button>
+                  )}
+                  {isAdminAccount && (
+                    <button onClick={() => { navigate("admin"); setIsAccountMenuOpen(false); }}><ShieldCheck size={17} /> 운영 콘솔</button>
                   )}
                   <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><Settings size={17} /> 정보 변경</button>
                   <button className="danger" onClick={logout}><LogOut size={17} /> 로그아웃</button>
@@ -8015,6 +8134,20 @@ export function App() {
               <article><Headphones size={22} /><strong>접근성 지원</strong><p>스크린리더, 고대비 감상 모드, 대본 동기화 문제를 우선 처리합니다.</p></article>
             </section>
 
+            <section className="play-review-safety-card">
+              <div>
+                <p className="kicker">App Review Ready</p>
+                <h2>구글 플레이 심사를 위한 신뢰/안전 정보</h2>
+                <p>만 12세 이상 서비스 기준으로 개인정보, 계정 삭제, 신고/문의, 콘텐츠 관리 안내를 한 곳에서 확인할 수 있게 정리했습니다.</p>
+              </div>
+              <div className="play-review-grid">
+                <a href="/privacy-policy.html" target="_blank" rel="noreferrer"><ShieldCheck size={18} /><strong>개인정보처리방침</strong><span>수집·이용·보관 기준</span></a>
+                <a href="/account-deletion.html" target="_blank" rel="noreferrer"><UserRound size={18} /><strong>계정 삭제 안내</strong><span>탈퇴와 데이터 처리</span></a>
+                <button type="button" onClick={() => setSupportCategory("BUG")}><Bell size={18} /><strong>신고/문의 접수</strong><span>운영팀 DB 티켓 저장</span></button>
+                <a href="/terms.html" target="_blank" rel="noreferrer"><BookOpen size={18} /><strong>만 12세 이상 정책</strong><span>약관과 콘텐츠 기준</span></a>
+              </div>
+            </section>
+
             <section className="support-contact-board">
               <article className="support-center-panel support-ticket-panel">
                 <div className="support-ticket-head">
@@ -8062,6 +8195,149 @@ export function App() {
             </section>
 
             {communityMessage && <p className="community-message support-message">{communityMessage}</p>}
+          </section>
+        )}
+
+        {activePage === "admin" && isAdminAccount && (
+          <section className="section admin-page page-panel">
+            <div className="admin-hero">
+              <div>
+                <p className="kicker">Admin Trust Console</p>
+                <h2>문의, 신고, 거래, 매칭을 한 번에 확인하는 운영 콘솔</h2>
+                <p>구글 플레이 심사와 실제 운영에 필요한 신뢰/안전 항목을 관리자 계정에서 바로 확인하고 상태를 바꿀 수 있습니다.</p>
+              </div>
+              <button className="primary-button compact" onClick={() => void loadAdminDashboard()}>
+                <RefreshCw size={16} /> 새로고침
+              </button>
+            </div>
+
+            {adminMessage && <p className="community-message admin-message">{adminMessage}</p>}
+
+            <div className="admin-kpi-grid">
+              <article><span>전체 회원</span><strong>{adminDashboard?.summary.users ?? 0}</strong><p>가입 계정 기준</p></article>
+              <article><span>창작자 프로필</span><strong>{adminDashboard?.summary.creators ?? 0}</strong><p>등록된 포트폴리오</p></article>
+              <article><span>열린 문의</span><strong>{adminDashboard?.summary.openTickets ?? 0}</strong><p>OPEN / IN_REVIEW</p></article>
+              <article><span>열린 신고</span><strong>{adminDashboard?.summary.openReports ?? 0}</strong><p>RECEIVED / IN_REVIEW</p></article>
+            </div>
+
+            <section className="admin-review-checklist">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">Play Review Checklist</p>
+                  <h2>앱 심사 필수 흐름 체크</h2>
+                </div>
+                <p>개인정보처리방침, 계정 삭제, 신고/문의, 운영 모니터링을 심사 대응 항목으로 고정했습니다.</p>
+              </div>
+              <div>
+                {(adminDashboard?.playReviewChecklist ?? []).map((item) => (
+                  <article key={item.title}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.detail}</span>
+                    </div>
+                    <b>{item.status}</b>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <div className="admin-board-grid">
+              <section className="admin-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Tickets</p>
+                    <h3>문의 접수 내역</h3>
+                  </div>
+                </div>
+                <div className="admin-list">
+                  {(adminDashboard?.tickets ?? []).map((ticket) => (
+                    <article key={ticket.id}>
+                      <span>{ticket.category} · {formatDateTime(ticket.createdAt)}</span>
+                      <strong>{ticket.user.displayName}님의 문의</strong>
+                      <p>{ticket.body}</p>
+                      <div>
+                        <em>{ticket.status}</em>
+                        <button onClick={() => void updateAdminItemStatus("ticket", ticket.id, "IN_REVIEW")}>검토중</button>
+                        <button onClick={() => void updateAdminItemStatus("ticket", ticket.id, "RESOLVED")}>해결</button>
+                      </div>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.tickets.length === 0 && <p className="admin-empty">아직 접수된 문의가 없습니다.</p>}
+                </div>
+              </section>
+
+              <section className="admin-panel danger-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Reports</p>
+                    <h3>사용자 신고 내역</h3>
+                  </div>
+                </div>
+                <div className="admin-list">
+                  {(adminDashboard?.reports ?? []).map((report) => (
+                    <article key={report.id}>
+                      <span>{formatDateTime(report.createdAt)} · 신고자 {report.reporter.displayName}</span>
+                      <strong>{report.targetUser ? `${report.targetUser.displayName} 신고` : "대상 미지정 신고"}</strong>
+                      <p>{report.reason}</p>
+                      {report.context && <small>{report.context}</small>}
+                      <div>
+                        <em>{report.status}</em>
+                        <button onClick={() => void updateAdminItemStatus("report", report.id, "IN_REVIEW")}>검토중</button>
+                        <button onClick={() => void updateAdminItemStatus("report", report.id, "ACTIONED")}>조치완료</button>
+                      </div>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.reports.length === 0 && <p className="admin-empty">아직 접수된 신고가 없습니다.</p>}
+                </div>
+              </section>
+            </div>
+
+            <div className="admin-board-grid">
+              <section className="admin-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Transactions</p>
+                    <h3>최근 결제/코인 원장</h3>
+                  </div>
+                </div>
+                <div className="admin-ledger-list">
+                  {(adminDashboard?.transactions ?? []).map((transaction) => (
+                    <article key={transaction.id}>
+                      <div>
+                        <span>{transaction.transactionType} · {transaction.status}</span>
+                        <strong>{transaction.project.title}</strong>
+                        <p>{transaction.buyer.displayName} · {formatDateTime(transaction.createdAt)}</p>
+                      </div>
+                      <b>{transaction.coinAmount ? formatCoins(transaction.coinAmount) : formatCoins(Number(transaction.grossAmount))}</b>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.transactions.length === 0 && <p className="admin-empty">최근 거래가 없습니다.</p>}
+                </div>
+              </section>
+
+              <section className="admin-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Matching</p>
+                    <h3>최근 매칭 제안</h3>
+                  </div>
+                </div>
+                <div className="admin-ledger-list">
+                  {(adminDashboard?.matchRequests ?? []).map((match) => (
+                    <article key={match.id}>
+                      <div>
+                        <span>{match.status} · {formatDateTime(match.createdAt)}</span>
+                        <strong>{match.projectTitle}</strong>
+                        <p>{match.requester.displayName} → {match.targetUser.displayName} · {Number(match.sharePercentage)}%</p>
+                      </div>
+                      <b>{match.projectType}</b>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.matchRequests.length === 0 && <p className="admin-empty">최근 매칭 제안이 없습니다.</p>}
+                </div>
+              </section>
+            </div>
           </section>
         )}
       </main>

@@ -94,6 +94,9 @@ model User {
   fanPostUnlocks FanPostUnlock[]
   followingCreators CreatorFollow[] @relation("CreatorFollower")
   creatorFollowers CreatorFollow[] @relation("CreatorFollowed")
+  supportTickets SupportTicket[] @relation("SupportTickets")
+  reportsMade UserReport[] @relation("ReportsMade")
+  reportsReceived UserReport[] @relation("ReportsReceived")
 }
 
 model Project {
@@ -405,4 +408,37 @@ model FanPostUnlock {
 
   @@unique([userId, postId])
   @@index([creatorUserId, unlockedAt])
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String
+  body      String
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation("SupportTickets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model UserReport {
+  id           String   @id @default(cuid())
+  reporterId   String
+  targetUserId String?
+  reason       String
+  context      String?
+  status       String   @default("RECEIVED")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reporter     User     @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser   User?    @relation("ReportsReceived", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([reporterId, createdAt])
+  @@index([targetUserId, createdAt])
 }

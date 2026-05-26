@@ -19202,3 +19202,291 @@ body.cu-android-app .app-primary-tabs button.active:not(.mobile-plus-tab) svg {
     transform: none;
   }
 }
+
+.play-review-safety-card,
+.admin-hero,
+.admin-review-checklist,
+.admin-panel {
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.58));
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(22px);
+}
+
+.play-review-safety-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 28px;
+  margin-top: 28px;
+  padding: clamp(24px, 4vw, 42px);
+  border-radius: 34px;
+}
+
+.play-review-safety-card h2,
+.admin-hero h2 {
+  margin: 8px 0 12px;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  letter-spacing: -0.05em;
+}
+
+.play-review-safety-card p,
+.admin-hero p {
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.play-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.play-review-grid a,
+.play-review-grid button {
+  display: grid;
+  gap: 8px;
+  min-height: 132px;
+  padding: 20px;
+  border: 1px solid rgba(230, 82, 124, 0.18);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+}
+
+.play-review-grid svg {
+  color: var(--brand);
+}
+
+.play-review-grid strong {
+  font-size: 1.03rem;
+}
+
+.play-review-grid span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.admin-page {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: clamp(28px, 4vw, 52px);
+  border-radius: 38px;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(231, 82, 124, 0.16), transparent 32%),
+    radial-gradient(circle at 90% 10%, rgba(34, 150, 173, 0.18), transparent 32%),
+    rgba(255, 255, 255, 0.76);
+}
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-kpi-grid article {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-kpi-grid span,
+.admin-list span,
+.admin-ledger-list span {
+  color: var(--muted);
+  font-weight: 800;
+  font-size: 0.82rem;
+}
+
+.admin-kpi-grid strong {
+  display: block;
+  margin: 8px 0 4px;
+  color: var(--brand);
+  font-size: clamp(2rem, 4vw, 3.3rem);
+  letter-spacing: -0.05em;
+}
+
+.admin-kpi-grid p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-review-checklist,
+.admin-panel {
+  padding: clamp(20px, 3vw, 32px);
+  border-radius: 30px;
+}
+
+.admin-review-checklist > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-review-checklist article {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid rgba(34, 150, 173, 0.18);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-review-checklist article svg {
+  color: var(--green);
+}
+
+.admin-review-checklist article strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.admin-review-checklist article span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.admin-review-checklist article b {
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(24, 165, 88, 0.12);
+  color: var(--green);
+  font-size: 0.75rem;
+}
+
+.admin-board-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-list,
+.admin-ledger-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-list article,
+.admin-ledger-list article {
+  padding: 18px;
+  border: 1px solid rgba(20, 20, 30, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.admin-list strong,
+.admin-ledger-list strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 1.03rem;
+}
+
+.admin-list p,
+.admin-list small,
+.admin-ledger-list p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.admin-list article > div,
+.admin-ledger-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-list em {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(34, 150, 173, 0.12);
+  color: var(--cyan);
+  font-style: normal;
+  font-weight: 900;
+  font-size: 0.76rem;
+}
+
+.admin-list button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(231, 82, 124, 0.1);
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.admin-ledger-list b {
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+.admin-empty {
+  padding: 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--muted);
+  text-align: center;
+}
+
+body[data-theme="dark"] .play-review-safety-card,
+body[data-theme="dark"] .admin-hero,
+body[data-theme="dark"] .admin-review-checklist,
+body[data-theme="dark"] .admin-panel,
+body[data-theme="dark"] .admin-kpi-grid article,
+body[data-theme="dark"] .play-review-grid a,
+body[data-theme="dark"] .play-review-grid button,
+body[data-theme="dark"] .admin-review-checklist article,
+body[data-theme="dark"] .admin-list article,
+body[data-theme="dark"] .admin-ledger-list article {
+  background: rgba(26, 29, 42, 0.78);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 980px) {
+  .play-review-safety-card,
+  .admin-hero,
+  .admin-board-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-kpi-grid,
+  .admin-review-checklist > div:last-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .play-review-grid,
+  .admin-kpi-grid,
+  .admin-review-checklist > div:last-child {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-list article > div,
+  .admin-ledger-list article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-list article > div {
+    margin-top: 12px;
+  }
+}
