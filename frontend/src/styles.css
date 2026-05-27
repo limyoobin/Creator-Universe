@@ -19490,3 +19490,221 @@ body[data-theme="dark"] .admin-ledger-list article {
     margin-top: 12px;
   }
 }
+
+/* Android/WebView final polish: keep the app feeling native and prevent sideways drift. */
+body.cu-android-app,
+body.cu-android-app #root,
+body.cu-android-app .app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body.cu-android-app .modal-backdrop {
+  overflow-x: hidden !important;
+}
+
+body.cu-android-app .creator-detail-backdrop {
+  align-items: flex-start !important;
+  padding: max(12px, env(safe-area-inset-top)) 12px calc(112px + env(safe-area-inset-bottom)) !important;
+}
+
+body.cu-android-app .creator-detail-modal {
+  width: calc(100vw - 24px) !important;
+  max-width: calc(100vw - 24px) !important;
+  max-height: calc(100dvh - 26px) !important;
+  border-radius: 28px !important;
+  padding: 16px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
+
+body.cu-android-app .creator-detail-modal * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+body.cu-android-app .creator-detail-hero {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
+}
+
+body.cu-android-app .creator-detail-art {
+  min-height: 168px !important;
+  border-radius: 24px !important;
+  padding: 20px !important;
+}
+
+body.cu-android-app .creator-detail-copy {
+  min-width: 0 !important;
+}
+
+body.cu-android-app .creator-detail-copy .modal-header {
+  align-items: flex-start !important;
+  gap: 12px !important;
+}
+
+body.cu-android-app .creator-detail-copy .modal-header h2 {
+  max-width: 100% !important;
+  font-size: clamp(2.25rem, 12vw, 3.8rem) !important;
+  line-height: 0.98 !important;
+  letter-spacing: -0.08em !important;
+  word-break: keep-all !important;
+}
+
+body.cu-android-app .creator-detail-actions {
+  flex-shrink: 0;
+}
+
+body.cu-android-app .detail-headline,
+body.cu-android-app .creator-detail-copy > p {
+  font-size: clamp(1rem, 4vw, 1.2rem) !important;
+  line-height: 1.65 !important;
+}
+
+body.cu-android-app .detail-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+body.cu-android-app .detail-stats div {
+  display: grid !important;
+  min-width: 0 !important;
+  min-height: 86px !important;
+  align-content: center !important;
+  justify-items: center !important;
+  border-radius: 18px !important;
+  padding: 12px 6px !important;
+  text-align: center !important;
+}
+
+body.cu-android-app .detail-stats strong {
+  font-size: clamp(1.35rem, 6vw, 2rem) !important;
+}
+
+body.cu-android-app .detail-stats span {
+  font-size: 0.76rem !important;
+  white-space: nowrap;
+}
+
+body.cu-android-app .creator-storefront-strip,
+body.cu-android-app .portfolio-list,
+body.cu-android-app .fanclub-overview,
+body.cu-android-app .membership-tier-grid,
+body.cu-android-app .creator-paid-feed > div:last-child,
+body.cu-android-app .creator-related-works > div:last-child {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  overflow-x: hidden !important;
+}
+
+body.cu-android-app .creator-storefront-card,
+body.cu-android-app .portfolio-item {
+  min-width: 0 !important;
+}
+
+body.cu-android-app .mobile-quick-sheet.open {
+  left: 14px !important;
+  right: 14px !important;
+  bottom: calc(86px + env(safe-area-inset-bottom)) !important;
+  width: auto !important;
+  max-width: none !important;
+  border-radius: 30px !important;
+  padding: 18px !important;
+  overflow-x: hidden !important;
+}
+
+body.cu-android-app .quick-sheet-head {
+  text-align: left !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button,
+body.cu-android-app .quick-sheet-secondary-actions button {
+  justify-items: center !important;
+  align-content: center !important;
+  text-align: center !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button {
+  min-height: 84px !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions button {
+  min-height: 66px !important;
+  padding-inline: 4px !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions button svg,
+body.cu-android-app .quick-sheet-primary-actions button svg {
+  margin-inline: auto !important;
+}
+
+body.cu-android-app .app-trust-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+body.cu-android-app .app-trust-strip button {
+  min-height: 76px !important;
+  padding: 10px 6px !important;
+}
+
+body.cu-android-app .app-trust-strip span {
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+
+body.cu-android-app .app-purpose-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-role-action-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-role-action-strip button,
+body.cu-android-app .app-role-action-strip button:last-child {
+  grid-column: auto !important;
+  min-height: 88px !important;
+  text-align: center !important;
+  justify-items: center !important;
+  align-content: center !important;
+}
+
+body.cu-android-app .app-role-action-strip strong {
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+
+@media (max-width: 380px) {
+  body.cu-android-app .quick-sheet-primary-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  body.cu-android-app .quick-sheet-secondary-actions,
+  body.cu-android-app .app-trust-strip,
+  body.cu-android-app .app-role-action-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  body.cu-android-app .quick-sheet-secondary-actions button:last-child {
+    grid-column: 2 / 3 !important;
+  }
+
+  body.cu-android-app .app-purpose-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}

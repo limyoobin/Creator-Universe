@@ -5621,11 +5621,30 @@ export function App() {
               </div>
 
               <div className="app-trust-strip" aria-label="앱 신뢰 기능 요약">
-                {trustSignals.filter((signal) => isCreatorAccount || !signal.title.includes("정산")).map((signal) => (
+                {(isCreatorAccount
+                  ? trustSignals
+                  : [
+                      trustSignals[1],
+                      trustSignals[2],
+                      {
+                        icon: <BookOpen size={22} />,
+                        title: "보관함 동선",
+                        label: "Library Flow",
+                        text: "결제한 작품과 스크랩한 작품을 홈에서 바로 이어볼 수 있게 연결합니다.",
+                      },
+                    ]).map((signal) => (
                   <button
                     type="button"
                     key={signal.title}
-                    onClick={() => navigate(signal.title.includes("정산") ? "settlement" : signal.title.includes("코인") ? "wallet" : "support")}
+                    onClick={() =>
+                      signal.title.includes("정산")
+                        ? navigate("settlement")
+                        : signal.title.includes("코인")
+                          ? navigate("wallet")
+                          : signal.title.includes("보관함")
+                            ? openReaderLibrary("purchased")
+                            : navigate("support")
+                    }
                   >
                     {signal.icon}
                     <span>{signal.title}</span>
