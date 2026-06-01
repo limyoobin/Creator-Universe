@@ -909,6 +909,15 @@ const onboardingGuides = [
     cta: "창작자 등록",
   },
   {
+    audience: "매칭",
+    icon: <Users size={22} />,
+    title: "역할과 지분을 맞춰 팀 만들기",
+    text: "글, 그림, 목소리, BGM 팀원을 찾고 수익 지분 제안까지 한 흐름으로 보냅니다.",
+    steps: ["팀원 탐색", "지분 제안", "채팅 협의"],
+    page: "matching" as PageId,
+    cta: "팀원 찾기",
+  },
+  {
     audience: "팀장",
     icon: <Split size={22} />,
     title: "수익 지분을 정하고 자동 정산",
@@ -3486,7 +3495,7 @@ export function App() {
         }
 
         if (isCreatorAccount) {
-          return true;
+          return appMode === "reader" ? guide.page === "discover" : creatorOnlyPages.has(guide.page);
         }
 
         return !creatorOnlyPages.has(guide.page);
@@ -4166,7 +4175,13 @@ export function App() {
   }, [activePage, isAdminAccount, token]);
 
   useEffect(() => {
-    if (!/CreatorUniverseAndroid/i.test(navigator.userAgent)) {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isAndroidShell =
+      /CreatorUniverseAndroid/i.test(navigator.userAgent) ||
+      searchParams.get("app") === "android" ||
+      searchParams.get("shell") === "android";
+
+    if (!isAndroidShell) {
       return;
     }
 

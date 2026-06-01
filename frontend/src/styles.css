@@ -19708,3 +19708,223 @@ body.cu-android-app .app-role-action-strip strong {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* Android release hardening: this block intentionally lives last so the APK WebView
+   cannot fall back to older mobile/tablet rules when cached CSS is refreshed. */
+body.cu-android-app {
+  overflow-x: clip !important;
+  --android-shell-width: min(calc(100vw - 24px), 430px);
+  --android-bottom-safe: calc(126px + env(safe-area-inset-bottom));
+}
+
+body.cu-android-app main,
+body.cu-android-app .topbar,
+body.cu-android-app .mobile-quick-sheet,
+body.cu-android-app .app-primary-tabs {
+  width: var(--android-shell-width) !important;
+  max-width: var(--android-shell-width) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+body.cu-android-app main {
+  padding-bottom: calc(var(--android-bottom-safe) + 34px) !important;
+}
+
+body.cu-android-app .app-home-dashboard,
+body.cu-android-app .app-home-dashboard > *,
+body.cu-android-app .account-modal,
+body.cu-android-app .creator-detail-modal {
+  max-width: var(--android-shell-width) !important;
+  overflow-x: clip !important;
+}
+
+body.cu-android-app .app-primary-tabs {
+  left: 50% !important;
+  right: auto !important;
+  bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+}
+
+body.cu-android-app .floating-messenger,
+body.cu-android-app .floating-help {
+  right: max(16px, calc((100vw - var(--android-shell-width)) / 2 + 10px)) !important;
+}
+
+body.cu-android-app .floating-help {
+  bottom: calc(var(--android-bottom-safe) + 18px) !important;
+}
+
+body.cu-android-app .floating-messenger {
+  bottom: calc(var(--android-bottom-safe) + 78px) !important;
+}
+
+body.cu-android-app .floating-help.open,
+body.cu-android-app .floating-messenger.open {
+  bottom: calc(var(--android-bottom-safe) + 12px) !important;
+}
+
+body.cu-android-app .creator-detail-backdrop,
+body.cu-android-app .account-backdrop {
+  align-items: flex-start !important;
+  padding: max(10px, env(safe-area-inset-top)) 12px calc(138px + env(safe-area-inset-bottom)) !important;
+  overflow-x: hidden !important;
+}
+
+body.cu-android-app .creator-detail-modal,
+body.cu-android-app .account-modal {
+  width: var(--android-shell-width) !important;
+  max-height: calc(100dvh - 34px) !important;
+  padding: 16px 16px calc(94px + env(safe-area-inset-bottom)) !important;
+  border-radius: 28px !important;
+  box-sizing: border-box !important;
+  overscroll-behavior: contain !important;
+}
+
+body.cu-android-app .creator-detail-copy .modal-header h2 {
+  font-size: clamp(1.85rem, 8.2vw, 2.55rem) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.055em !important;
+}
+
+body.cu-android-app .creator-detail-art {
+  min-height: 132px !important;
+}
+
+body.cu-android-app .detail-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .detail-stats div {
+  min-height: 74px !important;
+  padding: 10px 4px !important;
+  background: color-mix(in srgb, var(--surface-muted) 78%, white 22%) !important;
+}
+
+body.cu-android-app .detail-stats strong {
+  font-size: clamp(1.08rem, 4.8vw, 1.55rem) !important;
+}
+
+body.cu-android-app .detail-stats span {
+  font-size: 0.68rem !important;
+  letter-spacing: -0.03em;
+}
+
+body.cu-android-app .creator-storefront-card,
+body.cu-android-app .portfolio-item {
+  padding: 16px !important;
+  border-radius: 24px !important;
+}
+
+body.cu-android-app .mobile-quick-sheet.open {
+  left: 50% !important;
+  right: auto !important;
+  bottom: calc(var(--android-bottom-safe) + 10px) !important;
+  transform: translateX(-50%) !important;
+  padding: 18px !important;
+}
+
+body.cu-android-app .quick-sheet-head {
+  text-align: center !important;
+}
+
+body.cu-android-app .quick-sheet-head p {
+  max-width: 22em;
+  margin-inline: auto;
+}
+
+body.cu-android-app .quick-sheet-primary-actions,
+body.cu-android-app .quick-sheet-secondary-actions,
+body.cu-android-app .app-trust-strip,
+body.cu-android-app .app-purpose-grid,
+body.cu-android-app .app-role-action-strip {
+  align-items: stretch !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button,
+body.cu-android-app .quick-sheet-secondary-actions button,
+body.cu-android-app .app-trust-strip button,
+body.cu-android-app .app-purpose-grid button,
+body.cu-android-app .app-role-action-strip button {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-align: center !important;
+  justify-items: center !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions,
+body.cu-android-app .app-trust-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-trust-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-trust-strip button {
+  min-height: 84px !important;
+}
+
+body.cu-android-app .app-onboarding-rail {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-purpose-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-onboarding-rail button:last-child {
+  grid-column: auto !important;
+}
+
+body.cu-android-app .app-onboarding-rail button,
+body.cu-android-app .app-purpose-grid button {
+  min-height: 82px !important;
+  border-radius: 22px !important;
+}
+
+body.cu-android-app .app-onboarding-rail.single {
+  grid-template-columns: 1fr !important;
+}
+
+body.cu-android-app .app-role-action-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+body.cu-android-app .app-role-action-strip button {
+  min-height: 86px !important;
+  padding: 12px 6px !important;
+}
+
+body.cu-android-app .account-modal .mobile-account-summary {
+  padding-bottom: 82px !important;
+}
+
+body.cu-android-app .account-modal .mobile-account-actions,
+body.cu-android-app .account-danger-actions {
+  margin-bottom: 18px !important;
+}
+
+@media (max-width: 380px) {
+  body.cu-android-app {
+    --android-shell-width: calc(100vw - 18px);
+  }
+
+  body.cu-android-app .creator-detail-modal,
+  body.cu-android-app .account-modal {
+    padding-inline: 14px !important;
+  }
+
+  body.cu-android-app .quick-sheet-secondary-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  body.cu-android-app .app-trust-strip,
+  body.cu-android-app .app-role-action-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
