@@ -3183,19 +3183,19 @@ function AccountModal({
           </section>
 
           {!isCreatorAccount && (
-            <section className="account-panel reader-creator-upgrade-panel">
+            <section className="account-panel reader-creator-upgrade-panel reader-only-guide-panel">
               <div className="account-panel-head">
-                <Rocket size={20} />
-                <strong>창작자로도 활동하기</strong>
+                <BookOpen size={20} />
+                <strong>독자 전용 동선</strong>
               </div>
-              <p>독자 계정은 작품과 지갑 중심으로 유지됩니다. 전환하면 스튜디오, 매칭, 정산 메뉴가 열리고 내 포트폴리오를 등록할 수 있어요.</p>
+              <p>독자 계정은 작품 감상, 스크랩, 코인 지갑, 새 회차 알림을 중심으로 깔끔하게 보여줍니다.</p>
               <div className="creator-upgrade-preview">
-                <span><Users size={14} /> 팀원 찾기</span>
-                <span><Split size={14} /> 지분 제안</span>
-                <span><Wallet size={14} /> 정산 확인</span>
+                <span><BookOpen size={14} /> 작품 탐색</span>
+                <span><Heart size={14} /> 스크랩</span>
+                <span><Bell size={14} /> 신작 알림</span>
               </div>
-              <button onClick={() => { onClose(); onUpgradeToCreator(); }}>
-                <Rocket size={16} /> 창작자 계정으로 전환
+              <button onClick={() => { onClose(); onOpenLibrary("scrapped"); }}>
+                <Heart size={16} /> 내 보관함 보기
               </button>
             </section>
           )}
@@ -3468,6 +3468,7 @@ export function App() {
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
   const isCreatorAccount = accountRole === "CREATOR" || accountRole === "ADMIN";
+  const isCreatorAppShell = Boolean(user && isCreatorAccount);
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
@@ -4533,6 +4534,7 @@ export function App() {
     setActivePage(page);
     setIsMobileMenuOpen(false);
     setIsMobileQuickOpen(false);
+    setIsAccountModalOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -8397,7 +8399,11 @@ export function App() {
 
       <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
         <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
-        <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>
+        {isCreatorAppShell ? (
+          <button className={activePage === "studio" ? "active" : ""} onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
+        ) : (
+          <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>
+        )}
         <button
           className="mobile-plus-tab"
           type="button"
@@ -8405,15 +8411,20 @@ export function App() {
             setIsMobileQuickOpen((value) => !value);
             setIsSupportBotOpen(false);
             setIsMessengerOpen(false);
+            setIsAccountModalOpen(false);
           }}
           aria-label="빠른 메뉴 열기"
           aria-expanded={isMobileQuickOpen}
         >
           {isMobileQuickOpen ? <X size={20} /> : <Plus size={22} />}
         </button>
-        <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
+        {isCreatorAppShell ? (
+          <button className={activePage === "matching" ? "active" : ""} onClick={() => navigate("matching")}><Users size={18} />매칭</button>
+        ) : (
+          <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
+        )}
         <button
-          className={isAccountModalOpen ? "active" : ""}
+          className={isAccountModalOpen && !isMobileQuickOpen ? "active" : ""}
           onClick={() => {
             if (!token) {
               setAuthMode("login");
@@ -8439,13 +8450,13 @@ export function App() {
       <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
         <div className="quick-sheet-head">
           <strong>빠른 시작</strong>
-          <span>{isCreatorAccount ? "작품을 만들거나, 팀을 찾거나, 바로 대화하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
+          <span>{isCreatorAppShell ? "작품을 만들고, 팀을 찾고, 제안을 바로 확인하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
         </div>
         <div className="quick-sheet-primary-actions" aria-label="핵심 빠른 실행">
-          {isCreatorAccount ? (
+          {isCreatorAppShell ? (
             <>
               <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 등록</span><small>원고·웹툰·오디오</small></button>
-              <button onClick={() => navigate("matching")}><Users size={18} /><span>매칭 프로필</span><small>팀원 찾기</small></button>
+              <button onClick={() => navigate("matching")}><Users size={18} /><span>팀 매칭</span><small>팀원 찾기</small></button>
               <button
                 onClick={() => {
                   setIsMobileQuickOpen(false);
@@ -8473,7 +8484,7 @@ export function App() {
         </div>
 
         <div className="quick-sheet-secondary-actions" aria-label="보조 빠른 실행">
-          {isCreatorAccount ? (
+          {isCreatorAppShell ? (
             <button onClick={() => navigate("settlement")}><Split size={17} /><span>정산</span><small>{formatCoins(settlementPreview.mySettlementAmount)}</small></button>
           ) : (
             <button onClick={() => openReaderLibrary("recent")}><RefreshCw size={17} /><span>최근</span><small>{recentWorks.length}개</small></button>
