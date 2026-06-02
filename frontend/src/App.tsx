@@ -4496,6 +4496,12 @@ export function App() {
   }
 
   function openReaderLibrary(view: (typeof libraryViewItems)[number]["id"]) {
+    if ((view === "purchased" || view === "scrapped" || view === "recent") && !user) {
+      setIsMobileQuickOpen(false);
+      setAuthMode("login");
+      return;
+    }
+
     setReaderLibraryView(view);
     setReaderSearch("");
     setReaderFilters([]);
@@ -4506,7 +4512,7 @@ export function App() {
   }
 
   function navigate(page: PageId) {
-    if (protectedPages.has(page) && !token) {
+    if (protectedPages.has(page) && (!token || !user)) {
       setAuthMode("login");
       setIsMobileMenuOpen(false);
       setIsAccountMenuOpen(false);
@@ -4536,6 +4542,25 @@ export function App() {
     setIsMobileQuickOpen(false);
     setIsAccountModalOpen(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openMyAccount() {
+    setIsMobileQuickOpen(false);
+    setIsMobileMenuOpen(false);
+    setIsAccountMenuOpen(false);
+    setIsNotificationOpen(false);
+    setIsSupportBotOpen(false);
+    setIsMessengerOpen(false);
+
+    if (!token || !user) {
+      // A stale token can exist in WebView storage even after the server session expired.
+      setToken(null);
+      localStorage.removeItem("creator-universe-token");
+      setAuthMode("login");
+      return;
+    }
+
+    setIsAccountModalOpen(true);
   }
 
   function openNotificationItem(item: NotificationItem) {
@@ -5327,7 +5352,7 @@ export function App() {
               </button>
               {isAccountMenuOpen && (
                 <div className="account-dropdown">
-                  <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><UserRound size={17} /> 내 계정</button>
+                  <button onClick={openMyAccount}><UserRound size={17} /> 내 계정</button>
                   <button onClick={() => { openReaderLibrary("recent"); setIsAccountMenuOpen(false); }}><RefreshCw size={17} /> 최근 본 작품</button>
                   <button onClick={() => { openReaderLibrary("purchased"); setIsAccountMenuOpen(false); }}><BookOpen size={17} /> 결제한 작품</button>
                   <button onClick={() => { openReaderLibrary("scrapped"); setIsAccountMenuOpen(false); }}><Heart size={17} /> 스크랩한 작품</button>
@@ -5341,7 +5366,7 @@ export function App() {
                   {isAdminAccount && (
                     <button onClick={() => { navigate("admin"); setIsAccountMenuOpen(false); }}><ShieldCheck size={17} /> 운영 콘솔</button>
                   )}
-                  <button onClick={() => { setIsAccountModalOpen(true); setIsAccountMenuOpen(false); }}><Settings size={17} /> 정보 변경</button>
+                  <button onClick={openMyAccount}><Settings size={17} /> 정보 변경</button>
                   <button className="danger" onClick={logout}><LogOut size={17} /> 로그아웃</button>
                 </div>
               )}
@@ -6712,7 +6737,7 @@ export function App() {
                 <span>멤버십</span>
                 <strong>{premiumSubscription.isActive ? "프리미엄 구독중" : "팬 멤버십 설계 필요"}</strong>
                 <p>러프, 짧은 글, 보이스 샘플, BGM 루프를 구독자 전용 포스트로 묶을 수 있습니다.</p>
-                <button onClick={() => setIsAccountModalOpen(true)}><Sparkles size={15} /> 구독 관리</button>
+                <button onClick={openMyAccount}><Sparkles size={15} /> 구독 관리</button>
               </article>
               <article>
                 <span>다음 할 일</span>
@@ -8425,14 +8450,7 @@ export function App() {
         )}
         <button
           className={isAccountModalOpen && !isMobileQuickOpen ? "active" : ""}
-          onClick={() => {
-            if (!token) {
-              setAuthMode("login");
-              return;
-            }
-            setIsMobileQuickOpen(false);
-            setIsAccountModalOpen(true);
-          }}
+          onClick={openMyAccount}
         >
           <UserRound size={18} />마이
         </button>
@@ -8838,7 +8856,7 @@ export function App() {
           project={project}
           work={paymentMode === "content" ? pendingPurchaseWork : null}
           wallet={wallet}
-          isLoggedIn={Boolean(token || user)}
+          isLoggedIn={Boolean(token && user)}
           onClose={() => setIsPaymentOpen(false)}
           onConfirm={handlePaymentConfirm}
           onSwitchToCharge={() => setPaymentMode("charge")}
