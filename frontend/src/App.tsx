@@ -1730,7 +1730,7 @@ function AuthModal({
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
+    <div className="modal-backdrop auth-backdrop" role="dialog" aria-modal="true">
       <div className="auth-modal">
         <div className="modal-header">
           <div>
@@ -8457,7 +8457,7 @@ export function App() {
             </>
           ) : (
             <>
-              <button onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 탐색</span><small>장르별 추천</small></button>
+              <button onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품</span><small>장르별 추천</small></button>
               <button onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /><span>스크랩</span><small>{scrappedWorks.length}개 저장</small></button>
               <button
                 onClick={() => {
@@ -8465,7 +8465,7 @@ export function App() {
                   openPayment();
                 }}
               >
-                <Coins size={18} /><span>코인 충전</span><small>{formatCoins(wallet ?? 0)}</small>
+                <Coins size={18} /><span>충전</span><small>{formatCoins(wallet ?? 0)}</small>
               </button>
             </>
           )}
@@ -8476,7 +8476,7 @@ export function App() {
           {isCreatorAccount ? (
             <button onClick={() => navigate("settlement")}><Split size={17} /><span>정산</span><small>{formatCoins(settlementPreview.mySettlementAmount)}</small></button>
           ) : (
-            <button onClick={() => openReaderLibrary("recent")}><RefreshCw size={17} /><span>최근 본 작품</span><small>{recentWorks.length}개</small></button>
+            <button onClick={() => openReaderLibrary("recent")}><RefreshCw size={17} /><span>최근</span><small>{recentWorks.length}개</small></button>
           )}
           <button
             onClick={() => {
