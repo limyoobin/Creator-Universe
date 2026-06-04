@@ -170,6 +170,7 @@ type AiMatchRecommendation = {
 };
 
 type AiMatchingResponse = {
+  provider?: "local" | "openai";
   assistantMessage: string;
   projectBrief: {
     summary: string;
@@ -179,6 +180,11 @@ type AiMatchingResponse = {
   };
   recommendations: AiMatchRecommendation[];
   followUpSuggestions: string[];
+};
+
+type AiChatMessage = {
+  role: "user" | "assistant";
+  content: string;
 };
 
 type SettlementDashboard = {
@@ -3532,6 +3538,7 @@ export function App() {
   const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>(["ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"]);
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
   const [aiMatchResponse, setAiMatchResponse] = useState<AiMatchingResponse | null>(null);
+  const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>([]);
   const [isAiMatching, setIsAiMatching] = useState(false);
   const [aiMatchMessage, setAiMatchMessage] = useState("");
   const [readerSearch, setReaderSearch] = useState("");
@@ -4823,32 +4830,45 @@ export function App() {
     setAiMatchMessage("");
 
     try {
-      const response = await request<AiMatchingResponse>("/api/ai/matching-recommendations", token, {
+      const response = await request<AiMatchingResponse>("/api/ai/matching-chat", token, {
         method: "POST",
         body: JSON.stringify({
           projectDescription: prompt,
           preferredRoles: aiPreferredRoles,
           genres: matchingFilters,
+          messages: aiMatchMessages.slice(-8),
           limit: 3,
         }),
       });
 
       setAiMatchResponse(response);
       setAiMatchResults(response.recommendations);
+      setAiMatchMessages((current) => [
+        ...current,
+        { role: "user", content: prompt },
+        { role: "assistant", content: response.assistantMessage },
+      ]);
       setAiMatchMessage(
         response.recommendations.length > 0
-          ? "AI가 현재 공개된 매칭 프로필을 기준으로 추천 순위를 만들었습니다."
+          ? "AI 매칭 매니저가 이전 대화와 공개 포트폴리오를 함께 참고해 답변했습니다."
           : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
       );
+      setAiMatchPrompt("");
     } catch (error) {
       const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters);
       setAiMatchResponse(fallbackResponse);
       setAiMatchResults(fallbackResponse.recommendations);
+      setAiMatchMessages((current) => [
+        ...current,
+        { role: "user", content: prompt },
+        { role: "assistant", content: fallbackResponse.assistantMessage },
+      ]);
       setAiMatchMessage(
         fallbackResponse.recommendations.length > 0
           ? "백엔드 추천 API가 잠시 불안정해서, 앱 안의 포트폴리오 분석으로 추천했습니다."
           : `추천 실패: ${getFriendlyError(error)}`,
       );
+      setAiMatchPrompt("");
     } finally {
       setIsAiMatching(false);
     }
@@ -7738,13 +7758,18 @@ export function App() {
 
             {aiMatchResponse && (
               <div className="ai-conversation-card">
-                <div className="ai-chat-bubble user">
-                  <span>나</span>
-                  <p>{aiMatchPrompt}</p>
+                <div className="ai-conversation-head">
+                  <span>{aiMatchResponse.provider === "openai" ? "GPT 매칭 코치" : "AI 매칭 코치"}</span>
+                  <strong>대화가 이어지는 팀원 추천</strong>
+                  <p>작품 설명과 이전 질문을 이어서 참고하며 후보를 비교합니다.</p>
                 </div>
-                <div className="ai-chat-bubble assistant">
-                  <span>AI 매칭 매니저</span>
-                  <p>{aiMatchResponse.assistantMessage}</p>
+                <div className="ai-chat-log" aria-label="AI 매칭 대화 기록">
+                  {aiMatchMessages.slice(-8).map((message, index) => (
+                    <div className={`ai-chat-bubble ${message.role}`} key={`${message.role}-${index}-${message.content.slice(0, 12)}`}>
+                      <span>{message.role === "user" ? "나" : "AI 매칭 매니저"}</span>
+                      <p>{message.content}</p>
+                    </div>
+                  ))}
                 </div>
                 <div className="ai-brief-card">
                   <span>AI가 읽은 작품 방향</span>
@@ -7760,7 +7785,7 @@ export function App() {
                     <button
                       key={question}
                       type="button"
-                      onClick={() => setAiMatchPrompt((current) => `${current.trim()}\n${question}`.trim())}
+                      onClick={() => setAiMatchPrompt(question)}
                     >
                       {question}
                     </button>

@@ -6749,6 +6749,48 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
+.ai-conversation-head {
+  display: grid;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 22px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand) 10%, transparent), color-mix(in srgb, var(--cyan) 8%, transparent)),
+    color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.ai-conversation-head span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-conversation-head strong {
+  color: var(--text);
+  font-size: clamp(18px, 2.4vw, 24px);
+  letter-spacing: -0.04em;
+}
+
+.ai-conversation-head p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.ai-chat-log {
+  display: grid;
+  max-height: 360px;
+  gap: 12px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 2px 4px 4px;
+}
+
 .ai-chat-bubble {
   display: grid;
   gap: 6px;
