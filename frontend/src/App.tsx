@@ -1636,6 +1636,11 @@ function buildLocalAiMatchingResponse(
   const topRecommendation = recommendations[0];
   const secondRecommendation = recommendations[1];
   const topCreator = topRecommendation?.creator.displayName;
+  const topReasonDetails = topRecommendation?.reasonDetails?.length
+    ? topRecommendation.reasonDetails
+    : topRecommendation
+      ? [topRecommendation.reason, "작품 키워드와 공개 포트폴리오의 접점이 가장 뚜렷합니다."]
+      : [];
   const normalizedPrompt = normalizeAiText(prompt);
   const wantsMessage = ["메시지", "dm", "디엠", "문구", "제안"].some((keyword) => normalizedPrompt.includes(keyword));
   const wantsCompare = ["비교", "누가 더", "1순위", "2순위"].some((keyword) => normalizedPrompt.includes(keyword));
@@ -1646,7 +1651,7 @@ function buildLocalAiMatchingResponse(
       : wantsCompare && secondRecommendation
         ? `${topCreator}님은 ${topRecommendation.reason} 반면 ${secondRecommendation.creator.displayName}님은 ${secondRecommendation.reason} 빠른 협업 시작은 ${topCreator}님, 보조 후보까지 잡는다면 ${secondRecommendation.creator.displayName}님을 같이 보는 게 좋아요.`
         : wantsWhy
-          ? `${topCreator}님을 먼저 추천한 이유는 ${topRecommendation.reasonDetails.slice(0, 3).join(" ")} 이 세 가지가 가장 큽니다.`
+          ? `${topCreator}님을 먼저 추천한 이유는 ${topReasonDetails.slice(0, 3).join(" ")} 이 세 가지가 가장 큽니다.`
           : `좋아요. 지금 대화 흐름이면 ${topCreator}님을 먼저 볼게요. ${summary} 이어서 “왜?”, “DM 써줘”, “누구랑 비교해?”처럼 물어보면 그 기준으로 다시 답할게요.`
     : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
 
