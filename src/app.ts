@@ -1,6 +1,7 @@
 import express from "express";
 import { PUBLIC_UPLOAD_PATH, UPLOAD_ROOT } from "./constants/uploads.js";
 import { adminRouter } from "./routes/admin.routes.js";
+import { aiRouter } from "./routes/ai.routes.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { creatorRouter } from "./routes/creator.routes.js";
 import { communityRouter } from "./routes/community.routes.js";
@@ -76,6 +77,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/home", homeRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/ai", aiRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/creators", creatorRouter);

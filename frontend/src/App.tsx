@@ -158,6 +158,15 @@ type Creator = {
   } | null;
 };
 
+type AiMatchRecommendation = {
+  rank: number;
+  score: number;
+  matchRate: number;
+  reason: string;
+  matchedKeywords: string[];
+  creator: Creator;
+};
+
 type SettlementDashboard = {
   grossAmount: number;
   platformFeeAmount: number;
@@ -1472,6 +1481,104 @@ function getCreatorPortfolio(creator: Creator) {
   };
 
   return fallback[creator.primaryRole] || [];
+}
+
+const aiRoleKeywords: Record<string, string[]> = {
+  WRITER: ["글", "작가", "소설", "웹소설", "대본", "시나리오", "스토리", "각색", "콘티"],
+  ILLUSTRATOR: ["그림", "일러스트", "웹툰", "만화", "캐릭터", "표지", "키비주얼", "채색", "작화"],
+  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "연기", "오디오", "대사"],
+  SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향"],
+};
+
+const aiGenreKeywords: Record<string, string[]> = {
+  로맨스: ["로맨스", "연애", "청춘", "짝사랑", "설렘", "감정선"],
+  판타지: ["판타지", "마법", "용", "세계관", "모험", "이세계"],
+  미스터리: ["미스터리", "추리", "괴담", "도시괴담", "사건", "비밀"],
+  스릴러: ["스릴러", "공포", "긴장", "추격", "서스펜스"],
+  일상: ["일상", "성장", "학교", "카페", "생활", "잔잔"],
+  힐링: ["힐링", "따뜻", "감성", "위로", "잔잔", "asmr"],
+  웹툰: ["웹툰", "세로스크롤", "콘티", "작화", "채색"],
+  소설: ["소설", "웹소설", "문장", "대본", "챕터"],
+  오디오: ["오디오", "성우", "보이스", "대본 싱크", "입체음향", "사운드"],
+};
+
+function normalizeAiText(value: string) {
+  return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+function buildAiPromptKeywords(prompt: string, filters: string[]) {
+  const source = normalizeAiText([prompt, ...filters].join(" "));
+  const rawTokens = source.split(" ").filter((token) => token.length >= 2);
+  const genreTokens = Object.entries(aiGenreKeywords)
+    .filter(([genre, aliases]) => source.includes(normalizeAiText(genre)) || aliases.some((alias) => source.includes(normalizeAiText(alias))))
+    .flatMap(([genre, aliases]) => [genre, ...aliases]);
+  const roleTokens = Object.values(aiRoleKeywords)
+    .flat()
+    .filter((keyword) => source.includes(normalizeAiText(keyword)));
+
+  return Array.from(new Set([...rawTokens, ...genreTokens, ...roleTokens, ...filters])).slice(0, 36);
+}
+
+function buildLocalAiRecommendations(
+  sourceCreators: Creator[],
+  prompt: string,
+  preferredRoles: string[],
+  filters: string[],
+): AiMatchRecommendation[] {
+  const keywords = buildAiPromptKeywords(prompt, filters);
+  const normalizedPrompt = normalizeAiText(prompt);
+
+  return sourceCreators
+    .map((creator) => {
+      const portfolio = getCreatorPortfolio(creator);
+      const searchableText = normalizeAiText(
+        [
+          creator.displayName,
+          creator.username,
+          roleLabels[creator.primaryRole],
+          creator.headline,
+          creator.bio,
+          creator.portfolioSummary,
+          ...creator.skills,
+          ...portfolio.flatMap((item) => [item.title, item.category, item.description, ...item.tags]),
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+      const matchedKeywords = keywords.filter((keyword) => searchableText.includes(normalizeAiText(keyword))).slice(0, 8);
+      const roleKeywordHits = (aiRoleKeywords[creator.primaryRole] ?? []).filter((keyword) =>
+        normalizedPrompt.includes(normalizeAiText(keyword)),
+      );
+      const roleBoost = preferredRoles.length === 0 || preferredRoles.includes(creator.primaryRole) ? 24 : -10;
+      const portfolioBoost = portfolio.some((item) =>
+        item.tags.some((tag) => keywords.some((keyword) => normalizeAiText(tag).includes(normalizeAiText(keyword)))),
+      )
+        ? 18
+        : 0;
+      const score =
+        matchedKeywords.length * 13 +
+        roleKeywordHits.length * 12 +
+        roleBoost +
+        portfolioBoost +
+        Math.min(creator.responseRate / 10, 10) +
+        Math.min(creator.completedProjects * 1.5, 12);
+      const reason =
+        matchedKeywords.length > 0
+          ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 포트폴리오와 겹쳐 이번 프로젝트에 잘 맞습니다.`
+          : `${roleLabels[creator.primaryRole]} 역할과 응답률, 포트폴리오 완성도를 기준으로 추천했습니다.`;
+
+      return {
+        rank: 0,
+        score: Math.max(0, Math.round(score)),
+        matchRate: Math.max(45, Math.min(98, Math.round(54 + score * 0.7))),
+        reason,
+        matchedKeywords,
+        creator,
+      };
+    })
+    .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
+    .slice(0, 3)
+    .map((item, index) => ({ ...item, rank: index + 1 }));
 }
 
 const apiConnectionErrorMessage = "백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.";
@@ -3354,6 +3461,11 @@ export function App() {
   const [matchingSearch, setMatchingSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("전체");
   const [matchingFilters, setMatchingFilters] = useState<string[]>([]);
+  const [aiMatchPrompt, setAiMatchPrompt] = useState("");
+  const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>(["ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"]);
+  const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
+  const [isAiMatching, setIsAiMatching] = useState(false);
+  const [aiMatchMessage, setAiMatchMessage] = useState("");
   const [readerSearch, setReaderSearch] = useState("");
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("all");
@@ -4624,6 +4736,52 @@ export function App() {
       current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter],
     );
     setSelectedGenre(filter);
+  }
+
+  function toggleAiPreferredRole(roleId: string) {
+    setAiPreferredRoles((current) =>
+      current.includes(roleId) ? current.filter((item) => item !== roleId) : [...current, roleId],
+    );
+  }
+
+  async function runAiMatchingRecommendation() {
+    const prompt = aiMatchPrompt.trim();
+    if (prompt.length < 5) {
+      setAiMatchMessage("작품 장르, 분위기, 필요한 역할을 한두 문장으로 적어주세요.");
+      return;
+    }
+
+    setIsAiMatching(true);
+    setAiMatchMessage("");
+
+    try {
+      const recommendations = await request<AiMatchRecommendation[]>("/api/ai/matching-recommendations", token, {
+        method: "POST",
+        body: JSON.stringify({
+          projectDescription: prompt,
+          preferredRoles: aiPreferredRoles,
+          genres: matchingFilters,
+          limit: 3,
+        }),
+      });
+
+      setAiMatchResults(recommendations);
+      setAiMatchMessage(
+        recommendations.length > 0
+          ? "AI가 현재 공개된 매칭 프로필을 기준으로 추천 순위를 만들었습니다."
+          : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
+      );
+    } catch (error) {
+      const fallbackResults = buildLocalAiRecommendations(creators, prompt, aiPreferredRoles, matchingFilters);
+      setAiMatchResults(fallbackResults);
+      setAiMatchMessage(
+        fallbackResults.length > 0
+          ? "백엔드 추천 API가 잠시 불안정해서, 앱 안의 포트폴리오 분석으로 추천했습니다."
+          : `추천 실패: ${getFriendlyError(error)}`,
+      );
+    } finally {
+      setIsAiMatching(false);
+    }
   }
 
   async function refreshAfterCommunityAction(message: string) {
@@ -7465,6 +7623,91 @@ export function App() {
               </div>
             </div>
           </div>
+
+          <section className="ai-match-panel" aria-label="AI 팀원 추천">
+            <div className="ai-match-copy">
+              <p className="kicker">AI Matching Assistant</p>
+              <h2>작품 설명을 입력하면 어울리는 창작자를 1~3순위로 추천해요</h2>
+              <p>
+                예를 들어 “도시괴담 느낌의 미스터리 웹소설인데 낮은 톤의 성우와 네온 감성 일러스트가 필요해요”처럼 적으면,
+                공개된 포트폴리오와 태그를 분석해 추천 이유까지 정리합니다.
+              </p>
+            </div>
+
+            <div className="ai-match-workbench">
+              <label>
+                <span>내 작품 설명</span>
+                <textarea
+                  value={aiMatchPrompt}
+                  onChange={(event) => setAiMatchPrompt(event.target.value)}
+                  placeholder="예: 비 오는 도시를 배경으로 한 미스터리 웹소설입니다. 감정선은 차분하지만 후반부는 스릴러처럼 긴장감이 올라가고, 네온 분위기의 일러스트와 낮은 톤의 성우가 필요해요."
+                />
+              </label>
+
+              <div className="ai-role-picker" aria-label="AI 추천 희망 직군">
+                <span>추천받고 싶은 직군</span>
+                <div>
+                  {roleFilterItems.filter((item) => item !== "ALL").map((item) => (
+                    <button
+                      key={item}
+                      className={aiPreferredRoles.includes(item) ? "active" : ""}
+                      onClick={() => toggleAiPreferredRole(item)}
+                      type="button"
+                    >
+                      {roleLabels[item]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button className="primary-button ai-match-submit" type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching}>
+                <Sparkles size={18} /> {isAiMatching ? "AI 추천 분석 중" : "AI 추천 받기"}
+              </button>
+              {aiMatchMessage && <p className="ai-match-message">{aiMatchMessage}</p>}
+            </div>
+
+            {aiMatchResults.length > 0 && (
+              <div className="ai-recommendation-grid">
+                {aiMatchResults.map((item) => {
+                  const portfolio = getCreatorPortfolio(item.creator)[0];
+
+                  return (
+                    <article className={`ai-recommendation-card ${item.creator.primaryRole.toLowerCase()}`} key={`${item.creator.userId}-${item.rank}`}>
+                      <div className="ai-rank-badge">
+                        <b>{item.rank}</b>
+                        <span>{item.matchRate}% 매칭</span>
+                      </div>
+                      <div className="ai-creator-line">
+                        <i>{item.creator.displayName.slice(0, 1)}</i>
+                        <div>
+                          <strong>{item.creator.displayName}</strong>
+                          <small>{roleLabels[item.creator.primaryRole]} · @{item.creator.username}</small>
+                        </div>
+                      </div>
+                      <p>{item.reason}</p>
+                      {portfolio && (
+                        <div className="ai-portfolio-hit">
+                          <span>대표 포트폴리오</span>
+                          <strong>{portfolio.title}</strong>
+                          <small>{portfolio.category}</small>
+                        </div>
+                      )}
+                      <div className="ai-keywords">
+                        {(item.matchedKeywords.length ? item.matchedKeywords : item.creator.skills).slice(0, 5).map((keyword) => (
+                          <em key={keyword}>{keyword}</em>
+                        ))}
+                      </div>
+                      <div className="ai-card-actions">
+                        <button type="button" onClick={() => setSelectedCreator(item.creator)}>프로필</button>
+                        <button type="button" onClick={() => void sendCreatorChat(item.creator)}>채팅</button>
+                        <button type="button" onClick={() => openMatchProposal(item.creator)}>지분 제안</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
           {isCreatorProfileFormOpen && (
             <form className="creator-profile-publisher" onSubmit={(event) => void submitCreatorProfile(event)}>

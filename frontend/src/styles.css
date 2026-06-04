@@ -6622,6 +6622,297 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   font-weight: 800;
 }
 
+.ai-match-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  gap: 18px;
+  border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 32px;
+  padding: clamp(20px, 3vw, 32px);
+  background:
+    radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 18rem),
+    radial-gradient(circle at 92% 20%, color-mix(in srgb, var(--cyan) 16%, transparent), transparent 18rem),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface) 96%, #fff), color-mix(in srgb, var(--surface-2) 92%, var(--cyan)));
+  box-shadow: var(--shadow);
+}
+
+.ai-match-copy {
+  align-self: center;
+}
+
+.ai-match-copy h2 {
+  max-width: 620px;
+  margin: 0 0 12px;
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -0.06em;
+  line-height: 1.12;
+}
+
+.ai-match-copy p:not(.kicker) {
+  max-width: 640px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.ai-match-workbench {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  padding: 18px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46);
+}
+
+.ai-match-workbench label {
+  display: grid;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 900;
+}
+
+.ai-match-workbench textarea {
+  min-height: 150px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 16px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 84%, #fff);
+  font: inherit;
+  line-height: 1.7;
+  outline: none;
+}
+
+.ai-match-workbench textarea:focus {
+  border-color: color-mix(in srgb, var(--brand) 48%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 12%, transparent);
+}
+
+.ai-role-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-role-picker > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ai-role-picker > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-role-picker button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: var(--muted);
+  background: var(--surface);
+  font-weight: 900;
+}
+
+.ai-role-picker button.active {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--brand) 24%, transparent);
+}
+
+.ai-match-submit {
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+}
+
+.ai-match-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.ai-recommendation-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ai-recommendation-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 90% 12%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 12rem),
+    color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 64%, transparent);
+}
+
+.ai-rank-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-rank-badge b {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  font-size: 20px;
+}
+
+.ai-rank-badge span {
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.ai-creator-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-creator-line i {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  font-style: normal;
+  font-weight: 950;
+}
+
+.ai-creator-line strong {
+  display: block;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.ai-creator-line small,
+.ai-portfolio-hit small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.ai-recommendation-card > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.ai-portfolio-hit {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+}
+
+.ai-portfolio-hit span {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ai-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ai-keywords em {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-2) 84%, transparent);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ai-card-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ai-card-actions button {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  color: var(--text);
+  background: var(--surface);
+  font-weight: 900;
+}
+
+.ai-card-actions button:last-child {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet));
+}
+
+@media (max-width: 980px) {
+  .ai-match-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-recommendation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ai-match-panel {
+    border-radius: 26px;
+    padding: 18px;
+  }
+
+  .ai-match-copy h2 {
+    font-size: clamp(26px, 9vw, 34px);
+  }
+
+  .ai-match-workbench {
+    border-radius: 22px;
+    padding: 14px;
+  }
+
+  .ai-match-workbench textarea {
+    min-height: 132px;
+    border-radius: 18px;
+    font-size: 15px;
+  }
+
+  .ai-role-picker > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ai-card-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .matching-toolbar {
   display: grid;
   grid-template-columns: auto minmax(240px, 1fr) auto;
