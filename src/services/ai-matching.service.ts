@@ -244,6 +244,22 @@ function getRecentUserTexts(input: AiMatchingInput) {
     .slice(-6);
 }
 
+function getPreviousUserTexts(input: AiMatchingInput) {
+  const latestText = input.projectDescription.trim();
+  const recentTexts = getRecentUserTexts(input);
+
+  if (!latestText) {
+    return recentTexts;
+  }
+
+  const latestIndex = recentTexts.lastIndexOf(latestText);
+  if (latestIndex < 0) {
+    return recentTexts;
+  }
+
+  return recentTexts.filter((_, index) => index !== latestIndex);
+}
+
 function getConversationSource(input: AiMatchingInput) {
   return unique([...getRecentUserTexts(input), input.projectDescription.trim()].filter(Boolean)).join("\n");
 }
@@ -304,7 +320,7 @@ function buildConversationalAssistantMessage(
   recommendations: CreatorRecommendation[],
 ) {
   const latestText = originalInput.projectDescription.trim();
-  const previousUserTexts = getRecentUserTexts(originalInput);
+  const previousUserTexts = getPreviousUserTexts(originalInput);
   const intent = getConversationIntent(latestText);
   const top = recommendations[0];
   const second = recommendations[1];

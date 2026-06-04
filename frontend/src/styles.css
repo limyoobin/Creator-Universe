@@ -6664,6 +6664,10 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.46);
 }
 
+.ai-live-chat {
+  min-height: 100%;
+}
+
 .ai-match-workbench label {
   display: grid;
   gap: 10px;
@@ -6817,6 +6821,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   background: var(--surface);
   font-weight: 800;
   line-height: 1.7;
+  white-space: pre-line;
 }
 
 .ai-chat-bubble.user {
@@ -6832,6 +6837,83 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .ai-chat-bubble.assistant p {
   background: color-mix(in srgb, var(--surface-2) 82%, #fff);
+}
+
+.ai-typing p {
+  color: var(--muted);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--surface-2) 82%, #fff), color-mix(in srgb, var(--cyan) 10%, var(--surface-2)), color-mix(in srgb, var(--surface-2) 82%, #fff));
+  background-size: 180% 100%;
+  animation: aiTypingGlow 1.8s ease-in-out infinite;
+}
+
+.ai-chat-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 24px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.ai-match-workbench .ai-chat-composer {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.ai-chat-composer textarea {
+  min-height: 56px;
+  max-height: 150px;
+  resize: vertical;
+  border: 0;
+  border-radius: 18px;
+  padding: 14px 16px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-2) 78%, #fff);
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.55;
+  outline: none;
+}
+
+.ai-chat-composer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 50px;
+  border: 0;
+  border-radius: 18px;
+  padding: 0 18px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  font-weight: 950;
+  box-shadow: 0 16px 30px color-mix(in srgb, var(--brand) 24%, transparent);
+}
+
+.ai-chat-composer button:disabled {
+  opacity: 0.64;
+  cursor: progress;
+}
+
+.ai-analysis-card {
+  grid-column: 1 / -1;
+}
+
+@keyframes aiTypingGlow {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .ai-brief-card {
@@ -7089,6 +7171,19 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     min-height: 132px;
     border-radius: 18px;
     font-size: 15px;
+  }
+
+  .ai-chat-composer {
+    grid-template-columns: 1fr;
+    border-radius: 20px;
+  }
+
+  .ai-chat-composer textarea {
+    min-height: 70px;
+  }
+
+  .ai-chat-composer button {
+    width: 100%;
   }
 
   .ai-role-picker > div {

@@ -1633,12 +1633,25 @@ function buildLocalAiMatchingResponse(
         ? "잔잔하고 따뜻한 힐링 무드"
         : "멀티 콘텐츠로 확장하기 좋은 분위기";
   const summary = `${tone}가 강해서 ${neededRoles.join(", ")} 포지션을 붙이면 작품 완성도가 올라갈 것 같아요.`;
-  const topCreator = recommendations[0]?.creator.displayName;
+  const topRecommendation = recommendations[0];
+  const secondRecommendation = recommendations[1];
+  const topCreator = topRecommendation?.creator.displayName;
+  const normalizedPrompt = normalizeAiText(prompt);
+  const wantsMessage = ["메시지", "dm", "디엠", "문구", "제안"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsCompare = ["비교", "누가 더", "1순위", "2순위"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsWhy = ["왜", "이유", "근거"].some((keyword) => normalizedPrompt.includes(keyword));
+  const assistantMessage = topRecommendation
+    ? wantsMessage
+      ? `좋아요. ${topCreator}님에게는 이렇게 시작하면 자연스러워요.\n\n“${topRecommendation.suggestedMessage} 가능하시다면 이번 주 안에 작품 톤과 예상 지분율을 짧게 맞춰보고 싶습니다.”`
+      : wantsCompare && secondRecommendation
+        ? `${topCreator}님은 ${topRecommendation.reason} 반면 ${secondRecommendation.creator.displayName}님은 ${secondRecommendation.reason} 빠른 협업 시작은 ${topCreator}님, 보조 후보까지 잡는다면 ${secondRecommendation.creator.displayName}님을 같이 보는 게 좋아요.`
+        : wantsWhy
+          ? `${topCreator}님을 먼저 추천한 이유는 ${topRecommendation.reasonDetails.slice(0, 3).join(" ")} 이 세 가지가 가장 큽니다.`
+          : `좋아요. 지금 대화 흐름이면 ${topCreator}님을 먼저 볼게요. ${summary} 이어서 “왜?”, “DM 써줘”, “누구랑 비교해?”처럼 물어보면 그 기준으로 다시 답할게요.`
+    : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
 
   return {
-    assistantMessage: topCreator
-      ? `말해준 내용을 기준으로 보면 ${summary} 지금은 ${topCreator}님을 1순위로 추천할게요. 추천 이유는 작품 키워드와 공개 포트폴리오가 가장 많이 겹치기 때문입니다.`
-      : `말해준 내용을 기준으로 보면 ${summary} 다만 아직 추천할 공개 프로필이 부족해서 후보를 더 모으는 게 좋아요.`,
+    assistantMessage,
     projectBrief: {
       summary,
       tone,
@@ -4819,15 +4832,19 @@ export function App() {
     );
   }
 
-  async function runAiMatchingRecommendation() {
-    const prompt = aiMatchPrompt.trim();
-    if (prompt.length < 5) {
-      setAiMatchMessage("작품 장르, 분위기, 필요한 역할을 한두 문장으로 적어주세요.");
+  async function runAiMatchingRecommendation(promptOverride?: string) {
+    const prompt = (promptOverride ?? aiMatchPrompt).trim();
+    if (prompt.length < 2) {
+      setAiMatchMessage("AI 매칭 매니저에게 물어볼 내용을 짧게라도 적어주세요.");
       return;
     }
 
+    const nextMessages: AiChatMessage[] = [...aiMatchMessages, { role: "user", content: prompt }];
+
     setIsAiMatching(true);
     setAiMatchMessage("");
+    setAiMatchPrompt("");
+    setAiMatchMessages(nextMessages);
 
     try {
       const response = await request<AiMatchingResponse>("/api/ai/matching-chat", token, {
@@ -4836,7 +4853,7 @@ export function App() {
           projectDescription: prompt,
           preferredRoles: aiPreferredRoles,
           genres: matchingFilters,
-          messages: aiMatchMessages.slice(-8),
+          messages: nextMessages.slice(-8),
           limit: 3,
         }),
       });
@@ -4845,22 +4862,17 @@ export function App() {
       setAiMatchResults(response.recommendations);
       setAiMatchMessages((current) => [
         ...current,
-        { role: "user", content: prompt },
         { role: "assistant", content: response.assistantMessage },
       ]);
       setAiMatchMessage(
-        response.recommendations.length > 0
-          ? "AI 매칭 매니저가 이전 대화와 공개 포트폴리오를 함께 참고해 답변했습니다."
-          : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
+        response.recommendations.length > 0 ? "" : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
       );
-      setAiMatchPrompt("");
     } catch (error) {
       const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters);
       setAiMatchResponse(fallbackResponse);
       setAiMatchResults(fallbackResponse.recommendations);
       setAiMatchMessages((current) => [
         ...current,
-        { role: "user", content: prompt },
         { role: "assistant", content: fallbackResponse.assistantMessage },
       ]);
       setAiMatchMessage(
@@ -4868,7 +4880,6 @@ export function App() {
           ? "백엔드 추천 API가 잠시 불안정해서, 앱 안의 포트폴리오 분석으로 추천했습니다."
           : `추천 실패: ${getFriendlyError(error)}`,
       );
-      setAiMatchPrompt("");
     } finally {
       setIsAiMatching(false);
     }
@@ -7725,15 +7736,6 @@ export function App() {
             </div>
 
             <div className="ai-match-workbench">
-              <label>
-                <span>내 작품 설명</span>
-                <textarea
-                  value={aiMatchPrompt}
-                  onChange={(event) => setAiMatchPrompt(event.target.value)}
-                  placeholder="예: 비 오는 도시를 배경으로 한 미스터리 웹소설입니다. 감정선은 차분하지만 후반부는 스릴러처럼 긴장감이 올라가고, 네온 분위기의 일러스트와 낮은 톤의 성우가 필요해요."
-                />
-              </label>
-
               <div className="ai-role-picker" aria-label="AI 추천 희망 직군">
                 <span>추천받고 싶은 직군</span>
                 <div>
@@ -7750,27 +7752,59 @@ export function App() {
                 </div>
               </div>
 
-              <button className="primary-button ai-match-submit" type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching}>
-                <Sparkles size={18} /> {isAiMatching ? "AI가 포트폴리오 분석 중" : "AI에게 추천 물어보기"}
-              </button>
-              {aiMatchMessage && <p className="ai-match-message">{aiMatchMessage}</p>}
-            </div>
-
-            {aiMatchResponse && (
-              <div className="ai-conversation-card">
+              <div className="ai-conversation-card ai-live-chat">
                 <div className="ai-conversation-head">
-                  <span>{aiMatchResponse.provider === "openai" ? "GPT 매칭 코치" : "AI 매칭 코치"}</span>
-                  <strong>대화가 이어지는 팀원 추천</strong>
-                  <p>작품 설명과 이전 질문을 이어서 참고하며 후보를 비교합니다.</p>
+                  <span>AI 매칭 매니저</span>
+                  <strong>작품 설명부터 DM 문구까지 이어서 물어보세요</strong>
+                  <p>처음에는 작품 분위기를 말하고, 이후에는 “왜?”, “누가 더 좋아?”, “DM 써줘”처럼 편하게 이어가면 됩니다.</p>
                 </div>
                 <div className="ai-chat-log" aria-label="AI 매칭 대화 기록">
-                  {aiMatchMessages.slice(-8).map((message, index) => (
+                  {aiMatchMessages.length === 0 && (
+                    <div className="ai-chat-bubble assistant">
+                      <span>AI 매칭 매니저</span>
+                      <p>
+                        어떤 작품을 만들고 있는지 말해줘요. 장르, 분위기, 필요한 역할을 기준으로 후보를 찾고,
+                        이어지는 질문까지 기억해서 비교해볼게요.
+                      </p>
+                    </div>
+                  )}
+                  {aiMatchMessages.slice(-10).map((message, index) => (
                     <div className={`ai-chat-bubble ${message.role}`} key={`${message.role}-${index}-${message.content.slice(0, 12)}`}>
                       <span>{message.role === "user" ? "나" : "AI 매칭 매니저"}</span>
                       <p>{message.content}</p>
                     </div>
                   ))}
+                  {isAiMatching && (
+                    <div className="ai-chat-bubble assistant ai-typing">
+                      <span>AI 매칭 매니저</span>
+                      <p>대화 흐름과 포트폴리오를 같이 보고 있어요...</p>
+                    </div>
+                  )}
                 </div>
+
+                <label className="ai-chat-composer">
+                  <textarea
+                    value={aiMatchPrompt}
+                    onChange={(event) => setAiMatchPrompt(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void runAiMatchingRecommendation();
+                      }
+                    }}
+                    placeholder="예: 비 오는 도시괴담 웹소설인데 낮은 톤 성우랑 네온 일러스트가 필요해. 누구랑 하면 좋을까?"
+                  />
+                  <button type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching}>
+                    <Send size={17} />
+                    {isAiMatching ? "분석 중" : "보내기"}
+                  </button>
+                </label>
+                {aiMatchMessage && <p className="ai-match-message">{aiMatchMessage}</p>}
+              </div>
+            </div>
+
+            {aiMatchResponse && (
+              <div className="ai-conversation-card ai-analysis-card">
                 <div className="ai-brief-card">
                   <span>AI가 읽은 작품 방향</span>
                   <strong>{aiMatchResponse.projectBrief.summary}</strong>
@@ -7785,7 +7819,7 @@ export function App() {
                     <button
                       key={question}
                       type="button"
-                      onClick={() => setAiMatchPrompt(question)}
+                      onClick={() => void runAiMatchingRecommendation(question)}
                     >
                       {question}
                     </button>
@@ -7832,12 +7866,6 @@ export function App() {
                           <em key={keyword}>{keyword}</em>
                         ))}
                       </div>
-                      {item.suggestedMessage && (
-                        <div className="ai-suggested-message">
-                          <span>AI가 만든 첫 제안 문구</span>
-                          <p>{item.suggestedMessage}</p>
-                        </div>
-                      )}
                       <div className="ai-card-actions">
                         <button type="button" onClick={() => setSelectedCreator(item.creator)}>프로필</button>
                         <button type="button" onClick={() => void sendCreatorChat(item.creator)}>채팅</button>
