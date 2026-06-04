@@ -163,8 +163,22 @@ type AiMatchRecommendation = {
   score: number;
   matchRate: number;
   reason: string;
+  reasonDetails?: string[];
   matchedKeywords: string[];
+  suggestedMessage?: string;
   creator: Creator;
+};
+
+type AiMatchingResponse = {
+  assistantMessage: string;
+  projectBrief: {
+    summary: string;
+    tone: string;
+    topics: string[];
+    neededRoles: string[];
+  };
+  recommendations: AiMatchRecommendation[];
+  followUpSuggestions: string[];
 };
 
 type SettlementDashboard = {
@@ -1566,19 +1580,72 @@ function buildLocalAiRecommendations(
         matchedKeywords.length > 0
           ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 포트폴리오와 겹쳐 이번 프로젝트에 잘 맞습니다.`
           : `${roleLabels[creator.primaryRole]} 역할과 응답률, 포트폴리오 완성도를 기준으로 추천했습니다.`;
+      const reasonDetails = [
+        preferredRoles.length === 0 || preferredRoles.includes(creator.primaryRole)
+          ? `요청한 직군과 ${roleLabels[creator.primaryRole]} 역할이 맞습니다.`
+          : `${roleLabels[creator.primaryRole]} 역할은 보조 포지션으로 검토할 만합니다.`,
+        matchedKeywords.length > 0
+          ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 작품 설명과 연결됩니다.`
+          : "공개 프로필의 협업 지표와 활동성을 기준으로 골랐습니다.",
+        creator.responseRate >= 90 ? `응답률 ${creator.responseRate}%라서 빠른 상담이 기대됩니다.` : "포트폴리오 확인 후 세부 조건을 조율하면 좋습니다.",
+      ];
+      const suggestedMessage = `${creator.displayName}님, 제 작품 방향과 ${matchedKeywords.slice(0, 3).join(", ") || "포트폴리오"} 결이 잘 맞아 보여서 ${roleLabels[creator.primaryRole]} 포지션으로 협업 상담을 드리고 싶습니다.`;
 
       return {
         rank: 0,
         score: Math.max(0, Math.round(score)),
         matchRate: Math.max(45, Math.min(98, Math.round(54 + score * 0.7))),
         reason,
+        reasonDetails,
         matchedKeywords,
+        suggestedMessage,
         creator,
       };
     })
     .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
     .slice(0, 3)
     .map((item, index) => ({ ...item, rank: index + 1 }));
+}
+
+function buildLocalAiMatchingResponse(
+  sourceCreators: Creator[],
+  prompt: string,
+  preferredRoles: string[],
+  filters: string[],
+): AiMatchingResponse {
+  const recommendations = buildLocalAiRecommendations(sourceCreators, prompt, preferredRoles, filters);
+  const keywords = buildAiPromptKeywords(prompt, filters);
+  const topics = Object.keys(aiGenreKeywords)
+    .filter((topic) => keywords.some((keyword) => normalizeAiText(topic).includes(normalizeAiText(keyword)) || normalizeAiText(keyword).includes(normalizeAiText(topic))))
+    .slice(0, 5);
+  const neededRoles = preferredRoles.length > 0 ? preferredRoles.map((roleId) => roleLabels[roleId]).filter(Boolean) : ["그림", "목소리", "BGM"];
+  const tone = topics.includes("미스터리")
+    ? "어두운 미스터리 무드"
+    : topics.includes("로맨스")
+      ? "감정선 중심의 로맨스 무드"
+      : topics.includes("힐링")
+        ? "잔잔하고 따뜻한 힐링 무드"
+        : "멀티 콘텐츠로 확장하기 좋은 분위기";
+  const summary = `${tone}가 강해서 ${neededRoles.join(", ")} 포지션을 붙이면 작품 완성도가 올라갈 것 같아요.`;
+  const topCreator = recommendations[0]?.creator.displayName;
+
+  return {
+    assistantMessage: topCreator
+      ? `말해준 내용을 기준으로 보면 ${summary} 지금은 ${topCreator}님을 1순위로 추천할게요. 추천 이유는 작품 키워드와 공개 포트폴리오가 가장 많이 겹치기 때문입니다.`
+      : `말해준 내용을 기준으로 보면 ${summary} 다만 아직 추천할 공개 프로필이 부족해서 후보를 더 모으는 게 좋아요.`,
+    projectBrief: {
+      summary,
+      tone,
+      topics: topics.length > 0 ? topics : filters.slice(0, 5),
+      neededRoles,
+    },
+    recommendations,
+    followUpSuggestions: [
+      "이 중에서 먼저 연락할 사람을 골라줘",
+      "추천 후보에게 보낼 첫 메시지를 써줘",
+      "수익 지분 제안 문구도 만들어줘",
+    ],
+  };
 }
 
 const apiConnectionErrorMessage = "백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.";
@@ -3464,6 +3531,7 @@ export function App() {
   const [aiMatchPrompt, setAiMatchPrompt] = useState("");
   const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>(["ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"]);
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
+  const [aiMatchResponse, setAiMatchResponse] = useState<AiMatchingResponse | null>(null);
   const [isAiMatching, setIsAiMatching] = useState(false);
   const [aiMatchMessage, setAiMatchMessage] = useState("");
   const [readerSearch, setReaderSearch] = useState("");
@@ -4755,7 +4823,7 @@ export function App() {
     setAiMatchMessage("");
 
     try {
-      const recommendations = await request<AiMatchRecommendation[]>("/api/ai/matching-recommendations", token, {
+      const response = await request<AiMatchingResponse>("/api/ai/matching-recommendations", token, {
         method: "POST",
         body: JSON.stringify({
           projectDescription: prompt,
@@ -4765,17 +4833,19 @@ export function App() {
         }),
       });
 
-      setAiMatchResults(recommendations);
+      setAiMatchResponse(response);
+      setAiMatchResults(response.recommendations);
       setAiMatchMessage(
-        recommendations.length > 0
+        response.recommendations.length > 0
           ? "AI가 현재 공개된 매칭 프로필을 기준으로 추천 순위를 만들었습니다."
           : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
       );
     } catch (error) {
-      const fallbackResults = buildLocalAiRecommendations(creators, prompt, aiPreferredRoles, matchingFilters);
-      setAiMatchResults(fallbackResults);
+      const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters);
+      setAiMatchResponse(fallbackResponse);
+      setAiMatchResults(fallbackResponse.recommendations);
       setAiMatchMessage(
-        fallbackResults.length > 0
+        fallbackResponse.recommendations.length > 0
           ? "백엔드 추천 API가 잠시 불안정해서, 앱 안의 포트폴리오 분석으로 추천했습니다."
           : `추천 실패: ${getFriendlyError(error)}`,
       );
@@ -7627,10 +7697,10 @@ export function App() {
           <section className="ai-match-panel" aria-label="AI 팀원 추천">
             <div className="ai-match-copy">
               <p className="kicker">AI Matching Assistant</p>
-              <h2>작품 설명을 입력하면 어울리는 창작자를 1~3순위로 추천해요</h2>
+              <h2>AI 매칭 매니저에게 작품을 설명하고 팀원을 추천받으세요</h2>
               <p>
                 예를 들어 “도시괴담 느낌의 미스터리 웹소설인데 낮은 톤의 성우와 네온 감성 일러스트가 필요해요”처럼 적으면,
-                공개된 포트폴리오와 태그를 분석해 추천 이유까지 정리합니다.
+                AI가 작품 분위기를 요약하고 공개 포트폴리오를 비교해 추천 이유까지 대화형으로 정리합니다.
               </p>
             </div>
 
@@ -7661,10 +7731,43 @@ export function App() {
               </div>
 
               <button className="primary-button ai-match-submit" type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching}>
-                <Sparkles size={18} /> {isAiMatching ? "AI 추천 분석 중" : "AI 추천 받기"}
+                <Sparkles size={18} /> {isAiMatching ? "AI가 포트폴리오 분석 중" : "AI에게 추천 물어보기"}
               </button>
               {aiMatchMessage && <p className="ai-match-message">{aiMatchMessage}</p>}
             </div>
+
+            {aiMatchResponse && (
+              <div className="ai-conversation-card">
+                <div className="ai-chat-bubble user">
+                  <span>나</span>
+                  <p>{aiMatchPrompt}</p>
+                </div>
+                <div className="ai-chat-bubble assistant">
+                  <span>AI 매칭 매니저</span>
+                  <p>{aiMatchResponse.assistantMessage}</p>
+                </div>
+                <div className="ai-brief-card">
+                  <span>AI가 읽은 작품 방향</span>
+                  <strong>{aiMatchResponse.projectBrief.summary}</strong>
+                  <div>
+                    <em>{aiMatchResponse.projectBrief.tone}</em>
+                    {aiMatchResponse.projectBrief.topics.map((topic) => <em key={topic}>{topic}</em>)}
+                    {aiMatchResponse.projectBrief.neededRoles.map((roleName) => <em key={roleName}>{roleName} 필요</em>)}
+                  </div>
+                </div>
+                <div className="ai-followup-row">
+                  {aiMatchResponse.followUpSuggestions.map((question) => (
+                    <button
+                      key={question}
+                      type="button"
+                      onClick={() => setAiMatchPrompt((current) => `${current.trim()}\n${question}`.trim())}
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {aiMatchResults.length > 0 && (
               <div className="ai-recommendation-grid">
@@ -7685,6 +7788,13 @@ export function App() {
                         </div>
                       </div>
                       <p>{item.reason}</p>
+                      {item.reasonDetails && item.reasonDetails.length > 0 && (
+                        <ul className="ai-reason-list">
+                          {item.reasonDetails.slice(0, 4).map((detail) => (
+                            <li key={detail}>{detail}</li>
+                          ))}
+                        </ul>
+                      )}
                       {portfolio && (
                         <div className="ai-portfolio-hit">
                           <span>대표 포트폴리오</span>
@@ -7697,6 +7807,12 @@ export function App() {
                           <em key={keyword}>{keyword}</em>
                         ))}
                       </div>
+                      {item.suggestedMessage && (
+                        <div className="ai-suggested-message">
+                          <span>AI가 만든 첫 제안 문구</span>
+                          <p>{item.suggestedMessage}</p>
+                        </div>
+                      )}
                       <div className="ai-card-actions">
                         <button type="button" onClick={() => setSelectedCreator(item.creator)}>프로필</button>
                         <button type="button" onClick={() => void sendCreatorChat(item.creator)}>채팅</button>
