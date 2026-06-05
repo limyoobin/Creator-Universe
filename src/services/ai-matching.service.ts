@@ -63,6 +63,7 @@ type AiMatchingResponse = {
 
 type ConversationIntent =
   | "greeting"
+  | "smallTalk"
   | "confusion"
   | "clarify"
   | "explain"
@@ -86,12 +87,12 @@ const roleLabels: Record<MemberRole, string> = {
 };
 
 const roleKeywords: Record<MemberRole, string[]> = {
-  WRITER: ["글", "작가", "소설", "웹소설", "대본", "시나리오", "스토리", "각색", "콘티", "문장"],
-  ILLUSTRATOR: ["그림", "일러스트", "웹툰", "만화", "캐릭터", "표지", "키비주얼", "채색", "작화", "러프"],
-  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "연기", "오디오", "저음", "대사", "감정"],
-  SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향", "소리"],
-  PRODUCER: ["프로듀서", "기획", "PM", "운영", "제작관리", "프로젝트"],
-  EDITOR: ["편집", "식자", "교정", "검수", "편집자"],
+  WRITER: ["글", "작가", "소설", "웹소설", "웹작가", "스토리작가", "원작자", "대본", "시나리오", "시놉시스", "스토리", "각색", "콘티", "문장", "라이트노벨"],
+  ILLUSTRATOR: ["그림", "일러스트", "웹툰", "만화", "캐릭터", "표지", "키비주얼", "채색", "작화", "러프", "애니메이터", "애니메이션", "원화", "동화", "작감", "캐릭터디자인"],
+  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "연기", "오디오", "저음", "대사", "감정", "나레이션", "보이스액터"],
+  SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향", "소리", "작곡", "음향", "폴리"],
+  PRODUCER: ["프로듀서", "기획", "PM", "운영", "제작관리", "프로젝트", "감독", "연출", "애니메이션제작", "파일럿"],
+  EDITOR: ["편집", "식자", "교정", "검수", "편집자", "후반작업", "자막"],
 };
 
 const topicKeywords: Record<string, string[]> = {
@@ -105,6 +106,7 @@ const topicKeywords: Record<string, string[]> = {
   웹툰: ["웹툰", "세로스크롤", "콘티", "작화", "채색", "컷"],
   소설: ["소설", "웹소설", "문장", "대본", "챕터", "원고"],
   오디오: ["오디오", "성우", "보이스", "대본 싱크", "입체음향", "사운드", "드라마"],
+  애니메이션: ["애니메이션", "애니", "숏폼", "파일럿", "콘티", "원화", "동화", "연출", "작감", "캐릭터디자인"],
   네온: ["네온", "도시", "밤", "비", "라디오", "사이버"],
 };
 
@@ -322,10 +324,33 @@ function buildConversationAwareInput(input: AiMatchingInput): AiMatchingInput {
   };
 }
 
+function isMatchingRequestText(source: string) {
+  return includesAny(source, [
+    "찾아줘",
+    "추천",
+    "골라",
+    "누구",
+    "맞는",
+    "어울리는",
+    "필요",
+    "섭외",
+    "팀원",
+    "작가",
+    "성우",
+    "그림",
+    "일러스트",
+    "애니메이터",
+    "프로듀서",
+    "bgm",
+    "사운드",
+  ]);
+}
+
 function getConversationIntent(latestText: string): ConversationIntent {
   const source = normalize(latestText);
+  const isMatchingRequest = isMatchingRequestText(source);
 
-  if (includesAny(source, ["안녕", "하이", "hello", "처음", "시작"])) {
+  if (includesAny(source, ["안녕", "하이", "hello", "처음", "시작"]) && !isMatchingRequest) {
     return "greeting";
   }
 
@@ -352,7 +377,14 @@ function getConversationIntent(latestText: string): ConversationIntent {
     return "confusion";
   }
 
-  if (source.length < 8 && !source.includes("추천")) {
+  if (
+    includesAny(source, ["고마워", "감사", "좋아", "오케이", "ㅇㅋ", "알겠", "괜찮", "재밌", "대박", "너 뭐", "뭐해", "도와줘"]) &&
+    !isMatchingRequest
+  ) {
+    return "smallTalk";
+  }
+
+  if (source.length < 8 && !source.includes("추천") && !isMatchingRequest) {
     return "clarify";
   }
 
@@ -422,6 +454,19 @@ function buildRecommendationSnapshot(recommendations: CreatorRecommendation[]) {
     .join("\n");
 }
 
+function buildRankedRecommendationBlock(recommendations: CreatorRecommendation[]) {
+  return recommendations
+    .slice(0, 3)
+    .map((item) => {
+      const roleText = roleLabels[item.creator.primaryRole];
+      const details = item.reasonDetails.slice(0, 2);
+      const keywordText = item.matchedKeywords.length > 0 ? item.matchedKeywords.slice(0, 4).join(", ") : "공개 포트폴리오와 협업 지표";
+
+      return `${item.rank}순위. ${item.creator.displayName}님 (${roleText})\n- 왜 ${item.rank}순위냐면: ${item.reason}\n- 근거: ${details.join(" ")}\n- 맞는 키워드: ${keywordText}`;
+    })
+    .join("\n\n");
+}
+
 function buildConversationalAssistantMessage(
   originalInput: AiMatchingInput,
   brief: ProjectBrief,
@@ -441,7 +486,11 @@ function buildConversationalAssistantMessage(
   }
 
   if (intent === "greeting") {
-    return `안녕하세요. 저는 작품 톤, 필요한 직군, 공개 포트폴리오를 같이 보면서 팀원을 골라주는 AI 매칭 매니저예요.\n\n예를 들면 “비 오는 도시괴담 웹소설인데 낮은 톤 성우와 네온 일러스트가 필요해”처럼 말해주면, 바로 후보 1~3순위와 추천 이유, 보낼 DM까지 이어서 잡아드릴게요.`;
+    return `안녕하세요. 저는 작품 톤, 필요한 직군, 공개 포트폴리오를 같이 보면서 팀원을 골라주는 AI 매칭 매니저예요.\n\n일상적으로 물어봐도 괜찮고, “이 아이디어에 맞는 작가 찾아줘”, “미스터리 애니메이션에 어울리는 성우 추천해줘”처럼 말하면 1·2·3순위와 각각의 이유까지 정리해드릴게요.`;
+  }
+
+  if (intent === "smallTalk") {
+    return `좋아요. 편하게 이야기해도 돼요.\n\n저는 잡담을 받아주다가도, 작품 얘기가 나오면 바로 매칭 기준으로 바꿔서 도와드릴 수 있어요. 예를 들면 “일상 힐링 웹툰인데 작가랑 애니메이터 찾아줘”라고 말하면 후보 1·2·3순위와 추천 이유를 같이 보여드릴게요.`;
   }
 
   if (intent === "clarify") {
@@ -495,9 +544,9 @@ function buildConversationalAssistantMessage(
     return `${contextPrefix}다음 액션은 3단계로 가면 좋아요.\n\n1. ${top.creator.displayName}님에게 짧은 DM을 보내서 관심 여부를 확인합니다.\n2. 답장이 오면 작업 범위와 예상 일정부터 맞춥니다.\n3. 마지막에 13% 수수료 차감 후 지분율 자동 정산 구조를 공유합니다.\n\n${second ? `동시에 ${second.creator.displayName}님은 백업 후보로 저장해두면 좋아요.` : ""}`;
   }
 
-  const candidateLines = [top, second, third].filter(Boolean).map((item) => buildCandidateLine(item as CreatorRecommendation));
+  const rankedBlock = buildRankedRecommendationBlock([top, second, third].filter(Boolean) as CreatorRecommendation[]);
 
-  return `${contextPrefix}좋아요. 이 작품은 ${brief.summary}\n\n내 판단은 ${top.creator.displayName}님을 1순위로 먼저 보는 거예요.\n\n${candidateLines.join("\n")}\n\n이유는 작품 키워드, 공개 포트폴리오, 응답률을 같이 봤을 때 1순위가 가장 빨리 협업 대화로 이어질 가능성이 높기 때문입니다.`;
+  return `${contextPrefix}좋아요. 이 작품은 ${brief.summary}\n\n추천 순위는 이렇게 볼게요.\n\n${rankedBlock}\n\n정리하면, 1순위는 작품 키워드와 포트폴리오 접점이 가장 강한 후보이고, 2·3순위는 팀 밸런스를 보완하거나 백업으로 연락하기 좋은 후보입니다.`;
 }
 
 function buildConversationalFollowUpSuggestions(
@@ -573,9 +622,9 @@ function buildFollowUpSuggestions(brief: ProjectBrief) {
   const roleText = brief.neededRoles.length > 0 ? brief.neededRoles.join(", ") : "그림, 목소리, BGM";
 
   return [
-    `${roleText} 중에서 먼저 섭외할 사람을 골라줘`,
+    `이 장르에 맞는 ${roleText} 후보를 1·2·3순위로 찾아줘`,
+    "각 순위가 왜 그 순위인지 더 자세히 설명해줘",
     "추천 후보에게 보낼 첫 메시지를 써줘",
-    "13% 수수료와 30:30:40 지분 기준으로 제안 문구를 만들어줘",
   ];
 }
 

@@ -1526,10 +1526,10 @@ function getCreatorPortfolio(creator: Creator) {
 }
 
 const aiRoleKeywords: Record<string, string[]> = {
-  WRITER: ["글", "작가", "소설", "웹소설", "대본", "시나리오", "스토리", "각색", "콘티"],
-  ILLUSTRATOR: ["그림", "일러스트", "웹툰", "만화", "캐릭터", "표지", "키비주얼", "채색", "작화"],
-  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "연기", "오디오", "대사"],
-  SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향"],
+  WRITER: ["글", "작가", "소설", "웹소설", "웹작가", "스토리작가", "원작자", "대본", "시나리오", "시놉시스", "스토리", "각색", "콘티", "라이트노벨"],
+  ILLUSTRATOR: ["그림", "일러스트", "웹툰", "만화", "캐릭터", "표지", "키비주얼", "채색", "작화", "애니메이터", "애니메이션", "원화", "동화", "작감", "캐릭터디자인"],
+  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "나레이션", "연기", "오디오", "대사", "보이스액터"],
+  SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향", "작곡", "음향", "폴리"],
 };
 
 const aiGenreKeywords: Record<string, string[]> = {
@@ -1542,6 +1542,7 @@ const aiGenreKeywords: Record<string, string[]> = {
   웹툰: ["웹툰", "세로스크롤", "콘티", "작화", "채색"],
   소설: ["소설", "웹소설", "문장", "대본", "챕터"],
   오디오: ["오디오", "성우", "보이스", "대본 싱크", "입체음향", "사운드"],
+  애니메이션: ["애니메이션", "애니", "숏폼", "파일럿", "콘티", "원화", "동화", "연출", "작감", "캐릭터디자인"],
 };
 
 function normalizeAiText(value: string) {
@@ -1557,6 +1558,14 @@ function isLowSignalAiText(value: string) {
       source.includes(normalizeAiText(keyword)),
     ) ||
     (source.length <= 4 && ["왜", "뭐", "응", "아니"].some((keyword) => source.includes(keyword)))
+  );
+}
+
+function isAiMatchingRequestText(value: string) {
+  const source = normalizeAiText(value);
+
+  return ["찾아줘", "추천", "골라", "누구", "맞는", "어울리는", "필요", "섭외", "팀원", "작가", "성우", "그림", "일러스트", "애니메이터", "프로듀서", "bgm", "사운드"].some((keyword) =>
+    source.includes(normalizeAiText(keyword)),
   );
 }
 
@@ -1647,6 +1656,21 @@ function buildLocalAiRecommendations(
     .map((item, index) => ({ ...item, rank: index + 1 }));
 }
 
+function buildLocalRankedRecommendationBlock(recommendations: AiMatchRecommendation[]) {
+  return recommendations
+    .slice(0, 3)
+    .map((item) => {
+      const roleText = roleLabels[item.creator.primaryRole];
+      const details = item.reasonDetails?.length
+        ? item.reasonDetails.slice(0, 2)
+        : ["작품 키워드와 공개 포트폴리오의 접점, 응답률, 협업 지표를 함께 보고 골랐습니다."];
+      const keywordText = item.matchedKeywords.length > 0 ? item.matchedKeywords.slice(0, 4).join(", ") : "공개 포트폴리오와 협업 지표";
+
+      return `${item.rank}순위. ${item.creator.displayName}님 (${roleText})\n- 왜 ${item.rank}순위냐면: ${item.reason}\n- 근거: ${details.join(" ")}\n- 맞는 키워드: ${keywordText}`;
+    })
+    .join("\n\n");
+}
+
 function buildLocalAiMatchingResponse(
   sourceCreators: Creator[],
   prompt: string,
@@ -1681,6 +1705,11 @@ function buildLocalAiMatchingResponse(
       ? [topRecommendation.reason, "작품 키워드와 공개 포트폴리오의 접점이 가장 뚜렷합니다."]
       : [];
   const normalizedPrompt = normalizeAiText(prompt);
+  const wantsMatchingRequest = isAiMatchingRequestText(prompt);
+  const wantsGreeting = ["안녕", "하이", "hello", "처음", "시작"].some((keyword) => normalizedPrompt.includes(normalizeAiText(keyword))) && !wantsMatchingRequest;
+  const wantsSmallTalk =
+    ["고마워", "감사", "좋아", "오케이", "ㅇㅋ", "알겠", "괜찮", "재밌", "대박", "너 뭐", "뭐해", "도와줘"].some((keyword) => normalizedPrompt.includes(normalizeAiText(keyword))) &&
+    !wantsMatchingRequest;
   const wantsConfusion = isLowSignalAiText(prompt);
   const wantsMessage = ["메시지", "dm", "디엠", "문구", "제안"].some((keyword) => normalizedPrompt.includes(keyword));
   const wantsCompare = ["비교", "누가 더", "1순위", "2순위"].some((keyword) => normalizedPrompt.includes(keyword));
@@ -1690,7 +1719,11 @@ function buildLocalAiMatchingResponse(
   const wantsRefine = ["다른", "말고", "바꿔", "다시", "별로", "조건"].some((keyword) => normalizedPrompt.includes(keyword));
   const contextPrefix = previousUserMessages.length > 0 ? "앞에서 말한 조건까지 이어서 보면, " : "";
   const assistantMessage = topRecommendation
-    ? wantsConfusion
+    ? wantsGreeting
+      ? `안녕하세요. 저는 작품 톤, 필요한 직군, 공개 포트폴리오를 같이 보면서 팀원을 골라주는 AI 매칭 매니저예요.\n\n일상적으로 물어봐도 괜찮고, “이 아이디어에 맞는 작가 찾아줘”, “미스터리 애니메이션에 어울리는 성우 추천해줘”처럼 말하면 1·2·3순위와 각각의 이유까지 정리해드릴게요.`
+      : wantsSmallTalk
+        ? `좋아요. 편하게 이야기해도 돼요.\n\n저는 잡담을 받아주다가도, 작품 얘기가 나오면 바로 매칭 기준으로 바꿔서 도와드릴 수 있어요. 예를 들면 “일상 힐링 웹툰인데 작가랑 애니메이터 찾아줘”라고 말하면 후보 1·2·3순위와 추천 이유를 같이 보여드릴게요.`
+        : wantsConfusion
       ? `제가 방금 너무 압축해서 말했네요. 쉽게 풀면 이 뜻이에요.\n\n1. 지금 대화에서 읽은 작품 방향은 “${tone}”입니다.\n2. 필요한 역할은 ${neededRoles.join(", ")} 쪽으로 잡혔어요.\n3. 그래서 공개 포트폴리오와 겹치는 후보 중 ${topCreator}님을 먼저 추천했습니다.\n\n${recommendations.length <= 1 ? "현재 공개 매칭 프로필이 적어서 같은 후보가 반복 추천되는 것처럼 보일 수 있어요. 후보가 늘어나면 비교 답변도 더 다양해집니다." : `${secondRecommendation ? `${secondRecommendation.creator.displayName}님과 비교해서` : "다른 후보와 비교해서"} 다시 좁힐 수도 있어요.`}\n\n원하면 “왜 ${topCreator}이야?”, “다른 사람으로 다시 골라줘”, “성우 말고 그림부터 추천해줘”처럼 물어보면 그 기준으로 다시 계산할게요.`
       : wantsShort
       ? `${topCreator}님을 1순위로 추천해요. ${topRecommendation.reason}`
@@ -1704,7 +1737,7 @@ function buildLocalAiMatchingResponse(
               ? `${contextPrefix}다음은 3단계로 가면 좋아요.\n\n1. ${topCreator}님에게 짧은 DM을 보냅니다.\n2. 답장이 오면 작업 범위와 일정을 맞춥니다.\n3. 마지막에 13% 수수료 차감 후 자동 정산 지분율을 공유합니다.`
               : wantsRefine
                 ? `${contextPrefix}조건을 바꿔서 다시 보면 ${topCreator}님을 유지하되${secondRecommendation ? `, ${secondRecommendation.creator.displayName}님을 비교 후보로 같이 두는 게 좋아요.` : " 후보군을 조금 더 넓히는 게 좋아요."} 제외할 직군이나 더 원하는 분위기를 말해주면 다시 좁혀볼게요.`
-                : `${contextPrefix}좋아요. 이 작품은 ${summary}\n\n내 판단은 ${topCreator}님을 1순위로 먼저 보는 거예요. ${topRecommendation.reason}\n\n이어서 “왜?”, “DM 써줘”, “다른 후보는?”처럼 물어보면 같은 대화 흐름 안에서 다시 비교해볼게요.`
+                : `${contextPrefix}좋아요. 이 작품은 ${summary}\n\n추천 순위는 이렇게 볼게요.\n\n${buildLocalRankedRecommendationBlock(recommendations)}\n\n정리하면, 1순위는 작품 키워드와 포트폴리오 접점이 가장 강한 후보이고, 2·3순위는 팀 밸런스를 보완하거나 백업으로 연락하기 좋은 후보입니다.`
     : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
 
   return {
@@ -1716,7 +1749,13 @@ function buildLocalAiMatchingResponse(
       neededRoles,
     },
     recommendations,
-    followUpSuggestions: (wantsConfusion
+    followUpSuggestions: (wantsGreeting || wantsSmallTalk
+      ? [
+          "이 아이디어 장르에 맞는 작가를 찾아줘",
+          "애니메이션에 어울리는 성우를 추천해줘",
+          "1·2·3순위 이유까지 자세히 알려줘",
+        ]
+      : wantsConfusion
       ? [
           "방금 추천을 더 쉽게 풀어줘",
           topCreator ? `왜 ${topCreator}님인지 점수 기준으로 설명해줘` : "추천 기준을 점수로 설명해줘",
