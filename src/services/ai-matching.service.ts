@@ -61,6 +61,21 @@ type AiMatchingResponse = {
   followUpSuggestions: string[];
 };
 
+type ConversationIntent =
+  | "greeting"
+  | "confusion"
+  | "clarify"
+  | "explain"
+  | "compare"
+  | "message"
+  | "settlement"
+  | "rolePriority"
+  | "refine"
+  | "shorten"
+  | "toneChange"
+  | "nextStep"
+  | "recommend";
+
 const roleLabels: Record<MemberRole, string> = {
   WRITER: "글",
   ILLUSTRATOR: "그림",
@@ -103,6 +118,10 @@ function normalize(value: string) {
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
+}
+
+function includesAny(source: string, keywords: string[]) {
+  return keywords.some((keyword) => source.includes(normalize(keyword)));
 }
 
 function detectTopics(source: string) {
@@ -260,8 +279,38 @@ function getPreviousUserTexts(input: AiMatchingInput) {
   return recentTexts.filter((_, index) => index !== latestIndex);
 }
 
+function isLowSignalConversationText(text: string) {
+  const source = normalize(text);
+
+  return (
+    /^[?？!！\s]+$/.test(text) ||
+    includesAny(source, [
+      "뭐야",
+      "무슨 말",
+      "무슨 뜻",
+      "뭔소리",
+      "뭔 소리",
+      "이게 뭐",
+      "이상",
+      "고장",
+      "안돼",
+      "안 되",
+      "이해 안",
+      "모르겠",
+      "왜 이래",
+      "왜 그래",
+    ]) ||
+    (source.length <= 4 && ["왜", "뭐", "응", "아니"].some((keyword) => source.includes(keyword)))
+  );
+}
+
 function getConversationSource(input: AiMatchingInput) {
-  return unique([...getRecentUserTexts(input), input.projectDescription.trim()].filter(Boolean)).join("\n");
+  const recentTexts = getRecentUserTexts(input);
+  const projectSignals = unique([...recentTexts, input.projectDescription.trim()].filter(Boolean)).filter(
+    (text) => !isLowSignalConversationText(text),
+  );
+
+  return (projectSignals.length > 0 ? projectSignals : recentTexts).join("\n");
 }
 
 function buildConversationAwareInput(input: AiMatchingInput): AiMatchingInput {
@@ -273,34 +322,73 @@ function buildConversationAwareInput(input: AiMatchingInput): AiMatchingInput {
   };
 }
 
-function getConversationIntent(latestText: string) {
+function getConversationIntent(latestText: string): ConversationIntent {
   const source = normalize(latestText);
+
+  if (includesAny(source, ["안녕", "하이", "hello", "처음", "시작"])) {
+    return "greeting";
+  }
+
+  if (
+    includesAny(source, [
+      "뭐야",
+      "무슨 말",
+      "무슨 뜻",
+      "뭔소리",
+      "뭔 소리",
+      "이게 뭐",
+      "이상",
+      "고장",
+      "안돼",
+      "안 되",
+      "이해 안",
+      "모르겠",
+      "왜 이래",
+      "왜 그래",
+    ]) ||
+    /^[?？!！\s]+$/.test(latestText) ||
+    (source.length <= 4 && ["왜", "뭐", "응", "아니"].some((keyword) => source.includes(keyword)))
+  ) {
+    return "confusion";
+  }
 
   if (source.length < 8 && !source.includes("추천")) {
     return "clarify";
   }
 
-  if (["왜", "이유", "근거", "설명", "어떤 점"].some((keyword) => source.includes(keyword))) {
+  if (includesAny(source, ["짧게", "간단", "요약", "한줄", "한 줄"])) {
+    return "shorten";
+  }
+
+  if (includesAny(source, ["친근", "부드럽", "공손", "자연스럽", "말투", "톤 바꿔"])) {
+    return "toneChange";
+  }
+
+  if (includesAny(source, ["다음", "어떻게", "뭘 하면", "진행", "순서", "액션", "계획"])) {
+    return "nextStep";
+  }
+
+  if (includesAny(source, ["왜", "이유", "근거", "설명", "어떤 점"])) {
     return "explain";
   }
 
-  if (["비교", "누가 더", "누구가 더", "1순위", "2순위", "더 좋아"].some((keyword) => source.includes(keyword))) {
+  if (includesAny(source, ["비교", "누가 더", "누구가 더", "1순위", "2순위", "더 좋아", "차이"])) {
     return "compare";
   }
 
-  if (["메시지", "dm", "디엠", "제안서", "보낼 말", "첫 문장", "문구"].some((keyword) => source.includes(keyword))) {
+  if (includesAny(source, ["메시지", "dm", "디엠", "제안서", "보낼 말", "첫 문장", "문구", "연락"])) {
     return "message";
   }
 
-  if (["지분", "수익", "정산", "퍼센트", "분배", "수수료"].some((keyword) => source.includes(keyword))) {
+  if (includesAny(source, ["지분", "수익", "정산", "퍼센트", "분배", "수수료", "계약"])) {
     return "settlement";
   }
 
-  if (["먼저", "우선", "순서", "섭외", "처음"].some((keyword) => source.includes(keyword))) {
+  if (includesAny(source, ["먼저", "우선", "섭외", "첫번째", "첫 번째"])) {
     return "rolePriority";
   }
 
-  if (["다른", "바꿔", "말고", "추가", "수정", "조건", "더"].some((keyword) => source.includes(keyword))) {
+  if (includesAny(source, ["다른", "바꿔", "말고", "추가", "수정", "조건", "더", "별로", "다시"])) {
     return "refine";
   }
 
@@ -311,7 +399,27 @@ function buildCandidateLine(item: CreatorRecommendation) {
   const roleText = roleLabels[item.creator.primaryRole];
   const keywordText = item.matchedKeywords.slice(0, 3).join(", ") || item.creator.headline;
 
-  return `${item.rank}순위 ${item.creator.displayName}님(${roleText})은 ${keywordText} 쪽 근거가 있어요`;
+  return `${item.rank}순위 ${item.creator.displayName}님(${roleText}) · ${item.matchRate}% 매칭 · ${keywordText}`;
+}
+
+function buildMemoryLine(previousUserTexts: string[]) {
+  if (previousUserTexts.length === 0) {
+    return "";
+  }
+
+  const compactMemory = previousUserTexts
+    .slice(-2)
+    .map((text) => (text.length > 42 ? `${text.slice(0, 42)}...` : text))
+    .join(" / ");
+
+  return `기억하고 있는 조건: ${compactMemory}`;
+}
+
+function buildRecommendationSnapshot(recommendations: CreatorRecommendation[]) {
+  return recommendations
+    .slice(0, 3)
+    .map((item) => `- ${buildCandidateLine(item)}\n  이유: ${item.reasonDetails.slice(0, 2).join(" ")}`)
+    .join("\n");
 }
 
 function buildConversationalAssistantMessage(
@@ -326,44 +434,70 @@ function buildConversationalAssistantMessage(
   const second = recommendations[1];
   const third = recommendations[2];
   const contextPrefix = previousUserTexts.length > 0 ? "앞에서 말한 조건까지 이어서 보면, " : "";
+  const memoryLine = buildMemoryLine(previousUserTexts);
 
   if (!top) {
-    return `${contextPrefix}아직 공개된 매칭 프로필만으로는 확실한 후보를 못 고르겠어요. 그래도 방향은 ${brief.tone} 쪽이라서, 먼저 필요한 직군을 ${brief.neededRoles.join(", ")} 순서로 좁히면 추천 정확도가 올라가요.`;
+    return `${contextPrefix}아직 공개된 매칭 프로필만으로는 확실한 후보를 못 고르겠어요.\n\n${memoryLine ? `${memoryLine}\n\n` : ""}지금 방향은 ${brief.tone} 쪽이라서, 먼저 필요한 직군을 ${brief.neededRoles.join(", ")} 순서로 좁히면 추천 정확도가 올라가요.`;
+  }
+
+  if (intent === "greeting") {
+    return `안녕하세요. 저는 작품 톤, 필요한 직군, 공개 포트폴리오를 같이 보면서 팀원을 골라주는 AI 매칭 매니저예요.\n\n예를 들면 “비 오는 도시괴담 웹소설인데 낮은 톤 성우와 네온 일러스트가 필요해”처럼 말해주면, 바로 후보 1~3순위와 추천 이유, 보낼 DM까지 이어서 잡아드릴게요.`;
   }
 
   if (intent === "clarify") {
-    return `조금만 더 알려주면 훨씬 잘 골라줄 수 있어요. 예를 들면 “${brief.tone}인데 ${brief.neededRoles[0] ?? "그림"}이 먼저 필요해”처럼 장르, 분위기, 필요한 역할을 같이 말해주면 바로 후보를 다시 좁혀볼게요.`;
+    return `조금만 더 알려주면 훨씬 정확하게 골라볼 수 있어요.\n\n지금은 ${brief.tone} 쪽으로 읽히고, 필요한 역할은 ${brief.neededRoles.join(", ")} 쪽으로 보여요. 여기에 “장르”, “주인공 분위기”, “먼저 필요한 작업” 중 하나만 더 붙여주면 후보를 다시 좁혀볼게요.`;
+  }
+
+  if (intent === "confusion") {
+    const candidateCountNote =
+      recommendations.length <= 1
+        ? "지금 공개 매칭 프로필이 적어서 같은 후보가 반복 추천되는 것처럼 보일 수 있어요. 후보가 늘어나면 비교 답변도 더 다양해집니다."
+        : `${top.creator.displayName}님을 기준으로 보되, ${second ? `${second.creator.displayName}님과 비교해서` : "다른 후보와 비교해서"} 더 좁힐 수 있어요.`;
+
+    return `제가 방금 너무 압축해서 말했네요. 쉽게 풀면 이 뜻이에요.\n\n1. 현재 대화에서 읽은 작품 방향은 “${brief.tone}”입니다.\n2. 필요한 역할은 ${brief.neededRoles.join(", ")} 쪽으로 잡혔어요.\n3. 그래서 공개 포트폴리오와 겹치는 후보 중 ${top.creator.displayName}님을 먼저 추천했습니다.\n\n${candidateCountNote}\n\n원하면 바로 “왜 ${top.creator.displayName}이야?”, “다른 사람으로 다시 골라줘”, “성우 말고 그림부터 추천해줘”처럼 물어보면 그 기준으로 다시 계산할게요.`;
   }
 
   if (intent === "explain") {
-    return `${contextPrefix}${top.creator.displayName}님을 먼저 둔 이유는 세 가지예요. 첫째, ${top.reason} 둘째, ${top.reasonDetails[0] ?? "프로젝트 분위기와 작업 방향이 맞아요"} 셋째, 응답률이 ${top.creator.responseRate}%라 베타 협업에서 대화가 끊길 위험이 낮아요. ${second ? `다만 ${second.creator.displayName}님은 보조 후보로 두면 팀 밸런스가 좋아져요.` : ""}`;
+    return `${contextPrefix}${top.creator.displayName}님을 먼저 둔 이유는 이렇게 정리돼요.\n\n1. ${top.reason}\n2. ${top.reasonDetails[0] ?? "작품 분위기와 작업 방향이 맞아요"}\n3. 응답률이 ${top.creator.responseRate}%라 베타 협업에서 대화가 끊길 위험이 낮아요.\n\n${second ? `다만 ${second.creator.displayName}님은 ${roleLabels[second.creator.primaryRole]} 보조 후보로 같이 두면 팀 밸런스가 좋아집니다.` : "현재 후보군에서는 이 사람이 가장 안정적이에요."}`;
   }
 
   if (intent === "compare" && second) {
-    return `${contextPrefix}둘 중 바로 시작하기 좋은 쪽은 ${top.creator.displayName}님이에요. 이유는 ${top.reason} 반대로 ${second.creator.displayName}님은 ${second.reason} 그래서 빠른 MVP라면 ${top.creator.displayName}님, 작품 톤을 더 실험하고 싶다면 ${second.creator.displayName}님 쪽이 좋아 보여요.`;
+    return `${contextPrefix}비교하면 결론은 이래요.\n\n${top.creator.displayName}님: 빠른 협업 시작에 유리해요. ${top.reason}\n${second.creator.displayName}님: 톤을 넓히거나 백업 후보로 두기 좋아요. ${second.reason}\n\n그래서 MVP를 빨리 만들 거면 ${top.creator.displayName}님을 먼저, 작품 결을 더 실험하고 싶으면 ${second.creator.displayName}님까지 같이 연락하는 흐름이 좋아 보여요.`;
   }
 
   if (intent === "message") {
-    return `${contextPrefix}바로 보낼 수 있게 다듬으면 이렇게 좋아요.\n\n“${top.suggestedMessage} 가능하시다면 이번 주 안에 작품 톤과 예상 지분율을 짧게 맞춰보고 싶습니다.”\n\n너무 딱딱하지 않게 시작하고, 마지막에 일정과 지분율 대화를 열어두는 게 포인트예요.`;
+    return `${contextPrefix}바로 보낼 수 있게 다듬어볼게요.\n\n“안녕하세요, ${top.creator.displayName}님. 공개 포트폴리오를 보고 제 작품의 ${brief.tone}과 잘 맞을 것 같아 연락드립니다. ${top.suggestedMessage} 괜찮으시다면 짧게 작품 톤과 작업 범위, 예상 지분율을 맞춰보고 싶어요.”\n\n포인트는 처음부터 계약처럼 딱딱하게 들어가지 않고, 작품 톤 → 작업 범위 → 지분율 순서로 자연스럽게 여는 거예요.`;
   }
 
   if (intent === "settlement") {
     const roleText = top ? roleLabels[top.creator.primaryRole] : brief.neededRoles[0] ?? "팀원";
-    return `${contextPrefix}정산 제안은 처음부터 복잡하게 말하기보다 “일반 수수료 13% 차감 후 팀 지분율대로 자동 분배”라고 짧게 설명하는 게 좋아요. ${roleText} 포지션의 핵심 기여도가 높다면 30:30:40 구조에서 팀장 또는 핵심 제작자에게 40%를 배정하고, 나머지 60%를 참여 직군끼리 나누는 방식이 이해하기 쉽습니다.`;
+    return `${contextPrefix}정산 제안은 짧고 투명하게 말하는 게 좋아요.\n\n추천 문구: “플랫폼 수수료는 일반 13%, 파트너 8%로 고정이고, 차감 후 금액을 합의한 지분율대로 자동 분배하는 방식으로 진행하고 싶습니다.”\n\n${roleText} 포지션의 핵심 기여도가 높다면 30:30:40 구조에서 팀장 또는 핵심 제작자에게 40%를 배정하고, 나머지 60%를 참여 직군끼리 나누는 방식이 이해하기 쉽습니다.`;
   }
 
   if (intent === "rolePriority") {
     const orderedRoles = unique(recommendations.map((item) => roleLabels[item.creator.primaryRole]));
-    return `${contextPrefix}섭외 순서는 ${orderedRoles.join(" → ")} 쪽을 추천해요. 지금 작품은 ${brief.tone}이 중요해서, 먼저 ${top.creator.displayName}님으로 중심 톤을 잡고${second ? `, 그 다음 ${second.creator.displayName}님을 붙여 결과물의 결을 맞추는 흐름` : ""}이 안정적입니다.`;
+    return `${contextPrefix}섭외 순서는 ${orderedRoles.join(" → ")} 쪽을 추천해요.\n\n지금 작품은 ${brief.tone}이 중요해서, 먼저 ${top.creator.displayName}님으로 중심 톤을 잡고${second ? `, 그 다음 ${second.creator.displayName}님을 붙여 결과물의 결을 맞추는 흐름` : ""}이 안정적입니다.`;
   }
 
   if (intent === "refine") {
-    return `${contextPrefix}조건을 조금 바꿔서 다시 보면, 지금은 ${top.creator.displayName}님을 유지하되 ${second ? `${second.creator.displayName}님을 같이 비교 후보로 올려두는 게 좋아요` : "후보군을 더 넓히는 게 좋아요"}. 특히 ${brief.topics.slice(0, 3).join(", ") || brief.tone} 키워드를 더 강하게 잡으면 추천 순위가 달라질 수 있어요.`;
+    return `${contextPrefix}조건을 조금 바꿔서 다시 보면, 1순위만 고정하지 말고 이렇게 보는 게 좋아요.\n\n${buildRecommendationSnapshot([top, second, third].filter(Boolean) as CreatorRecommendation[])}\n\n만약 “성우 말고 그림 먼저”, “BGM은 나중에”처럼 제외 조건을 말해주면 그 기준으로 다시 좁혀볼게요.`;
+  }
+
+  if (intent === "shorten") {
+    return `${top.creator.displayName}님을 1순위로 추천해요. ${top.reason} ${second ? `${second.creator.displayName}님은 백업 후보로 같이 보면 좋습니다.` : ""}`;
+  }
+
+  if (intent === "toneChange") {
+    return `조금 더 자연스럽게 말하면 이렇게요.\n\n“${top.creator.displayName}님, 포트폴리오를 보고 제 작품 분위기와 잘 맞을 것 같아 연락드려요. 부담 없이 작품 톤과 작업 범위를 먼저 이야기해볼 수 있을까요?”\n\n이 톤은 초반 협업 상담에서 부담이 적고, 답장을 받기 좋은 편이에요.`;
+  }
+
+  if (intent === "nextStep") {
+    return `${contextPrefix}다음 액션은 3단계로 가면 좋아요.\n\n1. ${top.creator.displayName}님에게 짧은 DM을 보내서 관심 여부를 확인합니다.\n2. 답장이 오면 작업 범위와 예상 일정부터 맞춥니다.\n3. 마지막에 13% 수수료 차감 후 지분율 자동 정산 구조를 공유합니다.\n\n${second ? `동시에 ${second.creator.displayName}님은 백업 후보로 저장해두면 좋아요.` : ""}`;
   }
 
   const candidateLines = [top, second, third].filter(Boolean).map((item) => buildCandidateLine(item as CreatorRecommendation));
 
-  return `${contextPrefix}좋아요. 이 작품은 ${brief.summary} 그래서 지금은 ${top.creator.displayName}님을 1순위로 볼게요.\n\n${candidateLines.join("\n")}\n\n내가 보기엔 먼저 1순위에게 가볍게 DM을 보내고, 답이 오면 2순위 후보를 백업으로 잡는 흐름이 제일 현실적이에요.`;
+  return `${contextPrefix}좋아요. 이 작품은 ${brief.summary}\n\n내 판단은 ${top.creator.displayName}님을 1순위로 먼저 보는 거예요.\n\n${candidateLines.join("\n")}\n\n이유는 작품 키워드, 공개 포트폴리오, 응답률을 같이 봤을 때 1순위가 가장 빨리 협업 대화로 이어질 가능성이 높기 때문입니다.`;
 }
 
 function buildConversationalFollowUpSuggestions(
@@ -380,11 +514,37 @@ function buildConversationalFollowUpSuggestions(
     "13% 수수료와 30:30:40 지분 기준으로 제안 문구를 만들어줘",
   ].filter(Boolean) as string[];
 
-  if (getConversationIntent(input.projectDescription) === "message") {
+  const intent = getConversationIntent(input.projectDescription);
+
+  if (intent === "message" || intent === "toneChange") {
     return [
       "조금 더 친근한 말투로 바꿔줘",
       "정산 조건까지 포함해서 다시 써줘",
       "거절당했을 때 보낼 답장도 써줘",
+    ];
+  }
+
+  if (intent === "confusion") {
+    return [
+      "방금 추천을 더 쉽게 풀어줘",
+      top ? `왜 ${top.creator.displayName}님인지 점수 기준으로 설명해줘` : "추천 기준을 점수로 설명해줘",
+      "다른 후보로 다시 골라줘",
+    ];
+  }
+
+  if (intent === "compare" || intent === "explain") {
+    return [
+      top ? `${top.creator.displayName}님에게 먼저 연락해도 될까?` : "1순위 기준을 다시 설명해줘",
+      second && top ? `${second.creator.displayName}님이 더 나은 경우도 알려줘` : "백업 후보도 찾아줘",
+      "다음 액션을 3단계로 정리해줘",
+    ].filter(Boolean) as string[];
+  }
+
+  if (intent === "settlement") {
+    return [
+      "30:30:40 지분 제안 DM을 써줘",
+      "파트너 수수료 8%일 때도 설명해줘",
+      "팀원이 부담스럽지 않게 말해줘",
     ];
   }
 

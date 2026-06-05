@@ -363,6 +363,28 @@ const genreFilters = [
 
 const matchingContentFilters = ["전체", "소설", "웹툰", "만화", "애니메이션", "오디오드라마", "믹스미디어"];
 const matchingGenreFilters = ["로맨스", "판타지", "미스터리", "스릴러", "일상", "BL", "힐링", "ASMR", "BGM"];
+const aiStarterPrompts = [
+  {
+    label: "작품 톤 분석",
+    helper: "장르와 분위기부터 잡기",
+    prompt: "비 오는 도시괴담 느낌의 미스터리 웹소설이야. 낮은 톤 성우와 네온 감성 일러스트가 필요해. 누구랑 하면 좋을까?",
+  },
+  {
+    label: "후보 비교",
+    helper: "1순위와 백업 후보 비교",
+    prompt: "1순위랑 2순위를 비교해서 누가 더 먼저 연락하기 좋은지 알려줘.",
+  },
+  {
+    label: "DM 작성",
+    helper: "바로 보낼 문구 만들기",
+    prompt: "추천 후보에게 보낼 첫 DM을 자연스럽고 부담 없게 써줘.",
+  },
+  {
+    label: "지분 제안",
+    helper: "정산 조건까지 정리",
+    prompt: "13% 수수료와 30:30:40 지분 기준으로 협업 제안 문구를 만들어줘.",
+  },
+];
 
 const readerFormatFilters = ["전체", "소설", "웹툰", "만화", "애니메이션", "오디오드라마", "믹스미디어"];
 const readerGenreFilters = ["로맨스", "판타지", "미스터리", "스릴러", "일상", "BL", "힐링"];
@@ -1526,6 +1548,18 @@ function normalizeAiText(value: string) {
   return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 }
 
+function isLowSignalAiText(value: string) {
+  const source = normalizeAiText(value);
+
+  return (
+    /^[?？!！\s]+$/.test(value) ||
+    ["뭐야", "무슨 말", "무슨 뜻", "뭔소리", "뭔 소리", "이게 뭐", "이상", "고장", "안돼", "안 되", "이해 안", "모르겠", "왜 이래", "왜 그래"].some((keyword) =>
+      source.includes(normalizeAiText(keyword)),
+    ) ||
+    (source.length <= 4 && ["왜", "뭐", "응", "아니"].some((keyword) => source.includes(keyword)))
+  );
+}
+
 function buildAiPromptKeywords(prompt: string, filters: string[]) {
   const source = normalizeAiText([prompt, ...filters].join(" "));
   const rawTokens = source.split(" ").filter((token) => token.length >= 2);
@@ -1618,9 +1652,14 @@ function buildLocalAiMatchingResponse(
   prompt: string,
   preferredRoles: string[],
   filters: string[],
+  messages: AiChatMessage[] = [],
 ): AiMatchingResponse {
-  const recommendations = buildLocalAiRecommendations(sourceCreators, prompt, preferredRoles, filters);
-  const keywords = buildAiPromptKeywords(prompt, filters);
+  const userMessages = messages.filter((message) => message.role === "user").map((message) => message.content.trim()).filter(Boolean);
+  const previousUserMessages = userMessages.filter((message, index) => index !== userMessages.length - 1);
+  const projectSignalMessages = Array.from(new Set([...userMessages, prompt].filter(Boolean))).filter((message) => !isLowSignalAiText(message));
+  const conversationPrompt = (projectSignalMessages.length > 0 ? projectSignalMessages : userMessages).join("\n");
+  const recommendations = buildLocalAiRecommendations(sourceCreators, conversationPrompt || prompt, preferredRoles, filters);
+  const keywords = buildAiPromptKeywords(conversationPrompt || prompt, filters);
   const topics = Object.keys(aiGenreKeywords)
     .filter((topic) => keywords.some((keyword) => normalizeAiText(topic).includes(normalizeAiText(keyword)) || normalizeAiText(keyword).includes(normalizeAiText(topic))))
     .slice(0, 5);
@@ -1642,17 +1681,30 @@ function buildLocalAiMatchingResponse(
       ? [topRecommendation.reason, "작품 키워드와 공개 포트폴리오의 접점이 가장 뚜렷합니다."]
       : [];
   const normalizedPrompt = normalizeAiText(prompt);
+  const wantsConfusion = isLowSignalAiText(prompt);
   const wantsMessage = ["메시지", "dm", "디엠", "문구", "제안"].some((keyword) => normalizedPrompt.includes(keyword));
   const wantsCompare = ["비교", "누가 더", "1순위", "2순위"].some((keyword) => normalizedPrompt.includes(keyword));
   const wantsWhy = ["왜", "이유", "근거"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsShort = ["짧게", "간단", "요약", "한줄", "한 줄"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsNext = ["다음", "진행", "순서", "어떻게", "액션"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsRefine = ["다른", "말고", "바꿔", "다시", "별로", "조건"].some((keyword) => normalizedPrompt.includes(keyword));
+  const contextPrefix = previousUserMessages.length > 0 ? "앞에서 말한 조건까지 이어서 보면, " : "";
   const assistantMessage = topRecommendation
-    ? wantsMessage
-      ? `좋아요. ${topCreator}님에게는 이렇게 시작하면 자연스러워요.\n\n“${topRecommendation.suggestedMessage} 가능하시다면 이번 주 안에 작품 톤과 예상 지분율을 짧게 맞춰보고 싶습니다.”`
-      : wantsCompare && secondRecommendation
-        ? `${topCreator}님은 ${topRecommendation.reason} 반면 ${secondRecommendation.creator.displayName}님은 ${secondRecommendation.reason} 빠른 협업 시작은 ${topCreator}님, 보조 후보까지 잡는다면 ${secondRecommendation.creator.displayName}님을 같이 보는 게 좋아요.`
-        : wantsWhy
-          ? `${topCreator}님을 먼저 추천한 이유는 ${topReasonDetails.slice(0, 3).join(" ")} 이 세 가지가 가장 큽니다.`
-          : `좋아요. 지금 대화 흐름이면 ${topCreator}님을 먼저 볼게요. ${summary} 이어서 “왜?”, “DM 써줘”, “누구랑 비교해?”처럼 물어보면 그 기준으로 다시 답할게요.`
+    ? wantsConfusion
+      ? `제가 방금 너무 압축해서 말했네요. 쉽게 풀면 이 뜻이에요.\n\n1. 지금 대화에서 읽은 작품 방향은 “${tone}”입니다.\n2. 필요한 역할은 ${neededRoles.join(", ")} 쪽으로 잡혔어요.\n3. 그래서 공개 포트폴리오와 겹치는 후보 중 ${topCreator}님을 먼저 추천했습니다.\n\n${recommendations.length <= 1 ? "현재 공개 매칭 프로필이 적어서 같은 후보가 반복 추천되는 것처럼 보일 수 있어요. 후보가 늘어나면 비교 답변도 더 다양해집니다." : `${secondRecommendation ? `${secondRecommendation.creator.displayName}님과 비교해서` : "다른 후보와 비교해서"} 다시 좁힐 수도 있어요.`}\n\n원하면 “왜 ${topCreator}이야?”, “다른 사람으로 다시 골라줘”, “성우 말고 그림부터 추천해줘”처럼 물어보면 그 기준으로 다시 계산할게요.`
+      : wantsShort
+      ? `${topCreator}님을 1순위로 추천해요. ${topRecommendation.reason}`
+      : wantsMessage
+        ? `${contextPrefix}${topCreator}님에게는 이렇게 시작하면 자연스러워요.\n\n“안녕하세요, ${topCreator}님. 포트폴리오를 보고 제 작품 분위기와 잘 맞을 것 같아 연락드려요. ${topRecommendation.suggestedMessage} 괜찮으시다면 작품 톤과 작업 범위를 짧게 이야기해보고 싶습니다.”`
+        : wantsCompare && secondRecommendation
+          ? `${contextPrefix}비교하면 ${topCreator}님은 빠른 협업 시작에 유리해요. ${topRecommendation.reason}\n\n${secondRecommendation.creator.displayName}님은 ${secondRecommendation.reason} 그래서 1순위는 ${topCreator}님, 백업 후보는 ${secondRecommendation.creator.displayName}님으로 두는 흐름이 좋아 보여요.`
+          : wantsWhy
+            ? `${contextPrefix}${topCreator}님을 먼저 추천한 이유는 세 가지예요.\n\n1. ${topRecommendation.reason}\n2. ${topReasonDetails[0] ?? "작품 키워드와 포트폴리오 접점이 뚜렷합니다."}\n3. 응답률과 완료 프로젝트를 봤을 때 상담이 이어질 가능성이 높습니다.`
+            : wantsNext
+              ? `${contextPrefix}다음은 3단계로 가면 좋아요.\n\n1. ${topCreator}님에게 짧은 DM을 보냅니다.\n2. 답장이 오면 작업 범위와 일정을 맞춥니다.\n3. 마지막에 13% 수수료 차감 후 자동 정산 지분율을 공유합니다.`
+              : wantsRefine
+                ? `${contextPrefix}조건을 바꿔서 다시 보면 ${topCreator}님을 유지하되${secondRecommendation ? `, ${secondRecommendation.creator.displayName}님을 비교 후보로 같이 두는 게 좋아요.` : " 후보군을 조금 더 넓히는 게 좋아요."} 제외할 직군이나 더 원하는 분위기를 말해주면 다시 좁혀볼게요.`
+                : `${contextPrefix}좋아요. 이 작품은 ${summary}\n\n내 판단은 ${topCreator}님을 1순위로 먼저 보는 거예요. ${topRecommendation.reason}\n\n이어서 “왜?”, “DM 써줘”, “다른 후보는?”처럼 물어보면 같은 대화 흐름 안에서 다시 비교해볼게요.`
     : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
 
   return {
@@ -1664,11 +1716,19 @@ function buildLocalAiMatchingResponse(
       neededRoles,
     },
     recommendations,
-    followUpSuggestions: [
-      "이 중에서 먼저 연락할 사람을 골라줘",
-      "추천 후보에게 보낼 첫 메시지를 써줘",
-      "수익 지분 제안 문구도 만들어줘",
-    ],
+    followUpSuggestions: (wantsConfusion
+      ? [
+          "방금 추천을 더 쉽게 풀어줘",
+          topCreator ? `왜 ${topCreator}님인지 점수 기준으로 설명해줘` : "추천 기준을 점수로 설명해줘",
+          "다른 후보로 다시 골라줘",
+        ]
+      : [
+          "이 중에서 먼저 연락할 사람을 골라줘",
+          "추천 후보에게 보낼 첫 메시지를 써줘",
+          "1순위와 2순위를 비교해줘",
+          "수익 지분 제안 문구도 만들어줘",
+        ]
+    ).slice(0, 3),
   };
 }
 
@@ -3669,6 +3729,7 @@ export function App() {
   const [status, setStatus] = useState("백엔드 연결 중");
   const [isBootLoading, setIsBootLoading] = useState(true);
   const librarySectionRef = useRef<HTMLElement | null>(null);
+  const aiChatLogRef = useRef<HTMLDivElement | null>(null);
 
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
@@ -4402,6 +4463,15 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const chatLog = aiChatLogRef.current;
+    if (!chatLog) {
+      return;
+    }
+
+    chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: "smooth" });
+  }, [aiMatchMessages, isAiMatching]);
+
+  useEffect(() => {
     if (!user?.id || libraryStorageOwner !== user.id) {
       return;
     }
@@ -4837,6 +4907,14 @@ export function App() {
     );
   }
 
+  function resetAiMatchingConversation() {
+    setAiMatchPrompt("");
+    setAiMatchMessages([]);
+    setAiMatchResponse(null);
+    setAiMatchResults([]);
+    setAiMatchMessage("");
+  }
+
   async function runAiMatchingRecommendation(promptOverride?: string) {
     const prompt = (promptOverride ?? aiMatchPrompt).trim();
     if (prompt.length < 2) {
@@ -4873,7 +4951,7 @@ export function App() {
         response.recommendations.length > 0 ? "" : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
       );
     } catch (error) {
-      const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters);
+      const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters, nextMessages);
       setAiMatchResponse(fallbackResponse);
       setAiMatchResults(fallbackResponse.recommendations);
       setAiMatchMessages((current) => [
@@ -7759,17 +7837,40 @@ export function App() {
 
               <div className="ai-conversation-card ai-live-chat">
                 <div className="ai-conversation-head">
-                  <span>AI 매칭 매니저</span>
-                  <strong>작품 설명부터 DM 문구까지 이어서 물어보세요</strong>
-                  <p>처음에는 작품 분위기를 말하고, 이후에는 “왜?”, “누가 더 좋아?”, “DM 써줘”처럼 편하게 이어가면 됩니다.</p>
+                  <div className="ai-manager-title">
+                    <div className="ai-manager-avatar">
+                      <Bot size={19} />
+                    </div>
+                    <div>
+                      <span>AI 매칭 매니저</span>
+                      <strong>작품 설명부터 DM 문구까지 이어서 물어보세요</strong>
+                      <p>
+                        대화 기억 {aiMatchMessages.filter((message) => message.role === "user").length}개 · 공개 포트폴리오 기반 추천
+                      </p>
+                    </div>
+                  </div>
+                  <button className="ai-reset-button" type="button" onClick={resetAiMatchingConversation}>
+                    <RefreshCw size={15} />
+                    새 대화
+                  </button>
                 </div>
-                <div className="ai-chat-log" aria-label="AI 매칭 대화 기록">
+                {aiMatchMessages.length === 0 && (
+                  <div className="ai-starter-grid" aria-label="AI 매칭 시작 질문">
+                    {aiStarterPrompts.map((item) => (
+                      <button key={item.label} type="button" onClick={() => void runAiMatchingRecommendation(item.prompt)}>
+                        <strong>{item.label}</strong>
+                        <span>{item.helper}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="ai-chat-log" aria-label="AI 매칭 대화 기록" ref={aiChatLogRef}>
                   {aiMatchMessages.length === 0 && (
                     <div className="ai-chat-bubble assistant">
                       <span>AI 매칭 매니저</span>
                       <p>
-                        어떤 작품을 만들고 있는지 말해줘요. 장르, 분위기, 필요한 역할을 기준으로 후보를 찾고,
-                        이어지는 질문까지 기억해서 비교해볼게요.
+                        어떤 작품을 만들고 있는지 편하게 말해줘요.
+                        장르, 분위기, 필요한 역할을 기준으로 후보를 찾고, 이어지는 질문까지 기억해서 비교해볼게요.
                       </p>
                     </div>
                   )}
@@ -7782,7 +7883,7 @@ export function App() {
                   {isAiMatching && (
                     <div className="ai-chat-bubble assistant ai-typing">
                       <span>AI 매칭 매니저</span>
-                      <p>대화 흐름과 포트폴리오를 같이 보고 있어요...</p>
+                      <p>후보 점수와 이전 질문을 같이 계산하고 있어요...</p>
                     </div>
                   )}
                 </div>
@@ -7804,6 +7905,11 @@ export function App() {
                     {isAiMatching ? "분석 중" : "보내기"}
                   </button>
                 </label>
+                <div className="ai-chat-hints" aria-label="AI 매칭 사용 힌트">
+                  <span>Enter 전송</span>
+                  <span>Shift+Enter 줄바꿈</span>
+                  <span>“왜?”라고 물으면 근거를 다시 설명해요</span>
+                </div>
                 {aiMatchMessage && <p className="ai-match-message">{aiMatchMessage}</p>}
               </div>
             </div>
