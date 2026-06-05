@@ -1564,9 +1564,49 @@ function isLowSignalAiText(value: string) {
 function isAiMatchingRequestText(value: string) {
   const source = normalizeAiText(value);
 
-  return ["찾아줘", "추천", "골라", "누구", "맞는", "어울리는", "필요", "섭외", "팀원", "작가", "성우", "그림", "일러스트", "애니메이터", "프로듀서", "bgm", "사운드"].some((keyword) =>
+  return ["찾아줘", "추천", "골라", "누구", "맞는", "어울리는", "필요", "섭외", "팀원", "소설", "웹소설", "웹툰", "만화", "애니", "애니메이션", "오디오드라마", "장르", "아이디어", "작가", "성우", "그림", "일러스트", "애니메이터", "프로듀서", "bgm", "사운드"].some((keyword) =>
     source.includes(normalizeAiText(keyword)),
   );
+}
+
+type LocalAiKnowledgeIntent = "uploadGuide" | "paymentGuide" | "releaseGuide" | "ideaCoach" | "platformGuide" | "generalQuestion";
+
+function localAiIncludesAny(source: string, keywords: string[]) {
+  return keywords.some((keyword) => source.includes(normalizeAiText(keyword)));
+}
+
+function getLocalAiKnowledgeIntent(value: string): LocalAiKnowledgeIntent | null {
+  const source = normalizeAiText(value);
+  const isMatchingRequest = isAiMatchingRequestText(value);
+
+  if (localAiIncludesAny(source, ["업로드", "올려", "파일", "이미지", "오디오 파일", "작품 파일", "첨부", "저장공간", "스토리지", "용량"])) {
+    return "uploadGuide";
+  }
+
+  if (localAiIncludesAny(source, ["코인", "결제", "충전", "환불", "구독", "프리미엄", "열람권", "구매", "지갑", "광고 제거"])) {
+    return "paymentGuide";
+  }
+
+  if (localAiIncludesAny(source, ["구글플레이", "플레이스토어", "앱 출시", "앱 배포", "안드로이드", "aab", "apk", "번들", "버전코드", "테스터", "심사"])) {
+    return "releaseGuide";
+  }
+
+  if (
+    localAiIncludesAny(source, ["기획", "기획서", "사업계획", "수익모델", "경쟁사", "차별화", "발표", "피드백", "평가", "어때", "로드맵", "시장성", "esg", "문제점", "개선"]) &&
+    !localAiIncludesAny(source, ["찾아줘", "추천", "어울리는", "맞는", "섭외"])
+  ) {
+    return "ideaCoach";
+  }
+
+  if (localAiIncludesAny(source, ["사용법", "어디", "메뉴", "기능", "독자", "창작자", "스튜디오", "마이페이지", "회원가입", "로그인", "알림", "고객센터", "신고", "스크랩", "이어보기"])) {
+    return "platformGuide";
+  }
+
+  if (!isMatchingRequest && source.length >= 8) {
+    return "generalQuestion";
+  }
+
+  return null;
 }
 
 function buildAiPromptKeywords(prompt: string, filters: string[]) {
@@ -1671,6 +1711,53 @@ function buildLocalRankedRecommendationBlock(recommendations: AiMatchRecommendat
     .join("\n\n");
 }
 
+function buildLocalKnowledgeAiMessage(intent: LocalAiKnowledgeIntent, prompt: string, memoryLine: string) {
+  const remembered = memoryLine ? `\n\n${memoryLine}` : "";
+  const shortQuestion = prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
+
+  if (intent === "uploadGuide") {
+    return `가능해요. 작품 업로드는 “작품 정보 저장 → 파일 업로드 → 공개 범위 설정 → 참여자 연결 → 검수 후 공개” 흐름으로 잡는 게 좋아요.${remembered}\n\n1. 제목, 형식, 장르, 소개문, 대표 이미지를 먼저 저장합니다.\n2. 소설 원고, 웹툰 이미지, 오디오, 애니메이션 파일을 작품에 연결합니다.\n3. 무료 미리보기, 코인 열람, 구독자 전용을 나눕니다.\n4. 참여한 작가, 그림, 성우, BGM 담당자를 크레딧과 정산 비율에 묶습니다.\n5. 큰 파일은 DB에 직접 넣지 말고 파일 저장소에 올린 뒤 URL과 권한만 DB에 저장하는 구조가 안전합니다.`;
+  }
+
+  if (intent === "paymentGuide") {
+    return `코인/결제는 사용자에게는 단순하게, 내부에는 거래 원장을 꼼꼼하게 남기는 구조가 좋아요.${remembered}\n\n1. 코인 충전 성공 시 지갑 잔액을 늘리고 CHARGE 내역을 기록합니다.\n2. 작품 열람 시 코인을 차감하고 열람권을 발급합니다.\n3. 플랫폼 수수료 일반 13%, 파트너 8%를 차감한 뒤 팀원 지분율대로 자동 정산합니다.\n4. 환불/중복 결제/열람권 미지급은 거래 ID로 추적합니다.\n5. 프리미엄은 재결제일, 구독 상태, 해지 버튼을 항상 보여주는 게 좋습니다.`;
+  }
+
+  if (intent === "releaseGuide") {
+    return `앱 출시 기준으로 보면, 구글 플레이에서는 버전 코드, 테스트 트랙, 개인정보처리방침 URL, 데이터 수집 항목에서 자주 막혀요.${remembered}\n\n1. 새 versionCode로 AAB를 빌드합니다.\n2. 내부 테스트 트랙에 국가/지역과 테스터를 지정합니다.\n3. 개인정보처리방침 URL이 실제 접속 가능해야 합니다.\n4. 앱 권한과 12세 이상 이용 등급을 입력합니다.\n5. 출시 전 휴대폰에서 회원가입, 로그인, 코인 충전, 작품 열람, 마이페이지 스크롤을 꼭 확인하세요.`;
+  }
+
+  if (intent === "ideaCoach") {
+    return `기획 코치 관점으로 보면, 이 서비스는 “창작자 협업 + 콘텐츠 유통 + 자동 정산 + 접근성 확장”을 한 문장으로 잡을수록 강해져요.${remembered}\n\n1. 문제: 창작자는 팀을 구하기 어렵고 수익 분배에서 갈등이 생깁니다.\n2. 해결: 프로젝트 단위 매칭과 자동 정산으로 협업 부담을 줄입니다.\n3. 확장: 소설, 웹툰, 만화, 애니메이션, 오디오드라마를 하나의 IP로 묶습니다.\n4. 차별화: 단순 게시 플랫폼이 아니라 팀 구성부터 정산까지 이어지는 제작형 플랫폼입니다.\n5. 발표에서는 “팀을 만들고, 작품을 팔고, 수익이 자동으로 나뉜다” 흐름을 먼저 보여주는 게 좋아요.`;
+  }
+
+  if (intent === "platformGuide") {
+    return `서비스 사용법은 독자 모드와 창작자 모드로 나눠 보면 쉬워요.${remembered}\n\n독자는 작품에서 장르와 형식을 고르고, 스크랩하거나 코인으로 열람한 뒤 마이페이지에서 결제 작품과 이어보기를 확인합니다.\n\n창작자는 스튜디오에서 프로필과 포트폴리오를 등록하고, 매칭에서 팀원을 찾거나 제안을 받은 뒤 작품 업로드와 정산을 관리합니다.\n\n앱에서는 독자가 자주 쓰는 기능은 하단 탭에 두고, 창작자 전용 기능은 스튜디오 안에 묶는 편이 덜 복잡합니다.`;
+  }
+
+  return `좋아요. 이건 매칭 질문이 아니라 일반 대화/상담으로 보고 답할게요.${remembered}\n\n질문: “${shortQuestion}”\n\n제가 지금 할 수 있는 방식은 세 가지예요.\n\n1. 기획 관점: 장단점, 우선순위, 발표용 문장으로 정리합니다.\n2. 제품 관점: 앱 화면, 사용자 동선, 필요한 기능으로 쪼갭니다.\n3. 실행 관점: 지금 바로 만들 수 있는 작업 순서로 바꿉니다.\n\n실시간 외부 정보가 필요한 질문은 제가 꾸며내지 않고 확인 필요라고 말할게요. 지금 질문은 먼저 핵심을 한 문장으로 잡고, 기능/디자인/사업성 중 하나로 나눠 이어가면 좋습니다.`;
+}
+
+function buildLocalKnowledgeFollowUps(intent: LocalAiKnowledgeIntent) {
+  if (intent === "uploadGuide") {
+    return ["작품 업로드 화면 구성도 짜줘", "오디오 파일 저장 구조를 설명해줘", "무료/유료 공개 설정을 어떻게 나눌까?"];
+  }
+
+  if (intent === "paymentGuide") {
+    return ["코인 충전 오류를 줄이는 구조를 알려줘", "프리미엄 구독 화면 문구를 써줘", "실제 결제사 붙이는 순서를 알려줘"];
+  }
+
+  if (intent === "releaseGuide") {
+    return ["구글 플레이 출시 체크리스트를 만들어줘", "AAB 버전 코드 실수 방지법 알려줘", "테스터 배포 순서를 정리해줘"];
+  }
+
+  if (intent === "ideaCoach") {
+    return ["기획 발표용 한 문장으로 줄여줘", "경쟁사 대비 차별점을 정리해줘", "MVP 우선순위를 다시 짜줘"];
+  }
+
+  return ["독자 입장에서 더 쉽게 설명해줘", "창작자 입장에서 필요한 기능을 정리해줘", "바로 만들 작업 순서로 바꿔줘"];
+}
+
 function buildLocalAiMatchingResponse(
   sourceCreators: Creator[],
   prompt: string,
@@ -1718,7 +1805,12 @@ function buildLocalAiMatchingResponse(
   const wantsNext = ["다음", "진행", "순서", "어떻게", "액션"].some((keyword) => normalizedPrompt.includes(keyword));
   const wantsRefine = ["다른", "말고", "바꿔", "다시", "별로", "조건"].some((keyword) => normalizedPrompt.includes(keyword));
   const contextPrefix = previousUserMessages.length > 0 ? "앞에서 말한 조건까지 이어서 보면, " : "";
-  const assistantMessage = topRecommendation
+  const memoryLine = previousUserMessages.length > 0
+    ? `기억하고 있는 조건: ${previousUserMessages.slice(-2).map((message) => (message.length > 42 ? `${message.slice(0, 42)}...` : message)).join(" / ")}`
+    : "";
+  const knowledgeIntent = getLocalAiKnowledgeIntent(prompt);
+  const knowledgeMessage = knowledgeIntent ? buildLocalKnowledgeAiMessage(knowledgeIntent, prompt, memoryLine) : null;
+  const assistantMessage = knowledgeMessage ?? (topRecommendation
     ? wantsGreeting
       ? `안녕하세요. 저는 작품 톤, 필요한 직군, 공개 포트폴리오를 같이 보면서 팀원을 골라주는 AI 매칭 매니저예요.\n\n일상적으로 물어봐도 괜찮고, “이 아이디어에 맞는 작가 찾아줘”, “미스터리 애니메이션에 어울리는 성우 추천해줘”처럼 말하면 1·2·3순위와 각각의 이유까지 정리해드릴게요.`
       : wantsSmallTalk
@@ -1738,7 +1830,7 @@ function buildLocalAiMatchingResponse(
               : wantsRefine
                 ? `${contextPrefix}조건을 바꿔서 다시 보면 ${topCreator}님을 유지하되${secondRecommendation ? `, ${secondRecommendation.creator.displayName}님을 비교 후보로 같이 두는 게 좋아요.` : " 후보군을 조금 더 넓히는 게 좋아요."} 제외할 직군이나 더 원하는 분위기를 말해주면 다시 좁혀볼게요.`
                 : `${contextPrefix}좋아요. 이 작품은 ${summary}\n\n추천 순위는 이렇게 볼게요.\n\n${buildLocalRankedRecommendationBlock(recommendations)}\n\n정리하면, 1순위는 작품 키워드와 포트폴리오 접점이 가장 강한 후보이고, 2·3순위는 팀 밸런스를 보완하거나 백업으로 연락하기 좋은 후보입니다.`
-    : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
+    : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`);
 
   return {
     assistantMessage,
@@ -1749,7 +1841,9 @@ function buildLocalAiMatchingResponse(
       neededRoles,
     },
     recommendations,
-    followUpSuggestions: (wantsGreeting || wantsSmallTalk
+    followUpSuggestions: (knowledgeIntent
+      ? buildLocalKnowledgeFollowUps(knowledgeIntent)
+      : wantsGreeting || wantsSmallTalk
       ? [
           "이 아이디어 장르에 맞는 작가를 찾아줘",
           "애니메이션에 어울리는 성우를 추천해줘",

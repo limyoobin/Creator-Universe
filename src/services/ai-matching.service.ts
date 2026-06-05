@@ -75,6 +75,12 @@ type ConversationIntent =
   | "shorten"
   | "toneChange"
   | "nextStep"
+  | "uploadGuide"
+  | "paymentGuide"
+  | "releaseGuide"
+  | "ideaCoach"
+  | "platformGuide"
+  | "generalQuestion"
   | "recommend";
 
 const roleLabels: Record<MemberRole, string> = {
@@ -335,6 +341,15 @@ function isMatchingRequestText(source: string) {
     "필요",
     "섭외",
     "팀원",
+    "소설",
+    "웹소설",
+    "웹툰",
+    "만화",
+    "애니",
+    "애니메이션",
+    "오디오드라마",
+    "장르",
+    "아이디어",
     "작가",
     "성우",
     "그림",
@@ -384,6 +399,29 @@ function getConversationIntent(latestText: string): ConversationIntent {
     return "smallTalk";
   }
 
+  if (includesAny(source, ["업로드", "올려", "파일", "이미지", "오디오 파일", "작품 파일", "첨부", "저장공간", "스토리지", "용량"])) {
+    return "uploadGuide";
+  }
+
+  if (includesAny(source, ["코인", "결제", "충전", "환불", "구독", "프리미엄", "열람권", "구매", "지갑", "광고 제거"])) {
+    return "paymentGuide";
+  }
+
+  if (includesAny(source, ["구글플레이", "플레이스토어", "앱 출시", "앱 배포", "안드로이드", "aab", "apk", "번들", "버전코드", "테스터", "심사"])) {
+    return "releaseGuide";
+  }
+
+  if (
+    includesAny(source, ["기획", "기획서", "사업계획", "수익모델", "경쟁사", "차별화", "발표", "피드백", "평가", "어때", "로드맵", "시장성", "esg", "문제점", "개선"]) &&
+    !includesAny(source, ["찾아줘", "추천", "어울리는", "맞는", "섭외"])
+  ) {
+    return "ideaCoach";
+  }
+
+  if (includesAny(source, ["사용법", "어디", "메뉴", "기능", "독자", "창작자", "스튜디오", "마이페이지", "알림", "고객센터", "신고", "스크랩", "이어보기"])) {
+    return "platformGuide";
+  }
+
   if (source.length < 8 && !source.includes("추천") && !isMatchingRequest) {
     return "clarify";
   }
@@ -422,6 +460,10 @@ function getConversationIntent(latestText: string): ConversationIntent {
 
   if (includesAny(source, ["다른", "바꿔", "말고", "추가", "수정", "조건", "더", "별로", "다시"])) {
     return "refine";
+  }
+
+  if (!isMatchingRequest && source.length >= 8) {
+    return "generalQuestion";
   }
 
   return "recommend";
@@ -467,6 +509,38 @@ function buildRankedRecommendationBlock(recommendations: CreatorRecommendation[]
     .join("\n\n");
 }
 
+function buildKnowledgeAssistantMessage(intent: ConversationIntent, latestText: string, brief: ProjectBrief, memoryLine: string) {
+  const remembered = memoryLine ? `\n\n${memoryLine}` : "";
+
+  if (intent === "uploadGuide") {
+    return `가능해요. 이 앱에서 작품 업로드는 “작품 파일을 올리고, 유료/무료 공개 범위와 참여자를 연결하는 흐름”으로 잡는 게 좋아요.${remembered}\n\n추천 흐름은 이렇게요.\n\n1. 작품 기본 정보: 제목, 형식, 장르, 소개문, 대표 이미지를 먼저 저장합니다.\n2. 파일 업로드: 소설 원고, 웹툰 이미지, 오디오 파일, 애니메이션 파일을 작품에 연결합니다.\n3. 공개 설정: 무료 미리보기, 코인 열람, 구독자 전용을 나눕니다.\n4. 팀 연결: 참여한 작가, 그림, 성우, BGM 담당자를 작품 크레딧과 정산 비율에 묶습니다.\n5. 검수 후 공개: 저작권/성인물/접근성 안내를 확인한 뒤 배포합니다.\n\n지금 단계에서는 큰 파일은 서버 DB에 직접 넣기보다 S3, Cloudflare R2, Supabase Storage 같은 파일 저장소에 올리고, DB에는 URL과 권한만 저장하는 구조가 가장 안전합니다.`;
+  }
+
+  if (intent === "paymentGuide") {
+    return `코인/결제 쪽은 “사용자에게는 단순하게, 내부에는 거래 원장을 꼼꼼하게”가 핵심이에요.${remembered}\n\n권장 흐름은 이렇게 잡으면 됩니다.\n\n1. 코인 충전: 결제 성공 시 지갑 잔액을 증가시키고 거래 내역에 CHARGE로 기록합니다.\n2. 작품 열람: 작품 가격만큼 코인을 차감하고 열람권을 발급합니다.\n3. 자동 정산: 플랫폼 수수료 일반 13%, 파트너 8%를 차감한 뒤 팀원 지분율대로 분배합니다.\n4. 환불/오류 대응: 열람권 미발급, 중복 결제, 네트워크 실패는 거래 ID로 추적합니다.\n5. 구독: 프리미엄은 재결제일, 구독 상태, 해지 버튼이 항상 보이게 해야 합니다.\n\n실제 결제사를 붙일 때는 토스페이먼츠, 아임포트/포트원, Stripe 중 하나를 쓰고, 결제 완료 webhook에서만 코인을 충전하도록 만드는 게 안전합니다.`;
+  }
+
+  if (intent === "releaseGuide") {
+    return `앱 출시 질문으로 이해했어요. 구글 플레이스토어 기준으로는 “버전 코드, 테스트 트랙, 개인정보처리방침 URL, 권한 설명”이 자주 막히는 지점입니다.${remembered}\n\n체크 순서는 이렇게 가면 좋아요.\n\n1. Android App Bundle(.aab)을 새 버전 코드로 빌드합니다.\n2. 내부 테스트 트랙에 국가/지역과 테스터를 지정합니다.\n3. 개인정보처리방침 URL이 실제 접속 가능해야 합니다.\n4. 앱 권한, 데이터 수집 항목, 12세 이상 이용 등급을 입력합니다.\n5. 이전 버전보다 낮은 versionCode를 올리지 않도록 확인합니다.\n\n이미 웹뷰 기반 앱이라면 배포 전에 휴대폰에서 회원가입, 로그인, 코인 충전, 작품 열람, 마이페이지 스크롤이 되는지 먼저 보는 게 제일 중요합니다.`;
+  }
+
+  if (intent === "ideaCoach") {
+    return `기획 피드백 관점으로 보면, 지금 서비스는 “창작자 협업 + 콘텐츠 유통 + 자동 정산 + 배리어프리 확장”이 한 문장으로 잡혀야 강해져요.${remembered}\n\n답변 구조는 이렇게 쓰면 설득력이 좋아집니다.\n\n1. 문제: 창작자는 팀을 구하기 어렵고, 수익 분배에서 갈등이 생깁니다.\n2. 해결: 프로젝트 단위 매칭과 자동 정산으로 협업 부담을 줄입니다.\n3. 확장: 소설, 웹툰, 만화, 애니메이션, 오디오드라마를 하나의 IP로 묶습니다.\n4. 차별화: 단순 게시 플랫폼이 아니라 팀 구성부터 정산까지 이어지는 제작형 플랫폼입니다.\n5. 사회적 가치: 오디오/대본 싱크/고대비 UI로 접근성을 넓힙니다.\n\n발표에서는 기능을 많이 나열하기보다 “팀을 만들고, 작품을 팔고, 수익이 자동으로 나뉜다” 이 흐름을 먼저 보여주는 게 좋아요.`;
+  }
+
+  if (intent === "platformGuide") {
+    return `서비스 사용법으로 답해볼게요. 크리에이터 유니버스는 독자 모드와 창작자 모드를 분리해서 이해하면 쉬워요.${remembered}\n\n독자는 이렇게 움직입니다.\n\n1. 작품에서 장르와 형식을 고릅니다.\n2. 마음에 드는 작품을 스크랩하거나 코인으로 열람합니다.\n3. 마이페이지에서 결제한 작품, 스크랩, 이어보기, 알림을 확인합니다.\n\n창작자는 이렇게 움직입니다.\n\n1. 스튜디오에서 프로필과 포트폴리오를 등록합니다.\n2. 매칭에서 팀원을 찾거나 제안을 받습니다.\n3. 작품을 업로드하고 참여자를 연결합니다.\n4. 정산에서 지분율과 지급 예정 금액을 확인합니다.\n\n질문이 “어느 화면에 넣을까?”라면, 독자가 자주 쓰는 건 하단 탭에 두고 창작자 전용 기능은 스튜디오 안에 묶는 편이 앱에서 덜 복잡합니다.`;
+  }
+
+  if (intent === "generalQuestion") {
+    const shortQuestion = latestText.length > 80 ? `${latestText.slice(0, 80)}...` : latestText;
+
+    return `좋아요. 이건 매칭 질문이 아니라 일반 대화/상담으로 보고 답할게요.${remembered}\n\n질문: “${shortQuestion}”\n\n제가 지금 할 수 있는 방식은 세 가지예요.\n\n1. 기획 관점으로 정리: 장단점, 우선순위, 발표용 문장으로 바꿔드릴 수 있어요.\n2. 제품 관점으로 정리: 앱 화면, 사용자 동선, 필요한 기능으로 쪼개드릴 수 있어요.\n3. 실행 관점으로 정리: 지금 바로 만들 수 있는 작업 순서로 바꿔드릴 수 있어요.\n\n단, 실시간 뉴스나 외부 정보를 확인해야 하는 질문은 제가 임의로 지어내지 않고 “확인 필요”라고 말할게요. 지금 질문은 먼저 핵심을 한 문장으로 잡고, 필요한 경우 기능/디자인/사업성 중 하나로 나눠서 이어가면 좋습니다.`;
+  }
+
+  return null;
+}
+
 function buildConversationalAssistantMessage(
   originalInput: AiMatchingInput,
   brief: ProjectBrief,
@@ -480,6 +554,11 @@ function buildConversationalAssistantMessage(
   const third = recommendations[2];
   const contextPrefix = previousUserTexts.length > 0 ? "앞에서 말한 조건까지 이어서 보면, " : "";
   const memoryLine = buildMemoryLine(previousUserTexts);
+  const knowledgeMessage = buildKnowledgeAssistantMessage(intent, latestText, brief, memoryLine);
+
+  if (knowledgeMessage) {
+    return knowledgeMessage;
+  }
 
   if (!top) {
     return `${contextPrefix}아직 공개된 매칭 프로필만으로는 확실한 후보를 못 고르겠어요.\n\n${memoryLine ? `${memoryLine}\n\n` : ""}지금 방향은 ${brief.tone} 쪽이라서, 먼저 필요한 직군을 ${brief.neededRoles.join(", ")} 순서로 좁히면 추천 정확도가 올라가요.`;
@@ -595,6 +674,26 @@ function buildConversationalFollowUpSuggestions(
       "파트너 수수료 8%일 때도 설명해줘",
       "팀원이 부담스럽지 않게 말해줘",
     ];
+  }
+
+  if (intent === "uploadGuide") {
+    return ["작품 업로드 화면 구성도 짜줘", "오디오 파일 저장 구조를 설명해줘", "무료/유료 공개 설정을 어떻게 나눌까?"];
+  }
+
+  if (intent === "paymentGuide") {
+    return ["코인 충전 오류를 줄이는 구조를 알려줘", "프리미엄 구독 화면 문구를 써줘", "실제 결제사 붙이는 순서를 알려줘"];
+  }
+
+  if (intent === "releaseGuide") {
+    return ["구글 플레이 출시 체크리스트를 만들어줘", "AAB 버전 코드 실수 방지법 알려줘", "테스터 배포 순서를 정리해줘"];
+  }
+
+  if (intent === "ideaCoach") {
+    return ["기획 발표용 한 문장으로 줄여줘", "경쟁사 대비 차별점을 정리해줘", "MVP 우선순위를 다시 짜줘"];
+  }
+
+  if (intent === "platformGuide" || intent === "generalQuestion") {
+    return ["독자 입장에서 더 쉽게 설명해줘", "창작자 입장에서 필요한 기능을 정리해줘", "바로 만들 작업 순서로 바꿔줘"];
   }
 
   return baseSuggestions;
