@@ -2079,6 +2079,10 @@ function isApiConnectionError(error: unknown) {
   return message.includes("백엔드 서버에 연결") || message.includes("API 응답을 읽을 수 없습니다");
 }
 
+function getRejectedMessage(result: PromiseSettledResult<unknown>) {
+  return result.status === "rejected" ? getFriendlyError(result.reason) : "";
+}
+
 function getLoginErrorMessage(error: unknown) {
   const message = getFriendlyError(error);
   if (message.includes("없는 계정") || message.includes("not found")) {
@@ -2118,11 +2122,16 @@ function AuthModal({
   const [checkedUsername, setCheckedUsername] = useState("");
   const [checkedNickname, setCheckedNickname] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(false);
+  const [isLoginPending, setIsLoginPending] = useState(false);
 
   async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLoginPending) {
+      return;
+    }
     const data = new FormData(event.currentTarget);
     setMessage("");
+    setIsLoginPending(true);
     try {
       const result = await request<{ user: User; token: string }>("/api/auth/login", null, {
         method: "POST",
@@ -2135,6 +2144,8 @@ function AuthModal({
       onClose();
     } catch (error) {
       setMessage(getLoginErrorMessage(error));
+    } finally {
+      setIsLoginPending(false);
     }
   }
 
@@ -2310,7 +2321,10 @@ function AuthModal({
           <form className="auth-form" onSubmit={submitLogin}>
             <label>아이디<input name="username" required placeholder="가입한 아이디" /></label>
             <label>비밀번호<input name="password" required type="password" placeholder="비밀번호" /></label>
-            <button className="primary-button" type="submit"><LogIn size={18} /> 로그인</button>
+            <button className="primary-button" type="submit" disabled={isLoginPending}>
+              <LogIn size={18} />
+              {isLoginPending ? "로그인 확인 중" : "로그인"}
+            </button>
           </form>
         )}
 
@@ -4617,57 +4631,54 @@ export function App() {
 
   async function loadData(currentToken = token) {
     const query = role === "ALL" ? "" : `?role=${role}`;
-    const [creatorData, projectData, settlementData] = await Promise.all([
+    const [creatorResult, projectResult, settlementResult, reviewsResult] = await Promise.allSettled([
       request<Creator[]>(`/api/creators${query}`, currentToken),
       request<Project>(`/api/projects/${PROJECT_ID}`, currentToken),
       currentToken
         ? request<SettlementDashboard>(`/api/projects/${PROJECT_ID}/settlement-dashboard`, currentToken)
         : Promise.resolve(null),
+      request<ContentReview[]>("/api/content/reviews", currentToken),
     ]);
 
-    const normalizedCreators = creatorData.map(normalizeCreator);
+    if (creatorResult.status === "rejected" || projectResult.status === "rejected") {
+      throw new Error(getRejectedMessage(creatorResult) || getRejectedMessage(projectResult) || "초기 데이터를 불러오지 못했습니다.");
+    }
+
+    const normalizedCreators = creatorResult.value.map(normalizeCreator);
     setCreators(normalizedCreators);
     setSelectedCreator((current) =>
       current ? normalizedCreators.find((creator) => creator.userId === current.userId) ?? current : current,
     );
-    setProject(projectData);
-    setSettlement(settlementData);
-    try {
-      const reviews = await request<ContentReview[]>("/api/content/reviews", currentToken);
-      setContentReviews(reviews.map(normalizeContentReview));
-    } catch {
-      setContentReviews([]);
-    }
+    setProject(projectResult.value);
+    setSettlement(settlementResult.status === "fulfilled" ? settlementResult.value : null);
+    setContentReviews(reviewsResult.status === "fulfilled" ? reviewsResult.value.map(normalizeContentReview) : []);
 
     if (currentToken) {
-      const walletData = await request<{ balance: string | number }>("/api/users/me/wallet", currentToken);
-      setWallet(Number(walletData.balance));
-      try {
-        const detail = await request<WalletDetail>("/api/users/me/wallet/detail", currentToken);
-        setWalletDetail(detail);
-      } catch {
+      const [walletResult, walletDetailResult, chatThreadsResult, followsResult, matchRequestsResult] = await Promise.allSettled([
+        request<{ balance: string | number }>("/api/users/me/wallet", currentToken),
+        request<WalletDetail>("/api/users/me/wallet/detail", currentToken),
+        request<ChatThread[]>("/api/chats/threads", currentToken),
+        request<{ creatorUserIds: string[] }>("/api/creators/me/follows", currentToken),
+        request<MatchRequestRecord[]>("/api/matching/requests", currentToken),
+      ]);
+
+      const walletBalance = walletResult.status === "fulfilled" ? Number(walletResult.value.balance) : wallet;
+      if (walletResult.status === "fulfilled") {
+        setWallet(walletBalance);
+      }
+      if (walletDetailResult.status === "fulfilled") {
+        setWalletDetail(walletDetailResult.value);
+      } else if (walletResult.status === "fulfilled") {
         setWalletDetail({
           ...walletFallback,
-          balance: Number(walletData.balance),
+          balance: walletBalance ?? 0,
         });
       }
-      try {
-        const chatThreads = await request<ChatThread[]>("/api/chats/threads", currentToken);
-        setCreatorChatThreads(mapChatThreads(chatThreads));
-      } catch {
-        setCreatorChatThreads({});
+      setCreatorChatThreads(chatThreadsResult.status === "fulfilled" ? mapChatThreads(chatThreadsResult.value) : {});
+      if (followsResult.status === "fulfilled") {
+        setFollowedCreatorIds(followsResult.value.creatorUserIds);
       }
-      try {
-        const follows = await request<{ creatorUserIds: string[] }>("/api/creators/me/follows", currentToken);
-        setFollowedCreatorIds(follows.creatorUserIds);
-      } catch {
-        setFollowedCreatorIds((current) => current);
-      }
-      try {
-        setMatchRequests(await request<MatchRequestRecord[]>("/api/matching/requests", currentToken));
-      } catch {
-        setMatchRequests([]);
-      }
+      setMatchRequests(matchRequestsResult.status === "fulfilled" ? matchRequestsResult.value : []);
     } else {
       setWallet(null);
       setWalletDetail(null);
@@ -4685,9 +4696,12 @@ export function App() {
       return;
     }
 
-    const chatThreads = await request<ChatThread[]>("/api/chats/threads", currentToken);
-    setCreatorChatThreads(mapChatThreads(chatThreads));
-    setMatchRequests(await request<MatchRequestRecord[]>("/api/matching/requests", currentToken));
+    const [chatThreadsResult, matchRequestsResult] = await Promise.allSettled([
+      request<ChatThread[]>("/api/chats/threads", currentToken),
+      request<MatchRequestRecord[]>("/api/matching/requests", currentToken),
+    ]);
+    setCreatorChatThreads(chatThreadsResult.status === "fulfilled" ? mapChatThreads(chatThreadsResult.value) : {});
+    setMatchRequests(matchRequestsResult.status === "fulfilled" ? matchRequestsResult.value : []);
   }
 
   useEffect(() => {
@@ -4925,13 +4939,14 @@ export function App() {
 
     async function verifySessionAndLoadData() {
       try {
-        const me = await request<User | null>("/api/auth/me", token);
-        if (!isCurrent) {
-          return;
-        }
+        const me = user ?? await request<User | null>("/api/auth/me", token);
 
         if (!me) {
           throw new Error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        }
+
+        if (!isCurrent) {
+          return;
         }
 
         setUser(me);
