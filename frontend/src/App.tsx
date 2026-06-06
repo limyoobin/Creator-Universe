@@ -170,7 +170,7 @@ type AiMatchRecommendation = {
 };
 
 type AiMatchingResponse = {
-  provider?: "local" | "openai";
+  provider?: "local" | "gemini";
   assistantMessage: string;
   projectBrief: {
     summary: string;

@@ -12,6 +12,7 @@ const matchingRecommendationSchema = z.object({
 });
 
 const matchingChatSchema = matchingRecommendationSchema.extend({
+  projectDescription: z.string().trim().min(1).max(1200),
   messages: z
     .array(
       z.object({

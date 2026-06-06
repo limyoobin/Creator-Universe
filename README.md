@@ -99,6 +99,11 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
 PORT=4000
 CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
 ALLOW_INSECURE_USER_CONTEXT=false
+GEMINI_AI_ENABLED=false
+GEMINI_API_KEY=""
+GEMINI_FREE_ONLY=true
+GEMINI_MODEL="gemini-2.5-flash-lite"
+GEMINI_DAILY_REQUEST_LIMIT=40
 ```
 
 DB 준비:
@@ -141,7 +146,14 @@ NODE_ENV=production
 DATABASE_URL=postgresql://...
 CORS_ORIGINS=https://project-limyoobins-projects.vercel.app
 ALLOW_INSECURE_USER_CONTEXT=false
+GEMINI_AI_ENABLED=true
+GEMINI_API_KEY=Google AI Studio에서 발급한 키
+GEMINI_FREE_ONLY=true
+GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_DAILY_REQUEST_LIMIT=40
 ```
+
+Gemini AI 매칭 매니저는 무료 베타 운영 기준으로 붙였습니다. `GEMINI_FREE_ONLY=true`일 때는 허용한 Flash/Flash-Lite 계열 모델만 호출하고, 서버에서 하루 호출 수와 요청 간격을 제한합니다. API 키가 없거나 한도에 걸리거나 Gemini 응답이 실패하면 기존 로컬 AI 매칭 답변으로 자동 전환됩니다.
 
 Vercel 프론트엔드 환경변수:
 

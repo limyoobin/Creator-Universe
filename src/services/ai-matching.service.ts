@@ -54,7 +54,7 @@ type CreatorRecommendation = {
 };
 
 type AiMatchingResponse = {
-  provider: "local";
+  provider: "local" | "gemini";
   assistantMessage: string;
   projectBrief: ProjectBrief;
   recommendations: CreatorRecommendation[];
@@ -82,6 +82,46 @@ type ConversationIntent =
   | "platformGuide"
   | "generalQuestion"
   | "recommend";
+
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+};
+
+type GeminiQuotaState = {
+  dateKey: string;
+  count: number;
+  lastRequestAt: number;
+};
+
+const GEMINI_FREE_MODEL_ALLOWLIST = new Set([
+  "gemini-3.1-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash",
+  "gemini-flash-latest",
+]);
+
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
+const DEFAULT_GEMINI_DAILY_REQUEST_LIMIT = 40;
+const DEFAULT_GEMINI_MIN_INTERVAL_MS = 1500;
+const DEFAULT_GEMINI_TIMEOUT_MS = 7000;
+const DEFAULT_GEMINI_MAX_INPUT_CHARS = 5200;
+const DEFAULT_GEMINI_MAX_OUTPUT_TOKENS = 650;
+
+const geminiQuotaState: GeminiQuotaState = {
+  dateKey: new Date().toISOString().slice(0, 10),
+  count: 0,
+  lastRequestAt: 0,
+};
 
 const roleLabels: Record<MemberRole, string> = {
   WRITER: "글",
@@ -126,6 +166,89 @@ function normalize(value: string) {
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
+}
+
+function readBooleanEnv(name: string, defaultValue: boolean) {
+  const value = process.env[name]?.trim().toLowerCase();
+
+  if (!value) {
+    return defaultValue;
+  }
+
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
+function readPositiveIntegerEnv(name: string, defaultValue: number) {
+  const value = Number(process.env[name]);
+
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : defaultValue;
+}
+
+function truncateText(value: string, maxLength: number) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
+function getGeminiConfig() {
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const enabled = readBooleanEnv("GEMINI_AI_ENABLED", false);
+  const freeOnly = readBooleanEnv("GEMINI_FREE_ONLY", true);
+  const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  const dailyRequestLimit = readPositiveIntegerEnv("GEMINI_DAILY_REQUEST_LIMIT", DEFAULT_GEMINI_DAILY_REQUEST_LIMIT);
+  const minIntervalMs = readPositiveIntegerEnv("GEMINI_MIN_INTERVAL_MS", DEFAULT_GEMINI_MIN_INTERVAL_MS);
+  const timeoutMs = readPositiveIntegerEnv("GEMINI_TIMEOUT_MS", DEFAULT_GEMINI_TIMEOUT_MS);
+  const maxInputChars = readPositiveIntegerEnv("GEMINI_MAX_INPUT_CHARS", DEFAULT_GEMINI_MAX_INPUT_CHARS);
+  const maxOutputTokens = readPositiveIntegerEnv("GEMINI_MAX_OUTPUT_TOKENS", DEFAULT_GEMINI_MAX_OUTPUT_TOKENS);
+
+  return {
+    apiKey,
+    enabled,
+    freeOnly,
+    model,
+    dailyRequestLimit,
+    minIntervalMs,
+    timeoutMs,
+    maxInputChars,
+    maxOutputTokens,
+  };
+}
+
+function resetGeminiQuotaIfNeeded() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (geminiQuotaState.dateKey !== today) {
+    geminiQuotaState.dateKey = today;
+    geminiQuotaState.count = 0;
+    geminiQuotaState.lastRequestAt = 0;
+  }
+}
+
+function canUseGeminiApi() {
+  const config = getGeminiConfig();
+  resetGeminiQuotaIfNeeded();
+
+  if (!config.enabled || !config.apiKey) {
+    return { ok: false as const, config, reason: "Gemini is disabled or GEMINI_API_KEY is missing." };
+  }
+
+  if (config.freeOnly && !GEMINI_FREE_MODEL_ALLOWLIST.has(config.model)) {
+    return { ok: false as const, config, reason: `Gemini model "${config.model}" is blocked by GEMINI_FREE_ONLY.` };
+  }
+
+  if (geminiQuotaState.count >= config.dailyRequestLimit) {
+    return { ok: false as const, config, reason: "Gemini daily request limit reached." };
+  }
+
+  if (Date.now() - geminiQuotaState.lastRequestAt < config.minIntervalMs) {
+    return { ok: false as const, config, reason: "Gemini minimum request interval is active." };
+  }
+
+  return { ok: true as const, config };
+}
+
+function reserveGeminiQuota() {
+  resetGeminiQuotaIfNeeded();
+  geminiQuotaState.count += 1;
+  geminiQuotaState.lastRequestAt = Date.now();
 }
 
 function includesAny(source: string, keywords: string[]) {
@@ -739,6 +862,148 @@ function buildResponse(input: AiMatchingInput, recommendations: CreatorRecommend
   };
 }
 
+function buildGeminiCandidateContext(recommendations: CreatorRecommendation[]) {
+  return recommendations
+    .slice(0, 5)
+    .map((item) => ({
+      rank: item.rank,
+      name: item.creator.displayName,
+      username: item.creator.username,
+      role: roleLabels[item.creator.primaryRole],
+      headline: item.creator.headline,
+      bio: item.creator.bio,
+      skills: item.creator.skills,
+      responseRate: item.creator.responseRate,
+      completedProjects: item.creator.completedProjects,
+      followerCount: item.creator.followerCount,
+      matchRate: item.matchRate,
+      matchedKeywords: item.matchedKeywords,
+      localReason: item.reason,
+      reasonDetails: item.reasonDetails.slice(0, 3),
+      suggestedMessage: item.suggestedMessage,
+    }));
+}
+
+function buildGeminiConversationPrompt(input: AiMatchingInput, localResponse: AiMatchingResponse, maxInputChars: number) {
+  const conversationHistory = (input.messages ?? [])
+    .slice(-8)
+    .map((message) => `${message.role === "assistant" ? "AI 매칭 매니저" : "사용자"}: ${message.content}`)
+    .join("\n");
+  const candidateContext = JSON.stringify(buildGeminiCandidateContext(localResponse.recommendations), null, 2);
+  const prompt = `
+사용자의 최신 질문:
+${input.projectDescription}
+
+최근 대화:
+${conversationHistory || "(이전 대화 없음)"}
+
+로컬 분석 요약:
+- 작품 요약: ${localResponse.projectBrief.summary}
+- 톤: ${localResponse.projectBrief.tone}
+- 키워드: ${localResponse.projectBrief.topics.join(", ") || "없음"}
+- 필요한 역할: ${localResponse.projectBrief.neededRoles.join(", ") || "미정"}
+
+추천 후보 데이터:
+${candidateContext}
+
+로컬 기본 답변:
+${localResponse.assistantMessage}
+`;
+
+  return truncateText(prompt.trim(), maxInputChars);
+}
+
+function extractGeminiText(payload: GeminiGenerateContentResponse) {
+  return payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
+}
+
+async function generateGeminiAssistantMessage(input: AiMatchingInput, localResponse: AiMatchingResponse) {
+  const availability = canUseGeminiApi();
+
+  if (!availability.ok) {
+    return null;
+  }
+
+  reserveGeminiQuota();
+
+  const { config } = availability;
+  const apiKey = config.apiKey;
+
+  if (!apiKey) {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [
+              {
+                text:
+                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 없는 후보나 실제 외부 사실은 지어내지 않는다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
+              },
+            ],
+          },
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: buildGeminiConversationPrompt(input, localResponse, config.maxInputChars),
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: config.maxOutputTokens,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as GeminiGenerateContentResponse;
+    const assistantMessage = extractGeminiText(payload);
+
+    if (assistantMessage.length < 8) {
+      return null;
+    }
+
+    return assistantMessage;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function enhanceResponseWithGemini(input: AiMatchingInput, localResponse: AiMatchingResponse): Promise<AiMatchingResponse> {
+  const assistantMessage = await generateGeminiAssistantMessage(input, localResponse);
+
+  if (!assistantMessage) {
+    return localResponse;
+  }
+
+  return {
+    ...localResponse,
+    provider: "gemini",
+    assistantMessage,
+  };
+}
+
 export async function recommendCreatorsForProject(input: AiMatchingInput): Promise<AiMatchingResponse> {
   const keywords = extractKeywords(input);
   const preferredRoles = input.preferredRoles ?? [];
@@ -837,10 +1102,11 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
 export async function createAiMatchingChat(input: AiMatchingInput): Promise<AiMatchingResponse> {
   const conversationInput = buildConversationAwareInput(input);
   const response = await recommendCreatorsForProject(conversationInput);
-
-  return {
+  const localChatResponse: AiMatchingResponse = {
     ...response,
     assistantMessage: buildConversationalAssistantMessage(input, response.projectBrief, response.recommendations),
     followUpSuggestions: buildConversationalFollowUpSuggestions(input, response.projectBrief, response.recommendations),
   };
+
+  return enhanceResponseWithGemini(input, localChatResponse);
 }
