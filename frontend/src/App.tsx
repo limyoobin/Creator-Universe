@@ -8079,22 +8079,53 @@ export function App() {
 
           <section className="ai-match-panel" aria-label="AI 팀원 추천">
             <div className="ai-match-copy">
-              <p className="kicker">AI Matching Assistant</p>
-              <h2>AI 매칭 매니저에게 작품을 설명하고 팀원을 추천받으세요</h2>
+              <p className="kicker">AI Matching Coach</p>
+              <h2>작품 설명만 넣으면 맞는 팀원을 순위로 정리해요</h2>
               <p>
-                예를 들어 “도시괴담 느낌의 미스터리 웹소설인데 낮은 톤의 성우와 네온 감성 일러스트가 필요해요”처럼 적으면,
-                AI가 작품 분위기를 요약하고 공개 포트폴리오를 비교해 추천 이유까지 대화형으로 정리합니다.
+                장르, 분위기, 필요한 직군을 편하게 말하면 AI가 공개 포트폴리오를 비교해서
+                추천 이유와 다음 질문까지 이어서 정리합니다.
               </p>
               <div className="ai-availability-note" aria-label="AI 매칭 동작 기준">
                 <span>Gemini 우선 응답</span>
                 <span>등록 후보만 추천</span>
                 <span>후보 없으면 솔직 안내</span>
               </div>
+              <div className="ai-coach-steps" aria-label="AI 매칭 이용 순서">
+                <article>
+                  <b>01</b>
+                  <strong>작품 설명</strong>
+                  <span>장르와 분위기 입력</span>
+                </article>
+                <article>
+                  <b>02</b>
+                  <strong>후보 비교</strong>
+                  <span>직군별 포트폴리오 분석</span>
+                </article>
+                <article>
+                  <b>03</b>
+                  <strong>바로 액션</strong>
+                  <span>채팅, 지분 제안 연결</span>
+                </article>
+              </div>
             </div>
 
             <div className="ai-match-workbench">
+              <div className="ai-workbench-status" aria-label="AI 매칭 현재 상태">
+                <article>
+                  <span>AI 상태</span>
+                  <strong>{aiMatchResponse?.provider === "gemini" ? "Gemini 연결" : aiMatchResponse ? "로컬 보조" : "대기 중"}</strong>
+                </article>
+                <article>
+                  <span>공개 후보</span>
+                  <strong>{filteredCreators.length}명</strong>
+                </article>
+                <article>
+                  <span>선택 직군</span>
+                  <strong>{aiPreferredRoles.length}개</strong>
+                </article>
+              </div>
               <div className="ai-role-picker" aria-label="AI 추천 희망 직군">
-                <span>추천받고 싶은 직군</span>
+                <span>필요한 역할을 먼저 골라도 좋아요</span>
                 <div>
                   {roleFilterItems.filter((item) => item !== "ALL").map((item) => (
                     <button
@@ -8117,7 +8148,7 @@ export function App() {
                     </div>
                     <div>
                       <span>AI 매칭 매니저</span>
-                      <strong>작품 설명부터 DM 문구까지 이어서 물어보세요</strong>
+                      <strong>대화하듯 물어보면 후보와 이유를 같이 정리해요</strong>
                       <p>
                         대화 기억 {aiMatchMessages.filter((message) => message.role === "user").length}개 · 공개 포트폴리오 기반 추천
                         <span className={`ai-provider-badge ${aiMatchResponse?.provider ?? "waiting"}`}>
@@ -8153,8 +8184,8 @@ export function App() {
                     <div className="ai-chat-bubble assistant">
                       <span>AI 매칭 매니저</span>
                       <p>
-                        어떤 작품을 만들고 있는지 편하게 말해줘요.
-                        장르, 분위기, 필요한 역할을 기준으로 후보를 찾고, 이어지는 질문까지 기억해서 비교해볼게요.
+                        “사운드 디자이너 있나?”, “로맨스 웹툰에 맞는 그림 작가 찾아줘”처럼 말해보세요.
+                        후보가 없으면 없다고 말하고, 있으면 1·2·3순위와 이유를 같이 보여줄게요.
                       </p>
                     </div>
                   )}
