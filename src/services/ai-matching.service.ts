@@ -142,7 +142,7 @@ const roleKeywords: Record<MemberRole, string[]> = {
 };
 
 const rolePhraseKeywords: Record<MemberRole, string[]> = {
-  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당"],
+  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "플롯 작가", "세계관 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당", "원고 담당"],
   ILLUSTRATOR: [
     "그림 작가",
     "그림작가",
@@ -150,20 +150,29 @@ const rolePhraseKeywords: Record<MemberRole, string[]> = {
     "일러스트레이터",
     "웹툰 작가",
     "만화 작가",
+    "콘티 작가",
     "작화가",
     "작화 담당",
     "그림 담당",
+    "배경 작가",
+    "배경 일러스트",
     "표지 작가",
+    "썸네일 작가",
+    "키비주얼 작가",
     "캐릭터 디자이너",
     "캐릭터디자이너",
     "원화가",
     "애니메이터",
+    "sd 캐릭터",
+    "라이브2d",
   ],
-  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터"],
-  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "작곡가", "효과음 담당", "폴리 아티스트"],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터", "남성 성우", "여성 성우", "저음 성우", "감정 연기"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "ost 담당", "테마곡 담당", "작곡가", "효과음 담당", "음향효과", "믹싱 엔지니어", "폴리 아티스트"],
   PRODUCER: ["프로듀서", "기획자", "제작자", "연출자", "감독", "PM", "프로젝트 매니저"],
   EDITOR: ["편집자", "식자 담당", "교정 담당", "검수 담당", "자막 담당", "후반작업 담당"],
 };
+
+const roleExclusionPhrases = ["말고", "제외", "빼고", "필요 없어", "필요없", "나중", "후순위", "아니고"];
 
 const topicKeywords: Record<string, string[]> = {
   로맨스: ["로맨스", "연애", "청춘", "짝사랑", "감정선", "설렘", "관계성"],
@@ -214,7 +223,7 @@ function truncateText(value: string, maxLength: number) {
 
 function getGeminiConfig() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  const enabled = readBooleanEnv("GEMINI_AI_ENABLED", false);
+  const enabled = readBooleanEnv("GEMINI_AI_ENABLED", Boolean(apiKey));
   const freeOnly = readBooleanEnv("GEMINI_FREE_ONLY", true);
   const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
   const dailyRequestLimit = readPositiveIntegerEnv("GEMINI_DAILY_REQUEST_LIMIT", DEFAULT_GEMINI_DAILY_REQUEST_LIMIT);
@@ -295,17 +304,45 @@ function detectPhraseRoles(source: string) {
     .map(([role]) => role as MemberRole);
 }
 
+function roleAliasesForDetection(role: MemberRole) {
+  return unique([roleLabels[role], ...(rolePhraseKeywords[role] ?? []), ...(roleKeywords[role] ?? [])])
+    .map((alias) => normalize(alias))
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+}
+
+function detectExcludedRoles(source: string) {
+  const normalizedSource = normalize(source);
+
+  return unique(
+    Object.values(MemberRole).filter((role) =>
+      roleAliasesForDetection(role).some((alias) =>
+        roleExclusionPhrases.some((phrase) => {
+          const normalizedPhrase = normalize(phrase);
+
+          return normalizedSource.includes(`${alias} ${normalizedPhrase}`);
+        }),
+      ),
+    ),
+  );
+}
+
 function detectKeywordRoles(source: string) {
   const normalizedSource = normalize(source);
   const phraseRoles = detectPhraseRoles(source);
   const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
   const hasWriterPhrase = phraseRoles.includes("WRITER");
+  const excludedRoles = detectExcludedRoles(source);
 
   const detectedRoles = Object.entries(roleKeywords)
     .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(normalize(alias))))
     .map(([role]) => role as MemberRole);
 
   return detectedRoles.filter((role) => {
+    if (excludedRoles.includes(role)) {
+      return false;
+    }
+
     if (role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase) {
       return false;
     }
@@ -315,11 +352,17 @@ function detectKeywordRoles(source: string) {
 }
 
 function detectRoleNeeds(source: string, preferredRoles: MemberRole[]) {
-  return unique([...detectPhraseRoles(source), ...detectKeywordRoles(source), ...preferredRoles]);
+  const excludedRoles = detectExcludedRoles(source);
+
+  return unique([...detectPhraseRoles(source), ...detectKeywordRoles(source), ...preferredRoles])
+    .filter((role) => !excludedRoles.includes(role));
 }
 
 function detectExplicitRoleNeeds(source: string) {
-  return unique([...detectPhraseRoles(source), ...detectKeywordRoles(source)]);
+  const excludedRoles = detectExcludedRoles(source);
+
+  return unique([...detectPhraseRoles(source), ...detectKeywordRoles(source)])
+    .filter((role) => !excludedRoles.includes(role));
 }
 
 function extractKeywords(input: AiMatchingInput) {
@@ -733,7 +776,12 @@ function buildConversationalAssistantMessage(
   }
 
   if (!top) {
-    return `${contextPrefix}아직 공개된 매칭 프로필만으로는 확실한 후보를 못 고르겠어요.\n\n${memoryLine ? `${memoryLine}\n\n` : ""}지금 방향은 ${brief.tone} 쪽이라서, 먼저 필요한 직군을 ${brief.neededRoles.join(", ")} 순서로 좁히면 추천 정확도가 올라가요.`;
+    const requestedRoles = detectExplicitRoleNeeds(latestText).map((role) => roleLabels[role]);
+    const roleHint = requestedRoles.length > 0
+      ? `요청한 ${requestedRoles.join(", ")} 직군의 공개 프로필이 아직 부족해요.`
+      : "아직 공개된 매칭 프로필만으로는 확실한 후보를 못 고르겠어요.";
+
+    return `${contextPrefix}${roleHint}\n\n${memoryLine ? `${memoryLine}\n\n` : ""}지금 방향은 ${brief.tone} 쪽이라서, 팀원 찾기에 ${brief.neededRoles.join(", ")} 포지션 프로필이 더 등록되면 추천 정확도가 올라가요.\n\n지금은 작품 설명을 조금 더 구체화하거나, 매칭 보드에서 해당 직군 창작자에게 프로필 등록을 먼저 유도하는 흐름이 안전합니다.`;
   }
 
   if (intent === "greeting") {
@@ -933,6 +981,16 @@ function buildGeminiCandidateContext(recommendations: CreatorRecommendation[]) {
     }));
 }
 
+function buildGeminiTrainingExamples() {
+  return [
+    "예시 1) 사용자가 '그림 작가만 알려줘'라고 하면 ILLUSTRATOR 후보만 순위로 답하고, 글 작가는 추천하지 않는다.",
+    "예시 2) 사용자가 '사운드 디자이너 구하고 있는데 있을까?'라고 하면 SOUND_DIRECTOR 후보만 찾는다. 후보가 없으면 없다고 말하고, 대신 등록하면 좋은 프로필 조건을 안내한다.",
+    "예시 3) 사용자가 '성우 말고 표지 작가 찾아줘'라고 하면 VOICE_ACTOR는 제외하고 ILLUSTRATOR 후보를 추천한다.",
+    "예시 4) 사용자가 '왜 1순위야?'라고 하면 직전 추천 후보의 포트폴리오 키워드, 역할 적합도, 응답률을 근거로 짧게 설명한다.",
+    "예시 5) 사용자가 'DM 문구 써줘'라고 하면 작품 톤, 작업 범위, 수익 지분 논의를 자연스럽게 여는 메시지를 작성한다.",
+  ].join("\n");
+}
+
 function buildGeminiConversationPrompt(input: AiMatchingInput, localResponse: AiMatchingResponse, maxInputChars: number) {
   const conversationHistory = (input.messages ?? [])
     .slice(-8)
@@ -940,6 +998,7 @@ function buildGeminiConversationPrompt(input: AiMatchingInput, localResponse: Ai
     .join("\n");
   const candidateContext = JSON.stringify(buildGeminiCandidateContext(localResponse.recommendations), null, 2);
   const explicitRoles = detectExplicitRoleNeeds(input.projectDescription).map((role) => roleLabels[role]);
+  const excludedRoles = detectExcludedRoles(input.projectDescription).map((role) => roleLabels[role]);
   const prompt = `
 사용자의 최신 질문:
 ${input.projectDescription}
@@ -947,12 +1006,16 @@ ${input.projectDescription}
 최근 대화:
 ${conversationHistory || "(이전 대화 없음)"}
 
+대화 규칙 예시:
+${buildGeminiTrainingExamples()}
+
 로컬 분석 요약:
 - 작품 요약: ${localResponse.projectBrief.summary}
 - 톤: ${localResponse.projectBrief.tone}
 - 키워드: ${localResponse.projectBrief.topics.join(", ") || "없음"}
 - 필요한 역할: ${localResponse.projectBrief.neededRoles.join(", ") || "미정"}
 - 사용자가 문장에 직접 말한 직군: ${explicitRoles.join(", ") || "없음"}
+- 사용자가 제외하거나 후순위로 말한 직군: ${excludedRoles.join(", ") || "없음"}
 
 추천 후보 데이터:
 ${candidateContext}
@@ -962,6 +1025,16 @@ ${localResponse.assistantMessage}
 `;
 
   return truncateText(prompt.trim(), maxInputChars);
+}
+
+function isGeminiTextConsistentWithCandidates(text: string, recommendations: CreatorRecommendation[]) {
+  if (recommendations.length === 0) {
+    return true;
+  }
+
+  const topCandidateNames = recommendations.slice(0, 3).map((item) => item.creator.displayName);
+
+  return topCandidateNames.some((name) => text.includes(name));
 }
 
 function extractGeminiText(payload: GeminiGenerateContentResponse) {
@@ -1001,7 +1074,7 @@ async function generateGeminiAssistantMessage(input: AiMatchingInput, localRespo
             parts: [
               {
                 text:
-                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 사용자가 사운드 디자이너, 성우, 작가, 일러스트레이터처럼 특정 직군을 직접 말하면 해당 직군 후보를 우선 추천하고 다른 직군은 보조 후보로만 설명한다. 특히 '그림 작가', '웹툰 작가', '만화 작가', '일러스트 작가'는 글 작가가 아니라 그림/일러스트 직군으로 해석하고, '글 작가', '소설 작가', '웹소설 작가', '대본 작가'만 글 직군으로 해석한다. 없는 후보나 실제 외부 사실은 지어내지 않는다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
+                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 사용자가 사운드 디자이너, 성우, 작가, 일러스트레이터처럼 특정 직군을 직접 말하면 해당 직군 후보를 우선 추천하고 다른 직군은 보조 후보로만 설명한다. 특히 '그림 작가', '웹툰 작가', '만화 작가', '일러스트 작가', '표지 작가', '콘티 작가'는 글 작가가 아니라 그림/일러스트 직군으로 해석하고, '글 작가', '소설 작가', '웹소설 작가', '대본 작가'만 글 직군으로 해석한다. 'A 말고 B', 'A 제외', 'A는 나중'처럼 말하면 A 직군은 추천하지 않는다. 후보 데이터에 없는 사람과 없는 포트폴리오는 지어내지 않는다. 요청한 직군 후보가 없으면 없다고 말하고, 어떤 프로필이 등록되면 좋은지 안내한다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
               },
             ],
           },
@@ -1033,6 +1106,10 @@ async function generateGeminiAssistantMessage(input: AiMatchingInput, localRespo
       return null;
     }
 
+    if (!isGeminiTextConsistentWithCandidates(assistantMessage, localResponse.recommendations)) {
+      return null;
+    }
+
     return assistantMessage;
   } catch {
     return null;
@@ -1055,11 +1132,332 @@ async function enhanceResponseWithGemini(input: AiMatchingInput, localResponse: 
   };
 }
 
-export async function recommendCreatorsForProject(input: AiMatchingInput): Promise<AiMatchingResponse> {
-  const keywords = extractKeywords(input);
-  const explicitRoles = detectExplicitRoleNeeds(input.projectDescription);
-  const preferredRoles = unique([...explicitRoles, ...(input.preferredRoles ?? [])]);
+const cleanRoleLabels: Record<MemberRole, string> = {
+  WRITER: "글",
+  ILLUSTRATOR: "그림",
+  VOICE_ACTOR: "목소리",
+  SOUND_DIRECTOR: "BGM",
+  PRODUCER: "프로듀서",
+  EDITOR: "에디터",
+};
+
+const cleanRoleKeywords: Record<MemberRole, string[]> = {
+  WRITER: ["글", "작가", "소설", "웹소설", "대본", "시나리오", "각색", "플롯", "세계관", "문장", "스토리", "원고"],
+  ILLUSTRATOR: [
+    "그림",
+    "일러스트",
+    "웹툰",
+    "만화",
+    "콘티",
+    "표지",
+    "키비주얼",
+    "캐릭터",
+    "채색",
+    "배경",
+    "애니메이터",
+    "애니메이션",
+    "원화",
+    "동화",
+    "라이브2d",
+  ],
+  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "감정연기", "저음", "남성 성우", "여성 성우"],
+  SOUND_DIRECTOR: ["bgm", "브금", "사운드", "음향", "효과음", "믹싱", "앰비언트", "asmr", "ost", "테마곡", "소리"],
+  PRODUCER: ["프로듀서", "기획", "pm", "연출", "제작관리", "프로젝트 매니저"],
+  EDITOR: ["편집", "식자", "교정", "검수", "마감", "에디터"],
+};
+
+const cleanRolePhrases: Record<MemberRole, string[]> = {
+  WRITER: ["글 작가", "소설 작가", "웹소설 작가", "대본 작가", "시나리오 작가", "스토리 작가", "플롯 작가", "세계관 작가", "원고 담당"],
+  ILLUSTRATOR: [
+    "그림 작가",
+    "일러스트 작가",
+    "웹툰 작가",
+    "만화 작가",
+    "콘티 작가",
+    "표지 작가",
+    "배경 작가",
+    "키비주얼 작가",
+    "캐릭터 디자이너",
+    "애니메이터",
+    "원화가",
+    "라이브2d",
+  ],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "감정 연기", "남성 성우", "여성 성우", "저음 성우"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "bgm 담당", "브금 담당", "ost 담당", "테마곡 담당", "효과음 담당", "믹싱 엔지니어"],
+  PRODUCER: ["프로듀서", "기획자", "제작자", "연출자", "프로젝트 매니저"],
+  EDITOR: ["편집자", "식자 담당", "교정 담당", "검수 담당", "에디터"],
+};
+
+const cleanRoleExclusionPhrases = ["말고", "제외", "빼고", "필요 없어", "필요없", "나중", "후순위", "아니고"];
+
+const cleanTopicKeywords: Record<string, string[]> = {
+  로맨스: ["로맨스", "연애", "감정선", "청춘"],
+  판타지: ["판타지", "마법", "세계관", "모험", "이세계"],
+  미스터리: ["미스터리", "추리", "괴담", "도시괴담", "비밀", "사건"],
+  스릴러: ["스릴러", "긴장", "공포", "추격", "서스펜스"],
+  일상: ["일상", "성장", "동네", "카페", "생활"],
+  힐링: ["힐링", "치유", "감성", "잔잔", "asmr"],
+  오디오드라마: ["오디오드라마", "오디오 드라마", "보이스드라마", "대본 싱크", "입체음향"],
+  애니메이션: ["애니메이션", "애니", "숏폼", "파일럿", "티저", "원화", "동화"],
+  웹툰: ["웹툰", "세로스크롤", "콘티", "채색"],
+  소설: ["소설", "웹소설", "원고", "챕터"],
+};
+
+function cleanNormalize(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanRoleAliases(role: MemberRole) {
+  return unique([cleanRoleLabels[role], ...(cleanRolePhrases[role] ?? []), ...(cleanRoleKeywords[role] ?? [])])
+    .map((alias) => cleanNormalize(alias))
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+}
+
+function detectCleanExcludedRoles(source: string) {
+  const normalizedSource = cleanNormalize(source);
+
+  return unique(
+    Object.values(MemberRole).filter((role) =>
+      cleanRoleAliases(role).some((alias) =>
+        cleanRoleExclusionPhrases.some((phrase) => normalizedSource.includes(`${alias} ${cleanNormalize(phrase)}`)),
+      ),
+    ),
+  );
+}
+
+function detectCleanPhraseRoles(source: string) {
+  const normalizedSource = cleanNormalize(source);
+
+  return Object.entries(cleanRolePhrases)
+    .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(cleanNormalize(alias))))
+    .map(([role]) => role as MemberRole);
+}
+
+function detectCleanKeywordRoles(source: string) {
+  const normalizedSource = cleanNormalize(source);
+  const phraseRoles = detectCleanPhraseRoles(source);
+  const excludedRoles = detectCleanExcludedRoles(source);
+  const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
+  const hasWriterPhrase = phraseRoles.includes("WRITER");
+
+  return unique(
+    Object.entries(cleanRoleKeywords)
+      .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(cleanNormalize(alias))))
+      .map(([role]) => role as MemberRole),
+  ).filter((role) => {
+    if (excludedRoles.includes(role)) {
+      return false;
+    }
+
+    return !(role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase);
+  });
+}
+
+function detectCleanExplicitRoleNeeds(source: string) {
+  const excludedRoles = detectCleanExcludedRoles(source);
+
+  return unique([...detectCleanPhraseRoles(source), ...detectCleanKeywordRoles(source)]).filter((role) => !excludedRoles.includes(role));
+}
+
+function detectCleanTopics(source: string) {
+  const normalizedSource = cleanNormalize(source);
+
+  return Object.entries(cleanTopicKeywords)
+    .filter(([topic, aliases]) => normalizedSource.includes(cleanNormalize(topic)) || aliases.some((alias) => normalizedSource.includes(cleanNormalize(alias))))
+    .map(([topic]) => topic);
+}
+
+function buildCleanKeywords(input: AiMatchingInput) {
+  const source = [input.projectDescription, ...(input.genres ?? [])].join(" ");
+  const rawTokens = cleanNormalize(source).split(" ").filter((token) => token.length >= 2);
+  const topicTokens = detectCleanTopics(source).flatMap((topic) => [topic, ...(cleanTopicKeywords[topic] ?? [])]);
+  const roleTokens = detectCleanExplicitRoleNeeds(source).flatMap((role) => cleanRoleKeywords[role] ?? []);
+
+  return unique([...rawTokens, ...topicTokens, ...roleTokens, ...(input.genres ?? [])]).slice(0, 36);
+}
+
+function buildCleanTone(projectDescription: string, topics: string[]) {
+  const source = cleanNormalize(projectDescription);
+
+  if (topics.includes("미스터리") || source.includes("괴담") || source.includes("밤") || source.includes("비")) {
+    return "어두운 미스터리와 몰입감이 중요한 분위기";
+  }
+
+  if (topics.includes("로맨스")) {
+    return "감정선과 캐릭터 케미가 중요한 로맨스 무드";
+  }
+
+  if (topics.includes("힐링") || topics.includes("일상")) {
+    return "잔잔하고 오래 머무는 감성";
+  }
+
+  if (topics.includes("애니메이션")) {
+    return "비주얼 연출과 사운드 확장이 중요한 애니메이션 무드";
+  }
+
+  return "멀티 콘텐츠로 확장하기 좋은 작품 분위기";
+}
+
+function buildCleanBrief(input: AiMatchingInput): ProjectBrief {
+  const topics = unique([...detectCleanTopics([input.projectDescription, ...(input.genres ?? [])].join(" ")), ...(input.genres ?? [])]).slice(0, 6);
+  const explicitRoles = detectCleanExplicitRoleNeeds(input.projectDescription);
+  const excludedRoles = detectCleanExcludedRoles(input.projectDescription);
+  const roleNeeds = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role)).slice(0, 5);
+  const neededRoles = roleNeeds.length > 0 ? roleNeeds.map((role) => cleanRoleLabels[role]) : ["그림", "목소리", "BGM"];
+  const tone = buildCleanTone(input.projectDescription, topics);
+
+  return {
+    summary: `${tone}라서 ${neededRoles.join(", ")} 포지션을 붙이면 작품 완성도가 올라갈 것 같아요.`,
+    tone,
+    topics,
+    neededRoles,
+  };
+}
+
+function cleanWeightedMatches(text: string, keywords: string[], weight: number) {
+  const normalizedText = cleanNormalize(text);
+  const matches = keywords.filter((keyword) => normalizedText.includes(cleanNormalize(keyword)));
+
+  return {
+    score: matches.length * weight,
+    matches,
+  };
+}
+
+function buildCleanReasonDetails(input: {
+  role: MemberRole;
+  matchedKeywords: string[];
+  preferredRoleMatched: boolean;
+  responseRate: number;
+  completedProjects: number;
+}) {
+  const details = [];
+
+  if (input.preferredRoleMatched) {
+    details.push(`요청한 직군과 ${cleanRoleLabels[input.role]} 역할이 정확히 맞습니다.`);
+  }
+
+  if (input.matchedKeywords.length > 0) {
+    details.push(`${input.matchedKeywords.slice(0, 4).join(", ")} 키워드가 공개 포트폴리오와 겹칩니다.`);
+  }
+
+  if (input.responseRate >= 90) {
+    details.push(`응답률 ${input.responseRate}%라서 협업 상담을 빠르게 시작하기 좋습니다.`);
+  }
+
+  if (input.completedProjects > 0) {
+    details.push(`완료 프로젝트 ${input.completedProjects}건의 협업 경험이 있습니다.`);
+  }
+
+  return details.length > 0 ? details : ["공개 프로필의 역할, 활동성, 포트폴리오 정보를 기준으로 추천했습니다."];
+}
+
+function buildCleanSuggestedMessage(projectDescription: string, creatorName: string, role: MemberRole, matchedKeywords: string[]) {
+  const keywordText = matchedKeywords.length > 0 ? matchedKeywords.slice(0, 3).join(", ") : "공개 포트폴리오";
+
+  return `${creatorName}님, 제 작품 방향과 ${keywordText} 결이 잘 맞아 보여서 ${cleanRoleLabels[role]} 포지션으로 협업 상담을 드리고 싶습니다. 가능하시다면 작업 범위와 일정부터 짧게 이야기해보고 싶어요.`;
+}
+
+function buildCleanRankedBlock(recommendations: CreatorRecommendation[]) {
+  return recommendations
+    .slice(0, 3)
+    .map((item) => {
+      const keywordText = item.matchedKeywords.length > 0 ? item.matchedKeywords.slice(0, 4).join(", ") : "공개 포트폴리오와 협업 지표";
+
+      return `${item.rank}순위. ${item.creator.displayName}님 (${cleanRoleLabels[item.creator.primaryRole]})\n- 추천 이유: ${item.reason}\n- 근거: ${item.reasonDetails.slice(0, 2).join(" ")}\n- 맞는 키워드: ${keywordText}`;
+    })
+    .join("\n\n");
+}
+
+function getCleanIntent(text: string) {
+  const source = cleanNormalize(text);
+
+  if (["안녕", "하이", "hello", "처음"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "greeting";
+  if (["왜", "이유", "근거"].some((keyword) => source.includes(keyword))) return "explain";
+  if (["비교", "누가 더", "1순위", "2순위"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "compare";
+  if (["dm", "디엠", "메시지", "문구", "제안"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "message";
+  if (["정산", "지분", "수수료", "수익"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "settlement";
+  if (["뭐야", "무슨", "이해", "다시", "쉽게"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "clarify";
+  if (["고마워", "좋아", "오케이", "ㅇㅋ"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "smallTalk";
+
+  return "recommend";
+}
+
+function buildCleanAssistantMessage(input: AiMatchingInput, recommendations: CreatorRecommendation[]) {
+  const brief = buildCleanBrief(input);
+  const latestText = input.projectDescription.trim();
+  const previousUserTexts = input.messages?.filter((message) => message.role === "user").slice(0, -1).map((message) => message.content.trim()).filter(Boolean) ?? [];
+  const memory = previousUserTexts.length > 0 ? `앞에서 말한 조건도 같이 기억하고 있어요: ${previousUserTexts.slice(-2).join(" / ")}\n\n` : "";
+  const intent = getCleanIntent(latestText);
+  const top = recommendations[0];
+  const second = recommendations[1];
+  const third = recommendations[2];
+
+  if (!top) {
+    const requestedRoles = detectCleanExplicitRoleNeeds(latestText).map((role) => cleanRoleLabels[role]);
+    const roleText = requestedRoles.length > 0 ? requestedRoles.join(", ") : brief.neededRoles.join(", ");
+
+    return `${memory}현재 공개 매칭 프로필 중에는 ${roleText} 조건에 딱 맞는 후보가 아직 없어요.\n\n없는 사람을 억지로 추천하지는 않을게요. 대신 지금 공고에는 “${roleText} 포지션 모집, 장르 ${brief.topics.join(", ") || "미정"}, 필요한 작업 범위와 예상 지분”을 명확히 적으면 맞는 창작자가 등록됐을 때 추천 정확도가 올라갑니다.`;
+  }
+
+  if (intent === "greeting") {
+    return "안녕하세요. 저는 작품 설명을 듣고 필요한 팀원을 1·2·3순위로 골라주는 AI 매칭 매니저예요.\n\n장르, 분위기, 필요한 역할을 편하게 말해주면 공개 포트폴리오와 비교해서 추천 이유까지 정리해드릴게요.";
+  }
+
+  if (intent === "smallTalk") {
+    return "좋아요. 편하게 이야기해도 돼요.\n\n작품 얘기가 나오면 바로 매칭 기준으로 바꿔서 후보를 다시 계산할게요. 예를 들어 “미스터리 애니메이션에 맞는 사운드 디자이너 찾아줘”처럼 말하면 됩니다.";
+  }
+
+  if (intent === "clarify") {
+    return `${memory}쉽게 말하면 지금 작품은 “${brief.tone}” 쪽으로 읽혔고, 필요한 역할은 ${brief.neededRoles.join(", ")} 쪽이에요.\n\n그래서 현재 후보 중 ${top.creator.displayName}님을 먼저 봤습니다. “그림만”, “성우 제외”, “사운드 디자이너만”처럼 조건을 더 주면 그 기준으로 다시 좁혀볼게요.`;
+  }
+
+  if (intent === "explain") {
+    return `${memory}${top.creator.displayName}님을 ${top.rank}순위로 본 이유는 세 가지예요.\n\n1. ${top.reason}\n2. ${top.reasonDetails[0] ?? "작품 키워드와 포트폴리오 접점이 있습니다."}\n3. 응답률과 완료 프로젝트를 봤을 때 실제 상담으로 이어질 가능성이 있습니다.`;
+  }
+
+  if (intent === "compare" && second) {
+    return `${memory}비교하면 ${top.creator.displayName}님은 지금 작품의 핵심 조건에 가장 먼저 맞고, ${second.creator.displayName}님은 보조 또는 백업 후보로 좋습니다.\n\n${top.creator.displayName}: ${top.reason}\n${second.creator.displayName}: ${second.reason}\n\n빠르게 팀을 꾸리려면 1순위에게 먼저 DM을 보내고, 2순위는 동시에 백업으로 연락하는 흐름이 좋아요.`;
+  }
+
+  if (intent === "message") {
+    return `${memory}바로 보낼 수 있게 짧게 써볼게요.\n\n“안녕하세요, ${top.creator.displayName}님. 포트폴리오를 보고 제 작품 분위기와 잘 맞을 것 같아 연락드려요. ${top.suggestedMessage} 가능하시다면 작업 범위와 일정부터 짧게 이야기해보고 싶습니다.”`;
+  }
+
+  if (intent === "settlement") {
+    return `${memory}정산 제안은 처음부터 투명하게 말하는 게 좋아요.\n\n“플랫폼 수수료는 일반 13%, 파트너 8% 기준이고, 차감 후 금액을 합의한 지분율대로 자동 정산하는 방식으로 진행하고 싶습니다. 초기안은 30:30:40이지만 역할 범위에 맞춰 조정 가능합니다.”`;
+  }
+
+  return `${memory}좋아요. 작품 방향은 이렇게 읽혔어요.\n\n${brief.summary}\n\n추천 순위는 아래처럼 볼게요.\n\n${buildCleanRankedBlock([top, second, third].filter(Boolean) as CreatorRecommendation[])}\n\n없는 직군은 억지로 섞지 않고, 현재 공개 프로필 안에서만 추천했습니다.`;
+}
+
+function buildCleanFollowUps(input: AiMatchingInput, recommendations: CreatorRecommendation[]) {
+  const top = recommendations[0];
+  const second = recommendations[1];
+
+  if (!top) {
+    return ["매칭 공고 문구 만들어줘", "필요한 역할을 다시 정리해줘", "비슷한 다른 직군도 볼 수 있을까?"];
+  }
+
+  return [
+    `${top.creator.displayName}님에게 보낼 DM 써줘`,
+    second ? `${top.creator.displayName}님과 ${second.creator.displayName}님 비교해줘` : "왜 1순위인지 자세히 알려줘",
+    "13% 수수료와 지분 제안까지 넣어줘",
+  ];
+}
+
+async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchingResponse> {
+  const keywords = buildCleanKeywords(input);
+  const explicitRoles = detectCleanExplicitRoleNeeds(input.projectDescription);
+  const excludedRoles = detectCleanExcludedRoles(input.projectDescription);
+  const preferredRoles = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role));
   const limit = Math.max(1, Math.min(input.limit ?? 3, 6));
+  const brief = buildCleanBrief(input);
 
   const profiles = await prisma.creatorProfile.findMany({
     include: {
@@ -1078,46 +1476,44 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
 
   const recommendations = profiles
     .map((profile) => {
-      const roleKeywordMatches = roleKeywords[profile.primaryRole].filter((keyword) =>
-        normalize(input.projectDescription).includes(normalize(keyword)),
-      );
+      const roleKeywordMatches = cleanRoleKeywords[profile.primaryRole].filter((keyword) => cleanNormalize(input.projectDescription).includes(cleanNormalize(keyword)));
       const explicitRoleMatched = explicitRoles.length === 0 || explicitRoles.includes(profile.primaryRole);
       const preferredRoleMatched = preferredRoles.length === 0 || preferredRoles.includes(profile.primaryRole);
-      const skillMatch = weightedMatches(profile.skills.join(" "), keywords, 18);
-      const headlineMatch = weightedMatches(profile.headline, keywords, 13);
-      const bioMatch = weightedMatches(profile.bio, keywords, 9);
-      const explicitRoleScore =
-        explicitRoles.length === 0 ? 0 : explicitRoleMatched ? 90 : -45;
-      const roleMatchScore = roleKeywordMatches.length * 18 + explicitRoleScore + (preferredRoleMatched ? 18 : -8);
-      const activityScore = Math.min(profile.responseRate / 10, 10) + Math.min(profile.completedProjects * 1.5, 12);
-      const featuredScore = profile.featured ? 8 : 0;
+      const skillMatch = cleanWeightedMatches(profile.skills.join(" "), keywords, 18);
+      const headlineMatch = cleanWeightedMatches(profile.headline, keywords, 13);
+      const bioMatch = cleanWeightedMatches(profile.bio, keywords, 9);
       const score = Math.max(
         0,
-        skillMatch.score + headlineMatch.score + bioMatch.score + roleMatchScore + activityScore + featuredScore,
+        skillMatch.score +
+          headlineMatch.score +
+          bioMatch.score +
+          roleKeywordMatches.length * 18 +
+          (explicitRoles.length === 0 ? 0 : explicitRoleMatched ? 95 : -55) +
+          (preferredRoleMatched ? 20 : -12) +
+          Math.min(profile.responseRate / 10, 10) +
+          Math.min(profile.completedProjects * 1.5, 12) +
+          (profile.featured ? 8 : 0),
       );
-      const matchedKeywords = unique([
-        ...skillMatch.matches,
-        ...headlineMatch.matches,
-        ...bioMatch.matches,
-        ...roleKeywordMatches,
-      ]).slice(0, 8);
-      const reason = buildPrimaryReason(profile.primaryRole, matchedKeywords, preferredRoleMatched);
+      const matchedKeywords = unique([...skillMatch.matches, ...headlineMatch.matches, ...bioMatch.matches, ...roleKeywordMatches]).slice(0, 8);
+      const reason =
+        matchedKeywords.length > 0
+          ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 작품 설명과 공개 포트폴리오에서 겹칩니다.`
+          : `${cleanRoleLabels[profile.primaryRole]} 역할과 협업 지표를 기준으로 추천했습니다.`;
 
       return {
         rank: 0,
         score: Math.round(score),
         matchRate: Math.max(42, Math.min(98, Math.round(52 + score * 0.72))),
         reason,
-        reasonDetails: buildReasonDetails({
+        reasonDetails: buildCleanReasonDetails({
           role: profile.primaryRole,
           matchedKeywords,
           preferredRoleMatched,
           responseRate: profile.responseRate,
           completedProjects: profile.completedProjects,
-          featured: profile.featured,
         }),
         matchedKeywords,
-        suggestedMessage: buildSuggestedMessage(input.projectDescription, profile.user.displayName, profile.primaryRole, matchedKeywords),
+        suggestedMessage: buildCleanSuggestedMessage(input.projectDescription, profile.user.displayName, profile.primaryRole, matchedKeywords),
         creator: {
           id: profile.user.id,
           userId: profile.user.id,
@@ -1144,32 +1540,185 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
         },
       };
     })
-    .filter((item, _index, candidates) => {
-      return explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole);
-    })
-    .sort((left, right) => {
-      const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;
-      const rightExplicitRole = explicitRoles.includes(right.creator.primaryRole) ? 1 : 0;
-
-      return rightExplicitRole - leftExplicitRole || right.score - left.score || right.creator.responseRate - left.creator.responseRate;
-    })
+    .filter((item) => !excludedRoles.includes(item.creator.primaryRole))
+    .filter((item) => explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole))
+    .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
     .slice(0, limit)
-    .map((item, index) => ({
-      ...item,
-      rank: index + 1,
-    }));
+    .map((item, index) => ({ ...item, rank: index + 1 }));
 
-  return buildResponse(input, recommendations);
+  return {
+    provider: "local",
+    assistantMessage: buildCleanAssistantMessage(input, recommendations),
+    projectBrief: brief,
+    recommendations,
+    followUpSuggestions: buildCleanFollowUps(input, recommendations),
+  };
+}
+
+function buildCleanGeminiCandidateContext(recommendations: CreatorRecommendation[]) {
+  return recommendations.slice(0, 5).map((item) => ({
+    rank: item.rank,
+    name: item.creator.displayName,
+    username: item.creator.username,
+    role: cleanRoleLabels[item.creator.primaryRole],
+    headline: item.creator.headline,
+    bio: item.creator.bio,
+    skills: item.creator.skills,
+    responseRate: item.creator.responseRate,
+    completedProjects: item.creator.completedProjects,
+    matchRate: item.matchRate,
+    matchedKeywords: item.matchedKeywords,
+    localReason: item.reason,
+    reasonDetails: item.reasonDetails.slice(0, 3),
+    suggestedMessage: item.suggestedMessage,
+  }));
+}
+
+function buildCleanGeminiPrompt(input: AiMatchingInput, localResponse: AiMatchingResponse, maxInputChars: number) {
+  const conversationHistory = (input.messages ?? [])
+    .slice(-8)
+    .map((message) => `${message.role === "assistant" ? "AI 매칭 매니저" : "사용자"}: ${message.content}`)
+    .join("\n");
+  const explicitRoles = detectCleanExplicitRoleNeeds(input.projectDescription).map((role) => cleanRoleLabels[role]);
+  const excludedRoles = detectCleanExcludedRoles(input.projectDescription).map((role) => cleanRoleLabels[role]);
+  const prompt = `
+사용자의 최신 질문:
+${input.projectDescription}
+
+최근 대화:
+${conversationHistory || "(이전 대화 없음)"}
+
+로컬 분석 요약:
+- 작품 요약: ${localResponse.projectBrief.summary}
+- 톤: ${localResponse.projectBrief.tone}
+- 키워드: ${localResponse.projectBrief.topics.join(", ") || "없음"}
+- 필요한 역할: ${localResponse.projectBrief.neededRoles.join(", ") || "미정"}
+- 직접 요청한 직군: ${explicitRoles.join(", ") || "없음"}
+- 제외한 직군: ${excludedRoles.join(", ") || "없음"}
+
+추천 후보 데이터:
+${JSON.stringify(buildCleanGeminiCandidateContext(localResponse.recommendations), null, 2)}
+
+중요 규칙:
+1. 후보 데이터에 없는 사람은 절대 만들지 않는다.
+2. 요청한 직군 후보가 0명이면 "현재 등록된 후보가 없습니다"라고 솔직하게 말한다.
+3. 그림 작가, 웹툰 작가, 만화 작가, 표지 작가, 콘티 작가, 애니메이터는 그림 직군이다.
+4. 사운드 디자이너, BGM 담당, 효과음, OST는 BGM 직군이다.
+5. "A 말고 B", "A 제외"는 A를 추천하지 않는다.
+6. 추천할 때는 1순위, 2순위, 3순위와 각각의 이유를 짧은 문단으로 말한다.
+7. 사용자가 일상 대화를 하면 자연스럽게 답하되, 작품/팀/기획 이야기가 나오면 매칭 매니저처럼 돕는다.
+
+로컬 fallback 답변:
+${localResponse.assistantMessage}
+`;
+
+  return truncateText(prompt.trim(), maxInputChars);
+}
+
+function isCleanGeminiTextUsable(text: string, recommendations: CreatorRecommendation[]) {
+  if (text.length < 8) {
+    return false;
+  }
+
+  if (recommendations.length === 0) {
+    return text.includes("없") || text.includes("등록") || text.includes("후보");
+  }
+
+  return recommendations.slice(0, 3).some((item) => text.includes(item.creator.displayName));
+}
+
+async function enhanceCleanResponseWithGemini(input: AiMatchingInput, localResponse: AiMatchingResponse): Promise<AiMatchingResponse> {
+  const availability = canUseGeminiApi();
+
+  if (!availability.ok) {
+    return localResponse;
+  }
+
+  reserveGeminiQuota();
+
+  const { config } = availability;
+  const apiKey = config.apiKey;
+
+  if (!apiKey) {
+    return localResponse;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [
+              {
+                text:
+                  "너는 Creator Universe의 AI 매칭 매니저다. 항상 한국어로 답한다. Gemini가 우선 답하지만, 제공된 후보 데이터와 로컬 분석을 절대 벗어나지 않는다. 후보 데이터에 없는 사람, 포트폴리오, 숫자는 지어내지 않는다. 요청 직군 후보가 없으면 솔직히 없다고 말하고 어떤 프로필이 등록되면 좋은지 안내한다. 답변은 모바일에서 읽기 좋게 짧은 문단과 1·2·3순위 구조로 작성한다. 일반 수수료는 13%, 파트너 수수료는 8%로 설명한다.",
+              },
+            ],
+          },
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: buildCleanGeminiPrompt(input, localResponse, config.maxInputChars) }],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: config.maxOutputTokens,
+          },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      return localResponse;
+    }
+
+    const payload = (await response.json()) as GeminiGenerateContentResponse;
+    const assistantMessage = extractGeminiText(payload);
+
+    if (!isCleanGeminiTextUsable(assistantMessage, localResponse.recommendations)) {
+      return localResponse;
+    }
+
+    return {
+      ...localResponse,
+      provider: "gemini",
+      assistantMessage,
+    };
+  } catch {
+    return localResponse;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function recommendCreatorsForProject(input: AiMatchingInput): Promise<AiMatchingResponse> {
+  const localResponse = await buildCleanLocalResponse(input);
+
+  return enhanceCleanResponseWithGemini(input, localResponse);
 }
 
 export async function createAiMatchingChat(input: AiMatchingInput): Promise<AiMatchingResponse> {
   const conversationInput = buildConversationAwareInput(input);
-  const response = await recommendCreatorsForProject(conversationInput);
-  const localChatResponse: AiMatchingResponse = {
-    ...response,
-    assistantMessage: buildConversationalAssistantMessage(input, response.projectBrief, response.recommendations),
-    followUpSuggestions: buildConversationalFollowUpSuggestions(input, response.projectBrief, response.recommendations),
+  const localResponse = await buildCleanLocalResponse(conversationInput);
+  const conversationalResponse: AiMatchingResponse = {
+    ...localResponse,
+    assistantMessage: buildCleanAssistantMessage(input, localResponse.recommendations),
+    followUpSuggestions: buildCleanFollowUps(input, localResponse.recommendations),
   };
 
-  return enhanceResponseWithGemini(input, localChatResponse);
+  return enhanceCleanResponseWithGemini(input, conversationalResponse);
 }
+
+export const __aiMatchingTestUtils = {
+  detectExplicitRoleNeeds: detectCleanExplicitRoleNeeds,
+  detectExcludedRoles: detectCleanExcludedRoles,
+  detectRoleNeeds: (source: string, preferredRoles: MemberRole[]) =>
+    unique([...detectCleanExplicitRoleNeeds(source), ...preferredRoles]).filter((role) => !detectCleanExcludedRoles(source).includes(role)),
+};

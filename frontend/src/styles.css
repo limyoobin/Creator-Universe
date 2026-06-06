@@ -6744,6 +6744,25 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   box-shadow: 0 12px 24px color-mix(in srgb, var(--brand) 24%, transparent);
 }
 
+.ai-availability-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ai-availability-note span {
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: color-mix(in srgb, var(--brand) 72%, var(--text));
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--cyan) 14%, transparent), transparent 7rem),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  font-size: 12px;
+  font-weight: 950;
+}
+
 .ai-match-submit {
   justify-content: center;
   width: 100%;
@@ -6764,7 +6783,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   gap: 14px;
   border: 1px solid var(--line);
   border-radius: 28px;
-  padding: 18px;
+  padding: clamp(16px, 2.4vw, 22px);
   background:
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--brand) 10%, transparent), transparent 14rem),
     color-mix(in srgb, var(--surface) 90%, transparent);
@@ -6846,6 +6865,12 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   vertical-align: middle;
 }
 
+.ai-provider-badge.waiting {
+  border-color: color-mix(in srgb, var(--violet) 26%, var(--line));
+  color: color-mix(in srgb, var(--violet) 72%, var(--text));
+  background: color-mix(in srgb, var(--violet) 9%, var(--surface));
+}
+
 .ai-provider-badge.gemini {
   border-color: color-mix(in srgb, var(--cyan) 42%, var(--line));
   color: color-mix(in srgb, var(--cyan) 80%, var(--text));
@@ -6874,7 +6899,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .ai-starter-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -6892,6 +6917,16 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 8rem),
     color-mix(in srgb, var(--surface) 92%, transparent);
   box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 42%, transparent);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ai-starter-grid button:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--brand) 42%, var(--line));
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--shadow-color) 50%, transparent);
 }
 
 .ai-starter-grid button:first-child {
@@ -6916,7 +6951,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .ai-chat-log {
   display: grid;
-  max-height: 360px;
+  max-height: min(420px, 54vh);
   gap: 12px;
   overflow: auto;
   overscroll-behavior: contain;
@@ -6946,7 +6981,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
 .ai-chat-bubble p {
   width: fit-content;
-  max-width: 100%;
+  max-width: min(100%, 820px);
   margin: 0;
   border: 1px solid var(--line);
   border-radius: 22px;
@@ -6965,6 +7000,7 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 }
 
 .ai-chat-bubble.user p {
+  justify-self: end;
   color: #fff;
   background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
   box-shadow: 0 18px 34px color-mix(in srgb, var(--brand) 22%, transparent);
@@ -7129,6 +7165,57 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     radial-gradient(circle at 90% 12%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 12rem),
     color-mix(in srgb, var(--surface) 94%, transparent);
   box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 64%, transparent);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ai-recommendation-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 54px color-mix(in srgb, var(--shadow-color) 72%, transparent);
+}
+
+.ai-empty-result-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand) 18%, var(--line));
+  border-radius: 28px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--brand) 13%, transparent), transparent 12rem),
+    color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--shadow-color) 52%, transparent);
+}
+
+.ai-empty-result-card > svg {
+  color: var(--brand);
+}
+
+.ai-empty-result-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.ai-empty-result-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.ai-empty-result-card button {
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 15px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--violet), var(--cyan));
+  font-weight: 950;
 }
 
 .ai-rank-badge {
@@ -7351,6 +7438,11 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
     min-height: 82px;
   }
 
+  .ai-availability-note {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .ai-chat-log {
     max-height: 420px;
     padding: 12px;
@@ -7382,6 +7474,15 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
 
   .ai-card-actions {
     grid-template-columns: 1fr;
+  }
+
+  .ai-empty-result-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .ai-empty-result-card button {
+    width: 100%;
   }
 }
 

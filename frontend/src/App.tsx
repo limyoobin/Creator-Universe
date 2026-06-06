@@ -375,6 +375,16 @@ const aiStarterPrompts = [
     prompt: "1순위랑 2순위를 비교해서 누가 더 먼저 연락하기 좋은지 알려줘.",
   },
   {
+    label: "그림 작가만",
+    helper: "글 작가 제외하고 찾기",
+    prompt: "글 작가 말고 웹툰 콘티와 표지까지 가능한 그림 작가만 추천해줘.",
+  },
+  {
+    label: "사운드 찾기",
+    helper: "BGM·효과음 후보 확인",
+    prompt: "어두운 미스터리 오디오드라마에 맞는 사운드 디자이너나 BGM 담당이 있을까?",
+  },
+  {
     label: "DM 작성",
     helper: "바로 보낼 문구 만들기",
     prompt: "추천 후보에게 보낼 첫 DM을 자연스럽고 부담 없게 써줘.",
@@ -1533,7 +1543,7 @@ const aiRoleKeywords: Record<string, string[]> = {
 };
 
 const aiRolePhraseKeywords: Record<string, string[]> = {
-  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당"],
+  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "플롯 작가", "세계관 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당", "원고 담당"],
   ILLUSTRATOR: [
     "그림 작가",
     "그림작가",
@@ -1541,18 +1551,27 @@ const aiRolePhraseKeywords: Record<string, string[]> = {
     "일러스트레이터",
     "웹툰 작가",
     "만화 작가",
+    "콘티 작가",
     "작화가",
     "작화 담당",
     "그림 담당",
+    "배경 작가",
+    "배경 일러스트",
     "표지 작가",
+    "썸네일 작가",
+    "키비주얼 작가",
     "캐릭터 디자이너",
     "캐릭터디자이너",
     "원화가",
     "애니메이터",
+    "SD 캐릭터",
+    "라이브2D",
   ],
-  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터"],
-  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "작곡가", "효과음 담당", "폴리 아티스트"],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터", "남성 성우", "여성 성우", "저음 성우", "감정 연기"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "OST 담당", "테마곡 담당", "작곡가", "효과음 담당", "음향효과", "믹싱 엔지니어", "폴리 아티스트"],
 };
+
+const aiRoleExclusionPhrases = ["말고", "제외", "빼고", "필요 없어", "필요없", "나중", "후순위", "아니고"];
 
 const aiGenreKeywords: Record<string, string[]> = {
   로맨스: ["로맨스", "연애", "청춘", "짝사랑", "설렘", "감정선"],
@@ -1644,6 +1663,29 @@ function buildAiPromptKeywords(prompt: string, filters: string[]) {
   return Array.from(new Set([...rawTokens, ...genreTokens, ...roleTokens, ...filters])).slice(0, 36);
 }
 
+function getAiRoleAliases(role: string) {
+  return Array.from(new Set([roleLabels[role], ...(aiRolePhraseKeywords[role] ?? []), ...(aiRoleKeywords[role] ?? [])]))
+    .map((alias) => normalizeAiText(alias))
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+}
+
+function detectExcludedAiRoles(prompt: string) {
+  const source = normalizeAiText(prompt);
+
+  return Array.from(new Set(
+    Object.keys(aiRoleKeywords).filter((role) =>
+      getAiRoleAliases(role).some((alias) =>
+        aiRoleExclusionPhrases.some((phrase) => {
+          const normalizedPhrase = normalizeAiText(phrase);
+
+          return source.includes(`${alias} ${normalizedPhrase}`);
+        }),
+      ),
+    ),
+  ));
+}
+
 function detectExplicitAiRoles(prompt: string) {
   const source = normalizeAiText(prompt);
   const phraseRoles = Object.entries(aiRolePhraseKeywords)
@@ -1651,13 +1693,15 @@ function detectExplicitAiRoles(prompt: string) {
     .map(([role]) => role);
   const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
   const hasWriterPhrase = phraseRoles.includes("WRITER");
+  const excludedRoles = detectExcludedAiRoles(prompt);
 
   const keywordRoles = Object.entries(aiRoleKeywords)
     .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
     .map(([role]) => role)
+    .filter((role) => !excludedRoles.includes(role))
     .filter((role) => !(role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase));
 
-  return Array.from(new Set([...phraseRoles, ...keywordRoles]));
+  return Array.from(new Set([...phraseRoles, ...keywordRoles])).filter((role) => !excludedRoles.includes(role));
 }
 
 function buildLocalAiRecommendations(
@@ -1669,7 +1713,8 @@ function buildLocalAiRecommendations(
   const keywords = buildAiPromptKeywords(prompt, filters);
   const normalizedPrompt = normalizeAiText(prompt);
   const explicitRoles = detectExplicitAiRoles(prompt);
-  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles]));
+  const excludedRoles = detectExcludedAiRoles(prompt);
+  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles])).filter((role) => !excludedRoles.includes(role));
 
   return sourceCreators
     .map((creator) => {
@@ -1744,6 +1789,10 @@ function buildLocalAiRecommendations(
       };
     })
     .filter((item, _index, candidates) => {
+      if (excludedRoles.includes(item.creator.primaryRole)) {
+        return false;
+      }
+
       return explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole);
     })
     .sort((left, right) => {
@@ -1831,7 +1880,8 @@ function buildLocalAiMatchingResponse(
   const conversationPrompt = (projectSignalMessages.length > 0 ? projectSignalMessages : userMessages).join("\n");
   const recommendationPrompt = conversationPrompt || prompt;
   const explicitRoles = detectExplicitAiRoles(recommendationPrompt);
-  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles]));
+  const excludedRoles = detectExcludedAiRoles(recommendationPrompt);
+  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles])).filter((role) => !excludedRoles.includes(role));
   const recommendations = buildLocalAiRecommendations(sourceCreators, recommendationPrompt, effectivePreferredRoles, filters);
   const keywords = buildAiPromptKeywords(conversationPrompt || prompt, filters);
   const topics = Object.keys(aiGenreKeywords)
@@ -1893,7 +1943,12 @@ function buildLocalAiMatchingResponse(
               : wantsRefine
                 ? `${contextPrefix}조건을 바꿔서 다시 보면 ${topCreator}님을 유지하되${secondRecommendation ? `, ${secondRecommendation.creator.displayName}님을 비교 후보로 같이 두는 게 좋아요.` : " 후보군을 조금 더 넓히는 게 좋아요."} 제외할 직군이나 더 원하는 분위기를 말해주면 다시 좁혀볼게요.`
                 : `${contextPrefix}좋아요. 이 작품은 ${summary}\n\n추천 순위는 이렇게 볼게요.\n\n${buildLocalRankedRecommendationBlock(recommendations)}\n\n정리하면, 1순위는 작품 키워드와 포트폴리오 접점이 가장 강한 후보이고, 2·3순위는 팀 밸런스를 보완하거나 백업으로 연락하기 좋은 후보입니다.`
-    : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`);
+    : (() => {
+        const requestedRoleText = explicitRoles.map((roleId) => roleLabels[roleId]).filter(Boolean).join(", ");
+        return requestedRoleText
+          ? `요청한 ${requestedRoleText} 직군의 공개 프로필이 아직 부족해요.\n\n지금 조건은 ${summary} 팀원 찾기에 해당 직군 프로필이 더 등록되면 추천 정확도가 올라갑니다. 우선 프로필 등록을 유도하거나, 장르와 작업 범위를 더 적어주면 다시 좁혀볼게요.`
+          : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
+      })());
 
   return {
     assistantMessage,
@@ -8012,6 +8067,11 @@ export function App() {
                 예를 들어 “도시괴담 느낌의 미스터리 웹소설인데 낮은 톤의 성우와 네온 감성 일러스트가 필요해요”처럼 적으면,
                 AI가 작품 분위기를 요약하고 공개 포트폴리오를 비교해 추천 이유까지 대화형으로 정리합니다.
               </p>
+              <div className="ai-availability-note" aria-label="AI 매칭 동작 기준">
+                <span>Gemini 우선 응답</span>
+                <span>등록 후보만 추천</span>
+                <span>후보 없으면 솔직 안내</span>
+              </div>
             </div>
 
             <div className="ai-match-workbench">
@@ -8047,7 +8107,7 @@ export function App() {
                             ? "Gemini API"
                             : aiMatchResponse
                               ? "로컬 추천"
-                              : "엔진 대기"}
+                              : "Gemini 대기"}
                         </span>
                       </p>
                     </div>
@@ -8188,6 +8248,19 @@ export function App() {
                     </article>
                   );
                 })}
+              </div>
+            )}
+
+            {aiMatchResponse && aiMatchResults.length === 0 && (
+              <div className="ai-empty-result-card">
+                <Bot size={24} />
+                <div>
+                  <strong>현재 조건에 맞는 등록 후보가 없어요</strong>
+                  <p>없는 창작자를 억지로 추천하지 않고, 매칭 공고에 어떤 역할과 포트폴리오 조건을 적으면 좋을지 먼저 안내합니다.</p>
+                </div>
+                <button type="button" onClick={() => void runAiMatchingRecommendation("이 조건으로 매칭 공고 문구를 만들어줘")}>
+                  공고 문구 만들기
+                </button>
               </div>
             )}
           </section>
