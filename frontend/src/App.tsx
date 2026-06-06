@@ -171,6 +171,7 @@ type AiMatchRecommendation = {
 
 type AiMatchingResponse = {
   provider?: "local" | "gemini";
+  providerNote?: string;
   assistantMessage: string;
   projectBrief: {
     summary: string;
@@ -1590,6 +1591,18 @@ function normalizeAiText(value: string) {
   return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 }
 
+function getAiRoleDetectionSource(value: string) {
+  const markers = ["지금은", "이번엔", "이번에는", "현재는", "이번 질문은", "다음은"];
+  const source = value.toLowerCase();
+  const markerIndex = markers.reduce((latestIndex, marker) => {
+    const index = source.lastIndexOf(marker);
+
+    return index > latestIndex ? index : latestIndex;
+  }, -1);
+
+  return markerIndex >= 0 ? value.slice(markerIndex) : value;
+}
+
 function isLowSignalAiText(value: string) {
   const source = normalizeAiText(value);
 
@@ -1671,7 +1684,7 @@ function getAiRoleAliases(role: string) {
 }
 
 function detectExcludedAiRoles(prompt: string) {
-  const source = normalizeAiText(prompt);
+  const source = normalizeAiText(getAiRoleDetectionSource(prompt));
 
   return Array.from(new Set(
     Object.keys(aiRoleKeywords).filter((role) =>
@@ -1687,7 +1700,7 @@ function detectExcludedAiRoles(prompt: string) {
 }
 
 function detectExplicitAiRoles(prompt: string) {
-  const source = normalizeAiText(prompt);
+  const source = normalizeAiText(getAiRoleDetectionSource(prompt));
   const phraseRoles = Object.entries(aiRolePhraseKeywords)
     .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
     .map(([role]) => role);
@@ -1788,12 +1801,14 @@ function buildLocalAiRecommendations(
         creator,
       };
     })
-    .filter((item, _index, candidates) => {
+    .filter((item) => {
       if (excludedRoles.includes(item.creator.primaryRole)) {
         return false;
       }
 
-      return explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole);
+      const scopedRoles = explicitRoles.length > 0 ? explicitRoles : effectivePreferredRoles;
+
+      return scopedRoles.length === 0 || scopedRoles.includes(item.creator.primaryRole);
     })
     .sort((left, right) => {
       const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;
@@ -1879,10 +1894,13 @@ function buildLocalAiMatchingResponse(
   const projectSignalMessages = Array.from(new Set([...userMessages, prompt].filter(Boolean))).filter((message) => !isLowSignalAiText(message));
   const conversationPrompt = (projectSignalMessages.length > 0 ? projectSignalMessages : userMessages).join("\n");
   const recommendationPrompt = conversationPrompt || prompt;
-  const explicitRoles = detectExplicitAiRoles(recommendationPrompt);
-  const excludedRoles = detectExcludedAiRoles(recommendationPrompt);
-  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles])).filter((role) => !excludedRoles.includes(role));
-  const recommendations = buildLocalAiRecommendations(sourceCreators, recommendationPrompt, effectivePreferredRoles, filters);
+  const latestExplicitRoles = detectExplicitAiRoles(prompt);
+  const latestExcludedRoles = detectExcludedAiRoles(prompt);
+  const roleScopedPrompt = latestExplicitRoles.length > 0 || latestExcludedRoles.length > 0 ? prompt : recommendationPrompt;
+  const explicitRoles = detectExplicitAiRoles(roleScopedPrompt);
+  const excludedRoles = detectExcludedAiRoles(roleScopedPrompt);
+  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...(latestExplicitRoles.length > 0 ? [] : preferredRoles)])).filter((role) => !excludedRoles.includes(role));
+  const recommendations = buildLocalAiRecommendations(sourceCreators, roleScopedPrompt, effectivePreferredRoles, filters);
   const keywords = buildAiPromptKeywords(conversationPrompt || prompt, filters);
   const topics = Object.keys(aiGenreKeywords)
     .filter((topic) => keywords.some((keyword) => normalizeAiText(topic).includes(normalizeAiText(keyword)) || normalizeAiText(keyword).includes(normalizeAiText(topic))))
@@ -8110,6 +8128,9 @@ export function App() {
                               : "Gemini 대기"}
                         </span>
                       </p>
+                      {aiMatchResponse?.provider === "local" && aiMatchResponse.providerNote && (
+                        <small className="ai-provider-note">{aiMatchResponse.providerNote}</small>
+                      )}
                     </div>
                   </div>
                   <button className="ai-reset-button" type="button" onClick={resetAiMatchingConversation}>

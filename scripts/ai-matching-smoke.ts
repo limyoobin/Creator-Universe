@@ -36,6 +36,11 @@ const cases: SmokeCase[] = [
     prompt: "숏폼 애니메이션 파일럿에 맞는 애니메이터랑 원화가가 필요해.",
     includes: [MemberRole.ILLUSTRATOR],
   },
+  {
+    name: "최신 질문의 사운드 요청은 사운드 직군",
+    prompt: "전에 글 그림 작가를 봤는데, 지금은 사운드 디자이너 매칭 있나? 추천해줄 사람 있나?",
+    includes: [MemberRole.SOUND_DIRECTOR],
+  },
 ];
 
 const failures: string[] = [];

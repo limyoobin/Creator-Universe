@@ -55,6 +55,7 @@ type CreatorRecommendation = {
 
 type AiMatchingResponse = {
   provider: "local" | "gemini";
+  providerNote?: string;
   assistantMessage: string;
   projectBrief: ProjectBrief;
   recommendations: CreatorRecommendation[];
@@ -259,8 +260,12 @@ function canUseGeminiApi() {
   const config = getGeminiConfig();
   resetGeminiQuotaIfNeeded();
 
-  if (!config.enabled || !config.apiKey) {
-    return { ok: false as const, config, reason: "Gemini is disabled or GEMINI_API_KEY is missing." };
+  if (!config.apiKey) {
+    return { ok: false as const, config, reason: "GEMINI_API_KEY is missing." };
+  }
+
+  if (!config.enabled) {
+    return { ok: false as const, config, reason: "Gemini is disabled by GEMINI_AI_ENABLED." };
   }
 
   if (config.freeOnly && !GEMINI_FREE_MODEL_ALLOWLIST.has(config.model)) {
@@ -276,6 +281,30 @@ function canUseGeminiApi() {
   }
 
   return { ok: true as const, config };
+}
+
+function getGeminiFallbackNote(reason: string) {
+  if (reason.includes("GEMINI_API_KEY")) {
+    return "Gemini API 키가 백엔드 환경변수에 없어서 로컬 매칭으로 응답했습니다.";
+  }
+
+  if (reason.includes("disabled")) {
+    return "Gemini가 비활성화되어 로컬 매칭으로 응답했습니다. GEMINI_AI_ENABLED 값을 확인해 주세요.";
+  }
+
+  if (reason.includes("daily request limit")) {
+    return "Gemini 무료 사용량 한도에 도달해 로컬 매칭으로 응답했습니다.";
+  }
+
+  if (reason.includes("minimum request interval")) {
+    return "Gemini 호출 간격 제한 중이라 로컬 매칭으로 응답했습니다.";
+  }
+
+  if (reason.includes("blocked by GEMINI_FREE_ONLY")) {
+    return "무료 허용 모델이 아니라 로컬 매칭으로 응답했습니다. GEMINI_MODEL 또는 GEMINI_FREE_ONLY를 확인해 주세요.";
+  }
+
+  return "Gemini를 사용할 수 없어 로컬 매칭으로 응답했습니다.";
 }
 
 function reserveGeminiQuota() {
@@ -528,8 +557,14 @@ function isLowSignalConversationText(text: string) {
 }
 
 function getConversationSource(input: AiMatchingInput) {
+  const latestText = input.projectDescription.trim();
+
+  if (detectReliableExplicitRoleNeeds(latestText).length > 0 || detectReliableExcludedRoles(latestText).length > 0) {
+    return latestText;
+  }
+
   const recentTexts = getRecentUserTexts(input);
-  const projectSignals = unique([...recentTexts, input.projectDescription.trim()].filter(Boolean)).filter(
+  const projectSignals = unique([...recentTexts, latestText].filter(Boolean)).filter(
     (text) => !isLowSignalConversationText(text),
   );
 
@@ -1264,6 +1299,100 @@ function detectCleanExplicitRoleNeeds(source: string) {
   return unique([...detectCleanPhraseRoles(source), ...detectCleanKeywordRoles(source)]).filter((role) => !excludedRoles.includes(role));
 }
 
+const reliableRoleLabels: Record<MemberRole, string> = {
+  WRITER: "글",
+  ILLUSTRATOR: "그림",
+  VOICE_ACTOR: "목소리",
+  SOUND_DIRECTOR: "BGM",
+  PRODUCER: "프로듀서",
+  EDITOR: "에디터",
+};
+
+const reliableRoleKeywords: Record<MemberRole, string[]> = {
+  WRITER: ["글", "작가", "소설", "웹소설", "스토리", "대본", "시나리오", "원고", "플롯", "세계관", "각색"],
+  ILLUSTRATOR: ["그림", "일러스트", "일러스트레이터", "웹툰", "만화", "콘티", "표지", "키비주얼", "작화", "채색", "원화", "동화", "애니메이터", "애니메이션", "캐릭터"],
+  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "나레이션", "대사", "감정연기", "오디오 연기"],
+  SOUND_DIRECTOR: ["bgm", "브금", "사운드", "사운드디자이너", "사운드 디자이너", "음향", "효과음", "믹싱", "작곡", "ost", "테마곡", "폴리", "앰비언트", "asmr"],
+  PRODUCER: ["프로듀서", "기획", "pm", "연출", "감독", "제작관리", "프로젝트 매니저"],
+  EDITOR: ["편집", "식자", "교정", "검수", "자막", "에디터"],
+};
+
+const reliableRolePhrases: Record<MemberRole, string[]> = {
+  WRITER: ["글 작가", "소설 작가", "웹소설 작가", "스토리 작가", "대본 작가", "시나리오 작가", "원고 담당", "플롯 작가"],
+  ILLUSTRATOR: ["그림 작가", "일러스트 작가", "일러스트레이터", "웹툰 작가", "만화 작가", "콘티 작가", "표지 작가", "키비주얼 작가", "원화가", "애니메이터", "캐릭터 디자이너"],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "감정 연기"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "OST 담당", "테마곡 담당", "작곡가", "효과음 담당", "믹싱 엔지니어", "폴리 아티스트"],
+  PRODUCER: ["프로듀서", "기획자", "제작자", "연출자", "프로젝트 매니저"],
+  EDITOR: ["편집자", "식자 담당", "교정 담당", "검수 담당", "자막 담당"],
+};
+
+const reliableRoleExclusionPhrases = ["말고", "제외", "빼고", "필요 없어", "필요없", "나중", "후순위", "아니고"];
+
+function getReliableRoleDetectionSource(source: string) {
+  const markers = ["지금은", "이번엔", "이번에는", "현재는", "이번 질문은", "다음은"];
+  const normalizedSource = source.toLowerCase();
+  const markerIndex = markers.reduce((latestIndex, marker) => {
+    const index = normalizedSource.lastIndexOf(marker);
+
+    return index > latestIndex ? index : latestIndex;
+  }, -1);
+
+  return markerIndex >= 0 ? source.slice(markerIndex) : source;
+}
+
+function reliableRoleAliases(role: MemberRole) {
+  return unique([reliableRoleLabels[role], ...(reliableRolePhrases[role] ?? []), ...(reliableRoleKeywords[role] ?? [])])
+    .map((alias) => cleanNormalize(alias))
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+}
+
+function detectReliableExcludedRoles(source: string) {
+  const normalizedSource = cleanNormalize(getReliableRoleDetectionSource(source));
+
+  return unique(
+    Object.values(MemberRole).filter((role) =>
+      reliableRoleAliases(role).some((alias) =>
+        reliableRoleExclusionPhrases.some((phrase) => normalizedSource.includes(`${alias} ${cleanNormalize(phrase)}`)),
+      ),
+    ),
+  );
+}
+
+function detectReliablePhraseRoles(source: string) {
+  const normalizedSource = cleanNormalize(getReliableRoleDetectionSource(source));
+
+  return Object.entries(reliableRolePhrases)
+    .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(cleanNormalize(alias))))
+    .map(([role]) => role as MemberRole);
+}
+
+function detectReliableKeywordRoles(source: string) {
+  const normalizedSource = cleanNormalize(getReliableRoleDetectionSource(source));
+  const phraseRoles = detectReliablePhraseRoles(source);
+  const excludedRoles = detectReliableExcludedRoles(source);
+  const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
+  const hasWriterPhrase = phraseRoles.includes("WRITER");
+
+  return unique(
+    Object.entries(reliableRoleKeywords)
+      .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(cleanNormalize(alias))))
+      .map(([role]) => role as MemberRole),
+  ).filter((role) => {
+    if (excludedRoles.includes(role)) {
+      return false;
+    }
+
+    return !(role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase);
+  });
+}
+
+function detectReliableExplicitRoleNeeds(source: string) {
+  const excludedRoles = detectReliableExcludedRoles(source);
+
+  return unique([...detectReliablePhraseRoles(source), ...detectReliableKeywordRoles(source)]).filter((role) => !excludedRoles.includes(role));
+}
+
 function detectCleanTopics(source: string) {
   const normalizedSource = cleanNormalize(source);
 
@@ -1276,7 +1405,7 @@ function buildCleanKeywords(input: AiMatchingInput) {
   const source = [input.projectDescription, ...(input.genres ?? [])].join(" ");
   const rawTokens = cleanNormalize(source).split(" ").filter((token) => token.length >= 2);
   const topicTokens = detectCleanTopics(source).flatMap((topic) => [topic, ...(cleanTopicKeywords[topic] ?? [])]);
-  const roleTokens = detectCleanExplicitRoleNeeds(source).flatMap((role) => cleanRoleKeywords[role] ?? []);
+  const roleTokens = detectReliableExplicitRoleNeeds(source).flatMap((role) => reliableRoleKeywords[role] ?? []);
 
   return unique([...rawTokens, ...topicTokens, ...roleTokens, ...(input.genres ?? [])]).slice(0, 36);
 }
@@ -1305,10 +1434,10 @@ function buildCleanTone(projectDescription: string, topics: string[]) {
 
 function buildCleanBrief(input: AiMatchingInput): ProjectBrief {
   const topics = unique([...detectCleanTopics([input.projectDescription, ...(input.genres ?? [])].join(" ")), ...(input.genres ?? [])]).slice(0, 6);
-  const explicitRoles = detectCleanExplicitRoleNeeds(input.projectDescription);
-  const excludedRoles = detectCleanExcludedRoles(input.projectDescription);
+  const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription);
+  const excludedRoles = detectReliableExcludedRoles(input.projectDescription);
   const roleNeeds = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role)).slice(0, 5);
-  const neededRoles = roleNeeds.length > 0 ? roleNeeds.map((role) => cleanRoleLabels[role]) : ["그림", "목소리", "BGM"];
+  const neededRoles = roleNeeds.length > 0 ? roleNeeds.map((role) => reliableRoleLabels[role]) : ["그림", "목소리", "BGM"];
   const tone = buildCleanTone(input.projectDescription, topics);
 
   return {
@@ -1339,7 +1468,7 @@ function buildCleanReasonDetails(input: {
   const details = [];
 
   if (input.preferredRoleMatched) {
-    details.push(`요청한 직군과 ${cleanRoleLabels[input.role]} 역할이 정확히 맞습니다.`);
+    details.push(`요청한 직군과 ${reliableRoleLabels[input.role]} 역할이 정확히 맞습니다.`);
   }
 
   if (input.matchedKeywords.length > 0) {
@@ -1360,7 +1489,7 @@ function buildCleanReasonDetails(input: {
 function buildCleanSuggestedMessage(projectDescription: string, creatorName: string, role: MemberRole, matchedKeywords: string[]) {
   const keywordText = matchedKeywords.length > 0 ? matchedKeywords.slice(0, 3).join(", ") : "공개 포트폴리오";
 
-  return `${creatorName}님, 제 작품 방향과 ${keywordText} 결이 잘 맞아 보여서 ${cleanRoleLabels[role]} 포지션으로 협업 상담을 드리고 싶습니다. 가능하시다면 작업 범위와 일정부터 짧게 이야기해보고 싶어요.`;
+  return `${creatorName}님, 제 작품 방향과 ${keywordText} 결이 잘 맞아 보여서 ${reliableRoleLabels[role]} 포지션으로 협업 상담을 드리고 싶습니다. 가능하시다면 작업 범위와 일정부터 짧게 이야기해보고 싶어요.`;
 }
 
 function buildCleanRankedBlock(recommendations: CreatorRecommendation[]) {
@@ -1369,7 +1498,7 @@ function buildCleanRankedBlock(recommendations: CreatorRecommendation[]) {
     .map((item) => {
       const keywordText = item.matchedKeywords.length > 0 ? item.matchedKeywords.slice(0, 4).join(", ") : "공개 포트폴리오와 협업 지표";
 
-      return `${item.rank}순위. ${item.creator.displayName}님 (${cleanRoleLabels[item.creator.primaryRole]})\n- 추천 이유: ${item.reason}\n- 근거: ${item.reasonDetails.slice(0, 2).join(" ")}\n- 맞는 키워드: ${keywordText}`;
+      return `${item.rank}순위. ${item.creator.displayName}님 (${reliableRoleLabels[item.creator.primaryRole]})\n- 추천 이유: ${item.reason}\n- 근거: ${item.reasonDetails.slice(0, 2).join(" ")}\n- 맞는 키워드: ${keywordText}`;
     })
     .join("\n\n");
 }
@@ -1399,7 +1528,7 @@ function buildCleanAssistantMessage(input: AiMatchingInput, recommendations: Cre
   const third = recommendations[2];
 
   if (!top) {
-    const requestedRoles = detectCleanExplicitRoleNeeds(latestText).map((role) => cleanRoleLabels[role]);
+    const requestedRoles = detectReliableExplicitRoleNeeds(latestText).map((role) => reliableRoleLabels[role]);
     const roleText = requestedRoles.length > 0 ? requestedRoles.join(", ") : brief.neededRoles.join(", ");
 
     return `${memory}현재 공개 매칭 프로필 중에는 ${roleText} 조건에 딱 맞는 후보가 아직 없어요.\n\n없는 사람을 억지로 추천하지는 않을게요. 대신 지금 공고에는 “${roleText} 포지션 모집, 장르 ${brief.topics.join(", ") || "미정"}, 필요한 작업 범위와 예상 지분”을 명확히 적으면 맞는 창작자가 등록됐을 때 추천 정확도가 올라갑니다.`;
@@ -1453,8 +1582,8 @@ function buildCleanFollowUps(input: AiMatchingInput, recommendations: CreatorRec
 
 async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchingResponse> {
   const keywords = buildCleanKeywords(input);
-  const explicitRoles = detectCleanExplicitRoleNeeds(input.projectDescription);
-  const excludedRoles = detectCleanExcludedRoles(input.projectDescription);
+  const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription);
+  const excludedRoles = detectReliableExcludedRoles(input.projectDescription);
   const preferredRoles = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role));
   const limit = Math.max(1, Math.min(input.limit ?? 3, 6));
   const brief = buildCleanBrief(input);
@@ -1476,7 +1605,7 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
 
   const recommendations = profiles
     .map((profile) => {
-      const roleKeywordMatches = cleanRoleKeywords[profile.primaryRole].filter((keyword) => cleanNormalize(input.projectDescription).includes(cleanNormalize(keyword)));
+      const roleKeywordMatches = reliableRoleKeywords[profile.primaryRole].filter((keyword) => cleanNormalize(input.projectDescription).includes(cleanNormalize(keyword)));
       const explicitRoleMatched = explicitRoles.length === 0 || explicitRoles.includes(profile.primaryRole);
       const preferredRoleMatched = preferredRoles.length === 0 || preferredRoles.includes(profile.primaryRole);
       const skillMatch = cleanWeightedMatches(profile.skills.join(" "), keywords, 18);
@@ -1498,7 +1627,7 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
       const reason =
         matchedKeywords.length > 0
           ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 작품 설명과 공개 포트폴리오에서 겹칩니다.`
-          : `${cleanRoleLabels[profile.primaryRole]} 역할과 협업 지표를 기준으로 추천했습니다.`;
+          : `${reliableRoleLabels[profile.primaryRole]} 역할과 협업 지표를 기준으로 추천했습니다.`;
 
       return {
         rank: 0,
@@ -1541,7 +1670,11 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
       };
     })
     .filter((item) => !excludedRoles.includes(item.creator.primaryRole))
-    .filter((item) => explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole))
+    .filter((item) => {
+      const scopedRoles = explicitRoles.length > 0 ? explicitRoles : preferredRoles;
+
+      return scopedRoles.length === 0 || scopedRoles.includes(item.creator.primaryRole);
+    })
     .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
     .slice(0, limit)
     .map((item, index) => ({ ...item, rank: index + 1 }));
@@ -1560,7 +1693,7 @@ function buildCleanGeminiCandidateContext(recommendations: CreatorRecommendation
     rank: item.rank,
     name: item.creator.displayName,
     username: item.creator.username,
-    role: cleanRoleLabels[item.creator.primaryRole],
+    role: reliableRoleLabels[item.creator.primaryRole],
     headline: item.creator.headline,
     bio: item.creator.bio,
     skills: item.creator.skills,
@@ -1579,8 +1712,8 @@ function buildCleanGeminiPrompt(input: AiMatchingInput, localResponse: AiMatchin
     .slice(-8)
     .map((message) => `${message.role === "assistant" ? "AI 매칭 매니저" : "사용자"}: ${message.content}`)
     .join("\n");
-  const explicitRoles = detectCleanExplicitRoleNeeds(input.projectDescription).map((role) => cleanRoleLabels[role]);
-  const excludedRoles = detectCleanExcludedRoles(input.projectDescription).map((role) => cleanRoleLabels[role]);
+  const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription).map((role) => reliableRoleLabels[role]);
+  const excludedRoles = detectReliableExcludedRoles(input.projectDescription).map((role) => reliableRoleLabels[role]);
   const prompt = `
 사용자의 최신 질문:
 ${input.projectDescription}
@@ -1631,7 +1764,10 @@ async function enhanceCleanResponseWithGemini(input: AiMatchingInput, localRespo
   const availability = canUseGeminiApi();
 
   if (!availability.ok) {
-    return localResponse;
+    return {
+      ...localResponse,
+      providerNote: getGeminiFallbackNote(availability.reason),
+    };
   }
 
   reserveGeminiQuota();
@@ -1640,7 +1776,10 @@ async function enhanceCleanResponseWithGemini(input: AiMatchingInput, localRespo
   const apiKey = config.apiKey;
 
   if (!apiKey) {
-    return localResponse;
+    return {
+      ...localResponse,
+      providerNote: "Gemini API 키가 백엔드 환경변수에 없어서 로컬 매칭으로 응답했습니다.",
+    };
   }
 
   const controller = new AbortController();
@@ -1676,14 +1815,20 @@ async function enhanceCleanResponseWithGemini(input: AiMatchingInput, localRespo
     );
 
     if (!response.ok) {
-      return localResponse;
+      return {
+        ...localResponse,
+        providerNote: `Gemini 응답 오류가 발생해 로컬 매칭으로 응답했습니다. 상태 코드: ${response.status}`,
+      };
     }
 
     const payload = (await response.json()) as GeminiGenerateContentResponse;
     const assistantMessage = extractGeminiText(payload);
 
     if (!isCleanGeminiTextUsable(assistantMessage, localResponse.recommendations)) {
-      return localResponse;
+      return {
+        ...localResponse,
+        providerNote: "Gemini 응답이 등록 후보 데이터와 맞지 않아 로컬 매칭으로 안전하게 응답했습니다.",
+      };
     }
 
     return {
@@ -1692,7 +1837,10 @@ async function enhanceCleanResponseWithGemini(input: AiMatchingInput, localRespo
       assistantMessage,
     };
   } catch {
-    return localResponse;
+    return {
+      ...localResponse,
+      providerNote: "Gemini 요청이 시간 초과되었거나 네트워크 오류가 발생해 로컬 매칭으로 응답했습니다.",
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -1717,8 +1865,8 @@ export async function createAiMatchingChat(input: AiMatchingInput): Promise<AiMa
 }
 
 export const __aiMatchingTestUtils = {
-  detectExplicitRoleNeeds: detectCleanExplicitRoleNeeds,
-  detectExcludedRoles: detectCleanExcludedRoles,
+  detectExplicitRoleNeeds: detectReliableExplicitRoleNeeds,
+  detectExcludedRoles: detectReliableExcludedRoles,
   detectRoleNeeds: (source: string, preferredRoles: MemberRole[]) =>
-    unique([...detectCleanExplicitRoleNeeds(source), ...preferredRoles]).filter((role) => !detectCleanExcludedRoles(source).includes(role)),
+    unique([...detectReliableExplicitRoleNeeds(source), ...preferredRoles]).filter((role) => !detectReliableExcludedRoles(source).includes(role)),
 };

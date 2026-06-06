@@ -6883,6 +6883,16 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   background: color-mix(in srgb, var(--brand) 10%, var(--surface));
 }
 
+.ai-provider-note {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
 .ai-reset-button {
   display: inline-flex;
   flex: 0 0 auto;
