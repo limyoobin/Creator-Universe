@@ -1714,11 +1714,7 @@ function buildLocalAiRecommendations(
       };
     })
     .filter((item, _index, candidates) => {
-      const hasExplicitRoleCandidate = explicitRoles.some((roleId) =>
-        candidates.some((candidate) => candidate.creator.primaryRole === roleId),
-      );
-
-      return !hasExplicitRoleCandidate || explicitRoles.includes(item.creator.primaryRole);
+      return explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole);
     })
     .sort((left, right) => {
       const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;

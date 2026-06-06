@@ -1104,11 +1104,7 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
       };
     })
     .filter((item, _index, candidates) => {
-      const hasExplicitRoleCandidate = explicitRoles.some((role) =>
-        candidates.some((candidate) => candidate.creator.primaryRole === role),
-      );
-
-      return !hasExplicitRoleCandidate || explicitRoles.includes(item.creator.primaryRole);
+      return explicitRoles.length === 0 || explicitRoles.includes(item.creator.primaryRole);
     })
     .sort((left, right) => {
       const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;
