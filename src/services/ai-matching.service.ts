@@ -269,7 +269,15 @@ function detectRoleNeeds(source: string, preferredRoles: MemberRole[]) {
     .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(normalize(alias))))
     .map(([role]) => role as MemberRole);
 
-  return unique([...preferredRoles, ...detectedRoles]);
+  return unique([...detectedRoles, ...preferredRoles]);
+}
+
+function detectExplicitRoleNeeds(source: string) {
+  const normalizedSource = normalize(source);
+
+  return Object.entries(roleKeywords)
+    .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(normalize(alias))))
+    .map(([role]) => role as MemberRole);
 }
 
 function extractKeywords(input: AiMatchingInput) {
@@ -890,6 +898,7 @@ function buildGeminiConversationPrompt(input: AiMatchingInput, localResponse: Ai
     .map((message) => `${message.role === "assistant" ? "AI 매칭 매니저" : "사용자"}: ${message.content}`)
     .join("\n");
   const candidateContext = JSON.stringify(buildGeminiCandidateContext(localResponse.recommendations), null, 2);
+  const explicitRoles = detectExplicitRoleNeeds(input.projectDescription).map((role) => roleLabels[role]);
   const prompt = `
 사용자의 최신 질문:
 ${input.projectDescription}
@@ -902,6 +911,7 @@ ${conversationHistory || "(이전 대화 없음)"}
 - 톤: ${localResponse.projectBrief.tone}
 - 키워드: ${localResponse.projectBrief.topics.join(", ") || "없음"}
 - 필요한 역할: ${localResponse.projectBrief.neededRoles.join(", ") || "미정"}
+- 사용자가 문장에 직접 말한 직군: ${explicitRoles.join(", ") || "없음"}
 
 추천 후보 데이터:
 ${candidateContext}
@@ -950,7 +960,7 @@ async function generateGeminiAssistantMessage(input: AiMatchingInput, localRespo
             parts: [
               {
                 text:
-                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 없는 후보나 실제 외부 사실은 지어내지 않는다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
+                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 사용자가 사운드 디자이너, 성우, 작가, 일러스트레이터처럼 특정 직군을 직접 말하면 해당 직군 후보를 우선 추천하고 다른 직군은 보조 후보로만 설명한다. 없는 후보나 실제 외부 사실은 지어내지 않는다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
               },
             ],
           },
@@ -1006,7 +1016,8 @@ async function enhanceResponseWithGemini(input: AiMatchingInput, localResponse: 
 
 export async function recommendCreatorsForProject(input: AiMatchingInput): Promise<AiMatchingResponse> {
   const keywords = extractKeywords(input);
-  const preferredRoles = input.preferredRoles ?? [];
+  const explicitRoles = detectExplicitRoleNeeds(input.projectDescription);
+  const preferredRoles = unique([...explicitRoles, ...(input.preferredRoles ?? [])]);
   const limit = Math.max(1, Math.min(input.limit ?? 3, 6));
 
   const profiles = await prisma.creatorProfile.findMany({
@@ -1029,11 +1040,14 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
       const roleKeywordMatches = roleKeywords[profile.primaryRole].filter((keyword) =>
         normalize(input.projectDescription).includes(normalize(keyword)),
       );
+      const explicitRoleMatched = explicitRoles.length === 0 || explicitRoles.includes(profile.primaryRole);
       const preferredRoleMatched = preferredRoles.length === 0 || preferredRoles.includes(profile.primaryRole);
       const skillMatch = weightedMatches(profile.skills.join(" "), keywords, 18);
       const headlineMatch = weightedMatches(profile.headline, keywords, 13);
       const bioMatch = weightedMatches(profile.bio, keywords, 9);
-      const roleMatchScore = roleKeywordMatches.length * 14 + (preferredRoleMatched ? 18 : -8);
+      const explicitRoleScore =
+        explicitRoles.length === 0 ? 0 : explicitRoleMatched ? 90 : -45;
+      const roleMatchScore = roleKeywordMatches.length * 18 + explicitRoleScore + (preferredRoleMatched ? 18 : -8);
       const activityScore = Math.min(profile.responseRate / 10, 10) + Math.min(profile.completedProjects * 1.5, 12);
       const featuredScore = profile.featured ? 8 : 0;
       const score = Math.max(
@@ -1089,7 +1103,19 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
         },
       };
     })
-    .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
+    .filter((item, _index, candidates) => {
+      const hasExplicitRoleCandidate = explicitRoles.some((role) =>
+        candidates.some((candidate) => candidate.creator.primaryRole === role),
+      );
+
+      return !hasExplicitRoleCandidate || explicitRoles.includes(item.creator.primaryRole);
+    })
+    .sort((left, right) => {
+      const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;
+      const rightExplicitRole = explicitRoles.includes(right.creator.primaryRole) ? 1 : 0;
+
+      return rightExplicitRole - leftExplicitRole || right.score - left.score || right.creator.responseRate - left.creator.responseRate;
+    })
     .slice(0, limit)
     .map((item, index) => ({
       ...item,

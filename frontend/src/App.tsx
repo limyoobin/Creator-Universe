@@ -1622,6 +1622,14 @@ function buildAiPromptKeywords(prompt: string, filters: string[]) {
   return Array.from(new Set([...rawTokens, ...genreTokens, ...roleTokens, ...filters])).slice(0, 36);
 }
 
+function detectExplicitAiRoles(prompt: string) {
+  const source = normalizeAiText(prompt);
+
+  return Object.entries(aiRoleKeywords)
+    .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
+    .map(([role]) => role);
+}
+
 function buildLocalAiRecommendations(
   sourceCreators: Creator[],
   prompt: string,
@@ -1630,6 +1638,8 @@ function buildLocalAiRecommendations(
 ): AiMatchRecommendation[] {
   const keywords = buildAiPromptKeywords(prompt, filters);
   const normalizedPrompt = normalizeAiText(prompt);
+  const explicitRoles = detectExplicitAiRoles(prompt);
+  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles]));
 
   return sourceCreators
     .map((creator) => {
@@ -1652,7 +1662,15 @@ function buildLocalAiRecommendations(
       const roleKeywordHits = (aiRoleKeywords[creator.primaryRole] ?? []).filter((keyword) =>
         normalizedPrompt.includes(normalizeAiText(keyword)),
       );
-      const roleBoost = preferredRoles.length === 0 || preferredRoles.includes(creator.primaryRole) ? 24 : -10;
+      const explicitRoleMatched = explicitRoles.length === 0 || explicitRoles.includes(creator.primaryRole);
+      const roleBoost =
+        explicitRoles.length > 0
+          ? explicitRoleMatched
+            ? 95
+            : -45
+          : effectivePreferredRoles.length === 0 || effectivePreferredRoles.includes(creator.primaryRole)
+            ? 24
+            : -10;
       const portfolioBoost = portfolio.some((item) =>
         item.tags.some((tag) => keywords.some((keyword) => normalizeAiText(tag).includes(normalizeAiText(keyword)))),
       )
@@ -1670,9 +1688,13 @@ function buildLocalAiRecommendations(
           ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 포트폴리오와 겹쳐 이번 프로젝트에 잘 맞습니다.`
           : `${roleLabels[creator.primaryRole]} 역할과 응답률, 포트폴리오 완성도를 기준으로 추천했습니다.`;
       const reasonDetails = [
-        preferredRoles.length === 0 || preferredRoles.includes(creator.primaryRole)
-          ? `요청한 직군과 ${roleLabels[creator.primaryRole]} 역할이 맞습니다.`
-          : `${roleLabels[creator.primaryRole]} 역할은 보조 포지션으로 검토할 만합니다.`,
+        explicitRoles.length > 0
+          ? explicitRoleMatched
+            ? `문장에 직접 나온 요청 직군과 ${roleLabels[creator.primaryRole]} 역할이 정확히 맞습니다.`
+            : `${roleLabels[creator.primaryRole]} 역할은 이번 질문의 핵심 직군은 아니라 보조 후보로만 봤습니다.`
+          : effectivePreferredRoles.length === 0 || effectivePreferredRoles.includes(creator.primaryRole)
+            ? `요청한 직군과 ${roleLabels[creator.primaryRole]} 역할이 맞습니다.`
+            : `${roleLabels[creator.primaryRole]} 역할은 보조 포지션으로 검토할 만합니다.`,
         matchedKeywords.length > 0
           ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 작품 설명과 연결됩니다.`
           : "공개 프로필의 협업 지표와 활동성을 기준으로 골랐습니다.",
@@ -1691,7 +1713,19 @@ function buildLocalAiRecommendations(
         creator,
       };
     })
-    .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
+    .filter((item, _index, candidates) => {
+      const hasExplicitRoleCandidate = explicitRoles.some((roleId) =>
+        candidates.some((candidate) => candidate.creator.primaryRole === roleId),
+      );
+
+      return !hasExplicitRoleCandidate || explicitRoles.includes(item.creator.primaryRole);
+    })
+    .sort((left, right) => {
+      const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;
+      const rightExplicitRole = explicitRoles.includes(right.creator.primaryRole) ? 1 : 0;
+
+      return rightExplicitRole - leftExplicitRole || right.score - left.score || right.creator.responseRate - left.creator.responseRate;
+    })
     .slice(0, 3)
     .map((item, index) => ({ ...item, rank: index + 1 }));
 }
@@ -1769,12 +1803,15 @@ function buildLocalAiMatchingResponse(
   const previousUserMessages = userMessages.filter((message, index) => index !== userMessages.length - 1);
   const projectSignalMessages = Array.from(new Set([...userMessages, prompt].filter(Boolean))).filter((message) => !isLowSignalAiText(message));
   const conversationPrompt = (projectSignalMessages.length > 0 ? projectSignalMessages : userMessages).join("\n");
-  const recommendations = buildLocalAiRecommendations(sourceCreators, conversationPrompt || prompt, preferredRoles, filters);
+  const recommendationPrompt = conversationPrompt || prompt;
+  const explicitRoles = detectExplicitAiRoles(recommendationPrompt);
+  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles]));
+  const recommendations = buildLocalAiRecommendations(sourceCreators, recommendationPrompt, effectivePreferredRoles, filters);
   const keywords = buildAiPromptKeywords(conversationPrompt || prompt, filters);
   const topics = Object.keys(aiGenreKeywords)
     .filter((topic) => keywords.some((keyword) => normalizeAiText(topic).includes(normalizeAiText(keyword)) || normalizeAiText(keyword).includes(normalizeAiText(topic))))
     .slice(0, 5);
-  const neededRoles = preferredRoles.length > 0 ? preferredRoles.map((roleId) => roleLabels[roleId]).filter(Boolean) : ["그림", "목소리", "BGM"];
+  const neededRoles = effectivePreferredRoles.length > 0 ? effectivePreferredRoles.map((roleId) => roleLabels[roleId]).filter(Boolean) : ["그림", "목소리", "BGM"];
   const tone = topics.includes("미스터리")
     ? "어두운 미스터리 무드"
     : topics.includes("로맨스")
