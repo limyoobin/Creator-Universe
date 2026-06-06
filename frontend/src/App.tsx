@@ -188,6 +188,29 @@ type AiChatMessage = {
   content: string;
 };
 
+const AI_MATCH_MESSAGES_STORAGE_KEY = "creator-universe-ai-match-messages";
+
+function readStoredAiMessages() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AI_MATCH_MESSAGES_STORAGE_KEY) || "[]");
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter(
+        (item): item is AiChatMessage =>
+          item &&
+          (item.role === "user" || item.role === "assistant") &&
+          typeof item.content === "string" &&
+          item.content.trim().length > 0,
+      )
+      .slice(-30);
+  } catch {
+    return [];
+  }
+}
+
 type SettlementDashboard = {
   grossAmount: number;
   platformFeeAmount: number;
@@ -3885,7 +3908,8 @@ export function App() {
   const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>(["ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"]);
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
   const [aiMatchResponse, setAiMatchResponse] = useState<AiMatchingResponse | null>(null);
-  const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>([]);
+  const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>(() => readStoredAiMessages());
+  const [isAiHistoryOpen, setIsAiHistoryOpen] = useState(false);
   const [isAiMatching, setIsAiMatching] = useState(false);
   const [aiMatchMessage, setAiMatchMessage] = useState("");
   const [readerSearch, setReaderSearch] = useState("");
@@ -4114,6 +4138,8 @@ export function App() {
   const activeChatMessages = activeChatCreator ? creatorChatThreads[activeChatCreator.userId] ?? [] : [];
   const pendingPurchaseWork = readerWorks.find((work) => work.id === pendingPurchaseWorkId) ?? readerWorks[0];
   const currentFlowStep = serviceFlow[activeFlowStep] ?? serviceFlow[0];
+  const visibleAiMessages = isAiHistoryOpen ? aiMatchMessages : aiMatchMessages.slice(-6);
+  const hiddenAiMessageCount = Math.max(0, aiMatchMessages.length - visibleAiMessages.length);
 
   const matchProposalInboxItems = useMemo(() => {
     return matchRequests
@@ -4741,6 +4767,15 @@ export function App() {
   }, [aiMatchMessages, isAiMatching]);
 
   useEffect(() => {
+    if (aiMatchMessages.length === 0) {
+      localStorage.removeItem(AI_MATCH_MESSAGES_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(AI_MATCH_MESSAGES_STORAGE_KEY, JSON.stringify(aiMatchMessages.slice(-30)));
+  }, [aiMatchMessages]);
+
+  useEffect(() => {
     if (!user?.id || libraryStorageOwner !== user.id) {
       return;
     }
@@ -5179,6 +5214,7 @@ export function App() {
   function resetAiMatchingConversation() {
     setAiMatchPrompt("");
     setAiMatchMessages([]);
+    setIsAiHistoryOpen(false);
     setAiMatchResponse(null);
     setAiMatchResults([]);
     setAiMatchMessage("");
@@ -8164,10 +8200,22 @@ export function App() {
                       )}
                     </div>
                   </div>
-                  <button className="ai-reset-button" type="button" onClick={resetAiMatchingConversation}>
-                    <RefreshCw size={15} />
-                    새 대화
-                  </button>
+                  <div className="ai-history-actions">
+                    {aiMatchMessages.length > 6 && (
+                      <button
+                        className={`ai-history-toggle ${isAiHistoryOpen ? "active" : ""}`}
+                        type="button"
+                        onClick={() => setIsAiHistoryOpen((value) => !value)}
+                      >
+                        <MessageCircle size={15} />
+                        {isAiHistoryOpen ? "최근만" : `이전 ${hiddenAiMessageCount}개`}
+                      </button>
+                    )}
+                    <button className="ai-reset-button" type="button" onClick={resetAiMatchingConversation}>
+                      <RefreshCw size={15} />
+                      새 대화
+                    </button>
+                  </div>
                 </div>
                 {aiMatchMessages.length === 0 && (
                   <div className="ai-starter-grid" aria-label="AI 매칭 시작 질문">
@@ -8189,7 +8237,12 @@ export function App() {
                       </p>
                     </div>
                   )}
-                  {aiMatchMessages.slice(-10).map((message, index) => (
+                  {hiddenAiMessageCount > 0 && !isAiHistoryOpen && (
+                    <button className="ai-history-reveal" type="button" onClick={() => setIsAiHistoryOpen(true)}>
+                      이전 대화 {hiddenAiMessageCount}개 보기
+                    </button>
+                  )}
+                  {visibleAiMessages.map((message, index) => (
                     <div className={`ai-chat-bubble ${message.role}`} key={`${message.role}-${index}-${message.content.slice(0, 12)}`}>
                       <span>{message.role === "user" ? "나" : "AI 매칭 매니저"}</span>
                       <p>{message.content}</p>
