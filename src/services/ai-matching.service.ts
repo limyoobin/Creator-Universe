@@ -141,6 +141,30 @@ const roleKeywords: Record<MemberRole, string[]> = {
   EDITOR: ["편집", "식자", "교정", "검수", "편집자", "후반작업", "자막"],
 };
 
+const rolePhraseKeywords: Record<MemberRole, string[]> = {
+  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당"],
+  ILLUSTRATOR: [
+    "그림 작가",
+    "그림작가",
+    "일러스트 작가",
+    "일러스트레이터",
+    "웹툰 작가",
+    "만화 작가",
+    "작화가",
+    "작화 담당",
+    "그림 담당",
+    "표지 작가",
+    "캐릭터 디자이너",
+    "캐릭터디자이너",
+    "원화가",
+    "애니메이터",
+  ],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "작곡가", "효과음 담당", "폴리 아티스트"],
+  PRODUCER: ["프로듀서", "기획자", "제작자", "연출자", "감독", "PM", "프로젝트 매니저"],
+  EDITOR: ["편집자", "식자 담당", "교정 담당", "검수 담당", "자막 담당", "후반작업 담당"],
+};
+
 const topicKeywords: Record<string, string[]> = {
   로맨스: ["로맨스", "연애", "청춘", "짝사랑", "감정선", "설렘", "관계성"],
   판타지: ["판타지", "마법", "용", "세계관", "모험", "이세계", "서사"],
@@ -263,21 +287,39 @@ function detectTopics(source: string) {
     .map(([topic]) => topic);
 }
 
-function detectRoleNeeds(source: string, preferredRoles: MemberRole[]) {
+function detectPhraseRoles(source: string) {
   const normalizedSource = normalize(source);
+
+  return Object.entries(rolePhraseKeywords)
+    .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(normalize(alias))))
+    .map(([role]) => role as MemberRole);
+}
+
+function detectKeywordRoles(source: string) {
+  const normalizedSource = normalize(source);
+  const phraseRoles = detectPhraseRoles(source);
+  const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
+  const hasWriterPhrase = phraseRoles.includes("WRITER");
+
   const detectedRoles = Object.entries(roleKeywords)
     .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(normalize(alias))))
     .map(([role]) => role as MemberRole);
 
-  return unique([...detectedRoles, ...preferredRoles]);
+  return detectedRoles.filter((role) => {
+    if (role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function detectRoleNeeds(source: string, preferredRoles: MemberRole[]) {
+  return unique([...detectPhraseRoles(source), ...detectKeywordRoles(source), ...preferredRoles]);
 }
 
 function detectExplicitRoleNeeds(source: string) {
-  const normalizedSource = normalize(source);
-
-  return Object.entries(roleKeywords)
-    .filter(([, aliases]) => aliases.some((alias) => normalizedSource.includes(normalize(alias))))
-    .map(([role]) => role as MemberRole);
+  return unique([...detectPhraseRoles(source), ...detectKeywordRoles(source)]);
 }
 
 function extractKeywords(input: AiMatchingInput) {
@@ -287,9 +329,8 @@ function extractKeywords(input: AiMatchingInput) {
     topic,
     ...(topicKeywords[topic] ?? []),
   ]);
-  const detectedRoles = Object.entries(roleKeywords)
-    .filter(([, aliases]) => aliases.some((alias) => source.includes(normalize(alias))))
-    .flatMap(([, aliases]) => aliases);
+  const detectedRoles = detectExplicitRoleNeeds([input.projectDescription, ...(input.genres ?? [])].join(" "))
+    .flatMap((role) => roleKeywords[role] ?? []);
 
   return unique([...rawTokens, ...detectedTopics, ...detectedRoles, ...(input.genres ?? [])])
     .map((keyword) => keyword.trim())
@@ -960,7 +1001,7 @@ async function generateGeminiAssistantMessage(input: AiMatchingInput, localRespo
             parts: [
               {
                 text:
-                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 사용자가 사운드 디자이너, 성우, 작가, 일러스트레이터처럼 특정 직군을 직접 말하면 해당 직군 후보를 우선 추천하고 다른 직군은 보조 후보로만 설명한다. 없는 후보나 실제 외부 사실은 지어내지 않는다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
+                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 사용자가 사운드 디자이너, 성우, 작가, 일러스트레이터처럼 특정 직군을 직접 말하면 해당 직군 후보를 우선 추천하고 다른 직군은 보조 후보로만 설명한다. 특히 '그림 작가', '웹툰 작가', '만화 작가', '일러스트 작가'는 글 작가가 아니라 그림/일러스트 직군으로 해석하고, '글 작가', '소설 작가', '웹소설 작가', '대본 작가'만 글 직군으로 해석한다. 없는 후보나 실제 외부 사실은 지어내지 않는다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
               },
             ],
           },

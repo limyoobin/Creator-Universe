@@ -6831,6 +6831,33 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   line-height: 1.55;
 }
 
+.ai-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-left: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  font-size: 11px;
+  font-weight: 950;
+  vertical-align: middle;
+}
+
+.ai-provider-badge.gemini {
+  border-color: color-mix(in srgb, var(--cyan) 42%, var(--line));
+  color: color-mix(in srgb, var(--cyan) 80%, var(--text));
+  background: color-mix(in srgb, var(--cyan) 13%, var(--surface));
+}
+
+.ai-provider-badge.local {
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+  color: color-mix(in srgb, var(--brand) 74%, var(--text));
+  background: color-mix(in srgb, var(--brand) 10%, var(--surface));
+}
+
 .ai-reset-button {
   display: inline-flex;
   flex: 0 0 auto;

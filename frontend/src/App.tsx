@@ -1532,6 +1532,28 @@ const aiRoleKeywords: Record<string, string[]> = {
   SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향", "작곡", "음향", "폴리"],
 };
 
+const aiRolePhraseKeywords: Record<string, string[]> = {
+  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당"],
+  ILLUSTRATOR: [
+    "그림 작가",
+    "그림작가",
+    "일러스트 작가",
+    "일러스트레이터",
+    "웹툰 작가",
+    "만화 작가",
+    "작화가",
+    "작화 담당",
+    "그림 담당",
+    "표지 작가",
+    "캐릭터 디자이너",
+    "캐릭터디자이너",
+    "원화가",
+    "애니메이터",
+  ],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "작곡가", "효과음 담당", "폴리 아티스트"],
+};
+
 const aiGenreKeywords: Record<string, string[]> = {
   로맨스: ["로맨스", "연애", "청춘", "짝사랑", "설렘", "감정선"],
   판타지: ["판타지", "마법", "용", "세계관", "모험", "이세계"],
@@ -1624,10 +1646,18 @@ function buildAiPromptKeywords(prompt: string, filters: string[]) {
 
 function detectExplicitAiRoles(prompt: string) {
   const source = normalizeAiText(prompt);
-
-  return Object.entries(aiRoleKeywords)
+  const phraseRoles = Object.entries(aiRolePhraseKeywords)
     .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
     .map(([role]) => role);
+  const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
+  const hasWriterPhrase = phraseRoles.includes("WRITER");
+
+  const keywordRoles = Object.entries(aiRoleKeywords)
+    .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
+    .map(([role]) => role)
+    .filter((role) => !(role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase));
+
+  return Array.from(new Set([...phraseRoles, ...keywordRoles]));
 }
 
 function buildLocalAiRecommendations(
@@ -8012,6 +8042,13 @@ export function App() {
                       <strong>작품 설명부터 DM 문구까지 이어서 물어보세요</strong>
                       <p>
                         대화 기억 {aiMatchMessages.filter((message) => message.role === "user").length}개 · 공개 포트폴리오 기반 추천
+                        <span className={`ai-provider-badge ${aiMatchResponse?.provider ?? "waiting"}`}>
+                          {aiMatchResponse?.provider === "gemini"
+                            ? "Gemini API"
+                            : aiMatchResponse
+                              ? "로컬 추천"
+                              : "엔진 대기"}
+                        </span>
                       </p>
                     </div>
                   </div>
