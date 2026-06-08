@@ -1,65 +1,56 @@
 # Creator Universe
 
-창작자들이 혼자 버티지 않아도 되는 플랫폼을 만들고 싶어서 시작한 프로젝트입니다.  
-`Creator Universe`는 작가, 일러스트레이터, 성우, BGM 크리에이터가 서로를 찾고, 같이 작품을 만들고, 수익까지 투명하게 나눌 수 있도록 만든 서브컬처 협업 웹/앱 서비스입니다.
+작가, 그림 작가, 성우, BGM 크리에이터가 한 작품 안에서 팀을 만들고 수익까지 나눌 수 있게 만든 서브컬처 협업 플랫폼입니다.
 
-[서비스 바로가기](https://project-limyoobins-projects.vercel.app) ·[Open Notion Documentation](https://complex-license-b0c.notion.site/Creator-Universe-Service-Portfolio-36bcba32990e80b2af9afdd04b4d1e4e?source=copy_link)· [개인정보 처리방침](https://project-limyoobins-projects.vercel.app/privacy-policy.html) · [계정 삭제 안내](https://project-limyoobins-projects.vercel.app/account-deletion.html) · [백엔드 상태 확인](https://creator-universe-api-7qfc.onrender.com/health)
+혼자 시작한 아이디어가 소설, 웹툰, 오디오드라마, 애니메이션 같은 여러 형태로 커질 수 있도록 `매칭`, `작품 유통`, `코인 결제`, `자동 정산`을 한 흐름 안에 묶어보는 것이 목표입니다.
 
-## 기획 의도
+[서비스 바로가기](https://project-limyoobins-projects.vercel.app) · [Notion 문서](https://complex-license-b0c.notion.site/Creator-Universe-Service-Portfolio-36bcba32990e80b2af9afdd04b4d1e4e?source=copy_link) · [개인정보 처리방침](https://project-limyoobins-projects.vercel.app/privacy-policy.html) · [계정 삭제 안내](https://project-limyoobins-projects.vercel.app/account-deletion.html) · [백엔드 상태](https://creator-universe-api-7qfc.onrender.com/health)
 
-서브컬처 콘텐츠는 혼자 만드는 경우도 많지만, 실제로는 글, 그림, 목소리, 음악이 합쳐질수록 훨씬 큰 매력을 갖게 됩니다. 그런데 막상 협업을 하려고 하면 팀원을 찾는 것도 어렵고, 외주 비용이나 수익 분배 문제 때문에 시작도 전에 흐지부지되는 경우가 많습니다.
+## 왜 만들었나요?
 
-그래서 이 프로젝트는 단순히 작품을 올리는 사이트가 아니라, 창작자가 팀을 만들고 작품을 판매하고 정산까지 처리할 수 있는 구조를 목표로 잡았습니다. 독자는 소설, 웹툰, 만화, 오디오드라마, 믹스미디어 작품을 둘러보고 코인으로 감상할 수 있고, 창작자는 작품 수익을 미리 정한 비율대로 자동 정산받을 수 있습니다.
+웹소설이나 웹툰을 만들다 보면 글만으로는 아쉽고, 그림이나 목소리, 배경음악이 붙으면 훨씬 더 매력적인 작품이 될 때가 많습니다. 그런데 실제로 협업을 하려면 같이 할 사람을 찾는 것부터 어렵습니다.
 
-또 하나 중요하게 생각한 부분은 접근성입니다. 시각 중심 콘텐츠에 익숙한 플랫폼이 많지만, 오디오드라마나 보이스 콘텐츠가 잘 연결되면 시각장애인과 저시력자도 더 자연스럽게 서브컬처 콘텐츠를 즐길 수 있다고 생각했습니다. 그래서 오디오, 대본, 고대비 UI, 앱 화면 최적화도 함께 고려했습니다.
+외주로 맡기기에는 비용이 부담되고, 수익을 나누기로 해도 “얼마를 어떻게 나눌지”가 애매해서 팀이 오래 가기 힘든 경우도 많습니다. 특히 이름이 많이 알려지지 않은 창작자일수록 포트폴리오를 보여주고 협업을 시작할 수 있는 공간이 더 필요하다고 생각했습니다.
 
-## 어떤 서비스인가요?
+그래서 Creator Universe는 작품을 올리는 곳에서 끝나는 서비스가 아니라, 팀을 찾고, 제안하고, 작품을 판매하고, 수익을 정산하는 과정까지 한 번에 이어지는 구조를 목표로 만들었습니다.
 
-Creator Universe는 쉽게 말하면 `창작자 매칭 + 콘텐츠 유통 + 코인 결제 + 자동 정산`을 한 번에 연결한 서비스입니다.
+## 서비스 흐름
 
-- 팀원이 필요한 창작자는 매칭 프로필을 등록합니다.
-- 다른 창작자는 포트폴리오를 보고 채팅이나 매칭 제안을 보냅니다.
-- 매칭 제안에는 원하는 수익 지분율을 넣을 수 있습니다.
-- 상대방이 조건을 보고 수락하면 프로젝트 팀원으로 합류합니다.
-- 독자가 작품을 구매하면 플랫폼 수수료를 제외한 금액이 팀원 지분율대로 계산됩니다.
-- 창작자는 지갑과 정산 화면에서 코인 흐름을 확인할 수 있습니다.
+창작자는 먼저 자기 프로필과 포트폴리오를 등록합니다. 글, 그림, 목소리, BGM 같은 역할을 선택하고, 어떤 장르나 분위기의 작업을 잘하는지 보여줄 수 있습니다.
 
-## 주요 기능
+다른 창작자는 그 프로필을 보고 채팅을 보내거나 매칭 제안을 할 수 있습니다. 제안할 때는 원하는 수익 지분율도 같이 보낼 수 있고, 상대가 수락하면 프로젝트 팀원으로 합류하는 흐름입니다.
 
-| 기능 | 설명 |
+독자는 작품 페이지에서 소설, 웹툰, 만화, 애니메이션, 오디오드라마, 믹스미디어 작품을 둘러볼 수 있습니다. 작품은 코인으로 열람하고, 구매가 발생하면 플랫폼 수수료를 제외한 금액이 팀원 지분율대로 계산됩니다.
+
+## 지금 구현한 기능
+
+| 구분 | 내용 |
 | --- | --- |
-| 회원가입 / 로그인 | 아이디, 닉네임 중복 확인과 비밀번호 규칙을 포함한 계정 기능 |
-| 작품 탐색 | 소설, 웹툰, 만화, 애니메이션, 오디오드라마, 믹스미디어 작품 탐색 |
-| 장르 필터 | 로맨스, 판타지, 미스터리, 스릴러, 일상, BL, 힐링 등 복합 필터 |
-| 매칭 프로필 | 글, 그림, 목소리, BGM 등 직군별 창작자 프로필 등록 |
-| AI 매칭 매니저 | 작품 설명을 대화형으로 받아 필요한 직군과 후보를 추천. `글 작가 한 명만`, `사운드 디자이너만`처럼 인원/직군 조건도 반영 |
-| 채팅 / 매칭 제안 | 창작자끼리 DM을 보내고 수익 지분율을 포함한 협업 제안 가능 |
-| 코인 지갑 | 코인 충전, 작품 구매, 후원, 정산 입금 내역 관리 |
-| 스마트 정산 | 일반 13%, 파트너 8% 수수료 차감 후 지분율대로 자동 분배 |
-| 창작자 후원 / 구독 | 창작자 개인 프로필에서 후원, 구독, 유료 포스트 열람 |
-| 고객센터 / 신고 | 문의 접수, 사용자 신고, 챗봇 상담 기능 |
-| 앱 화면 대응 | Android 앱에서 보기 쉽도록 하단 탭, 마이페이지, 채팅 UI 최적화 |
+| 계정 | 회원가입, 로그인, 아이디/닉네임 중복 확인, 비밀번호 찾기, 계정 탈퇴 |
+| 작품 | 작품 탐색, 장르/형식 필터, 스크랩, 결제한 작품, 이어보기 |
+| 매칭 | 창작자 프로필 등록, 포트폴리오 보기, 채팅, 매칭 제안, 제안 수락/거절 |
+| AI 매칭 | 작품 설명을 입력하면 맞는 직군과 후보를 추천. `글 작가 한 명만`, `사운드 디자이너만` 같은 조건도 반영 |
+| 지갑 | 코인 충전, 작품 구매, 후원, 구독, 코인 이용 내역 |
+| 정산 | 일반 13%, 파트너 8% 수수료 기준 자동 정산 미리보기 |
+| 커뮤니티 | 댓글/리뷰, 창작자 후원, 창작자 구독, 유료 팬 포스트 |
+| 고객센터 | 문의 접수, 사용자 신고, 도움봇 |
+| 앱 | Android WebView 앱, 하단 탭, 모바일 전용 홈/마이페이지 UI |
 
-## 차별점
+## 독자 모드와 창작자 모드
 
-기존 플랫폼들은 보통 한 가지 흐름에 집중되어 있습니다. 외주 플랫폼은 사람을 찾는 데 강하지만 작품 판매 이후의 수익 분배는 따로 처리해야 하고, 콘텐츠 플랫폼은 작품 유통은 편하지만 여러 명이 같이 만든 작품의 정산을 관리하기 어렵습니다.
+처음에는 한 화면에 너무 많은 기능이 들어가면서 앱이 복잡해 보이는 문제가 있었습니다. 그래서 회원가입할 때 독자와 창작자를 나누고, 앱 안에서도 역할에 따라 보이는 메뉴를 다르게 구성했습니다.
 
-Creator Universe는 이 사이의 빈틈을 줄이고 싶었습니다.
+독자에게는 작품, 지갑, 스크랩, 이어보기, 알림 같은 감상 중심 기능을 먼저 보여줍니다.
 
-- 창작자끼리 서로를 찾는 단계
-- 작품을 같이 만드는 단계
-- 독자가 구매하는 단계
-- 팀원끼리 수익을 나누는 단계
+창작자에게는 스튜디오, 매칭, 정산, 포트폴리오 관리, 제안 확인 같은 제작 중심 기능을 더 앞에 배치했습니다.
 
-이 흐름이 끊기지 않게 하나의 서비스 안에 묶는 것이 핵심입니다.
+## AI 매칭 매니저
 
-## 팀원과 역할
+매칭 페이지에는 AI 매칭 매니저를 넣었습니다. 사용자가 “나는 이런 장르의 소설을 썼는데 여기에 맞는 성우를 추천해줘”처럼 자연스럽게 말하면, 등록된 창작자 프로필과 포트폴리오를 기준으로 후보를 골라줍니다.
 
-| 이름 | 역할 | 담당 |
-| --- | --- | --- |
-| 임유빈 | 팀장 / 백엔드 | 전체 기획 정리, DB 구조 설계, Node.js API, 정산 로직, 배포 환경 구성 |
-| 이승아 | 기획 / QA | 아이디어 구체화, 사용자 흐름 정리, 기능 테스트, 개선점 정리 |
-| 임예원 | 프론트엔드 | 화면 구성, React UI 구현, 반응형 웹/앱 화면 개선 |
+Gemini API를 사용할 수 있으면 Gemini가 먼저 답하고, API 키가 없거나 한도에 걸리면 로컬 추천 로직으로 자동 전환됩니다. 로컬 추천도 같은 직군/인원 해석 규칙을 쓰도록 맞춰서, `글 작가 한 명만`, `성우 말고 그림 작가`, `사운드 디자이너 있나?` 같은 문장이 최대한 흔들리지 않게 처리되도록 했습니다.
+
+무료 베타 운영을 생각해서 Gemini 호출은 하루 제한을 두고 사용하도록 설정했습니다.
 
 ## 기술 스택
 
@@ -69,7 +60,8 @@ Creator Universe는 이 사이의 빈틈을 줄이고 싶었습니다.
 | Backend | Node.js, Express, TypeScript |
 | Database | PostgreSQL, Prisma |
 | Deploy | Vercel, Render, Neon PostgreSQL |
-| Mobile | Capacitor Android |
+| Mobile | Android WebView |
+| AI | Gemini API + 로컬 fallback 매칭 로직 |
 
 ## 프로젝트 구조
 
@@ -78,13 +70,19 @@ creator-universe/
   frontend/        React 프론트엔드
   src/             Express 백엔드 API
   prisma/          Prisma schema, migration, seed
+  scripts/         테스트와 보조 스크립트
   docs/            초기 프로토타입과 문서
-  scripts/         로컬 데모 API
   render.yaml      Render 백엔드 배포 설정
   vercel.json      Vercel 프론트 배포 설정
 ```
 
-## 로컬 실행 방법
+Android 앱 프로젝트는 별도 폴더에 있습니다.
+
+```text
+D:\project\phone
+```
+
+## 로컬 실행
 
 의존성 설치:
 
@@ -132,13 +130,19 @@ npm run dev:web
 - Frontend: `http://127.0.0.1:5173`
 - Backend: `http://127.0.0.1:4000/health`
 
-## 배포 환경
+## 배포 정보
 
-현재 배포는 아래 구조로 되어 있습니다.
+현재 배포 구조는 아래와 같습니다.
 
 - Frontend: Vercel
 - Backend API: Render
 - Database: Neon PostgreSQL
+
+Vercel 프론트엔드 환경변수:
+
+```env
+VITE_API_URL=https://creator-universe-api-7qfc.onrender.com
+```
 
 Render 백엔드 환경변수:
 
@@ -154,67 +158,9 @@ GEMINI_MODEL=gemini-2.5-flash-lite
 GEMINI_DAILY_REQUEST_LIMIT=40
 ```
 
-Gemini AI 매칭 매니저는 무료 베타 운영 기준으로 붙였습니다. `GEMINI_FREE_ONLY=true`일 때는 허용한 Flash/Flash-Lite 계열 모델만 호출하고, 서버에서 하루 호출 수와 요청 간격을 제한합니다. API 키가 없거나 한도에 걸리거나 Gemini 응답이 실패하면 기존 로컬 AI 매칭 답변으로 자동 전환됩니다.  
-로컬 fallback도 같은 직군/인원 해석 규칙을 쓰기 때문에 `글 작가 한 명만`, `성우 말고 그림 작가`, `사운드 디자이너 있나?` 같은 문장이 Gemini 실패 시에도 최대한 같은 결과로 처리됩니다.
+## Android 앱 빌드
 
-Vercel 프론트엔드 환경변수:
-
-```env
-VITE_API_URL=https://creator-universe-api-7qfc.onrender.com
-```
-
-## 보안 관련 주의사항
-
-이 프로젝트는 실제 회원가입과 DB 저장까지 연결되어 있기 때문에, 아래 부분은 특히 조심해야 합니다.
-
-- `.env`, `frontend/.env`, `.env.*` 파일은 GitHub에 올리지 않습니다.
-- Neon DB URL, Render/Vercel 토큰, API 키는 환경변수에만 저장합니다.
-- Vercel에는 공개되어도 되는 `VITE_` 값만 넣습니다.
-- 운영 환경에서는 `ALLOW_INSECURE_USER_CONTEXT=false`를 유지합니다.
-- 운영 API의 CORS 허용 도메인은 실제 프론트 주소만 넣습니다.
-- 관리자 계정은 README에 비밀번호를 공개하지 않습니다.
-- 혹시라도 비밀값을 GitHub에 올렸다면 파일만 지우지 말고 해당 비밀번호나 토큰을 새로 발급해야 합니다.
-
-자세한 보안 안내는 [SECURITY.md](./SECURITY.md)에 정리했습니다.
-
-## 주요 API
-
-| Method | Endpoint | 설명 |
-| --- | --- | --- |
-| POST | `/api/auth/signup` | 회원가입 |
-| POST | `/api/auth/login` | 로그인 |
-| GET | `/api/auth/me` | 내 계정 확인 |
-| POST | `/api/auth/check-username` | 아이디 중복 확인 |
-| POST | `/api/auth/check-display-name` | 닉네임 중복 확인 |
-| GET | `/api/creators` | 창작자 목록 |
-| POST | `/api/creators/me/profile` | 내 매칭 프로필 등록 |
-| DELETE | `/api/creators/me/profile` | 내 매칭 프로필 삭제 |
-| POST | `/api/chats/messages` | 채팅 메시지 전송 |
-| POST | `/api/matching/requests` | 매칭 제안 생성 |
-| POST | `/api/matching/requests/:id/respond` | 매칭 제안 수락 / 거절 |
-| POST | `/api/users/me/wallet/charge` | 코인 충전 |
-| POST | `/api/settlements/content-purchase` | 콘텐츠 구매 및 자동 정산 |
-
-## 앞으로 더 만들고 싶은 부분
-
-- 실제 결제사 연동과 Webhook 검증
-- 이미지, 오디오, 영상 파일 업로드
-- 창작자 계약/동의 이력 관리
-- 관리자 신고 처리 대시보드
-- 더 세밀한 앱 UI/UX 최적화
-- 접근성 테스트와 스크린리더 대응 강화
-
-## 앱 출시 참고
-
-Google Play Console에 등록할 개인정보 처리방침 URL:
-
-```text
-https://project-limyoobins-projects.vercel.app/privacy-policy.html
-```
-
-앱에서 백엔드 연결이 안 될 경우, 앱이 접속하는 실제 프론트 도메인이 Render의 `CORS_ORIGINS`에 들어가 있는지 확인하면 됩니다.
-
-Android 앱 번들은 별도 프로젝트인 `D:\project\phone`에서 빌드합니다.
+Google Play Console에 올릴 AAB는 아래 명령으로 빌드합니다.
 
 ```powershell
 cd D:\project\phone
@@ -223,14 +169,69 @@ $env:Path="D:\android\jbr\bin;$env:Path"
 .\gradlew.bat bundleRelease
 ```
 
-최신 빌드 결과물:
+빌드 결과:
 
 ```text
 D:\project\phone\app\build\outputs\bundle\release\app-release.aab
 ```
 
-현재 Android 릴리즈 버전은 `1.0.10`, `versionCode 10`입니다. Play Console에 새 버전을 올릴 때는 이전에 올린 번들보다 `versionCode`가 반드시 커야 합니다.
+현재 Android 릴리즈 버전은 `1.0.10`, `versionCode 10`입니다. Play Console에 새 버전을 올릴 때는 이전에 올린 번들보다 `versionCode`가 커야 합니다.
+
+개인정보 처리방침 URL:
+
+```text
+https://project-limyoobins-projects.vercel.app/privacy-policy.html
+```
+
+## 팀원과 역할
+
+| 이름 | 역할 | 담당 |
+| --- | --- | --- |
+| 임유빈 | 팀장 / 백엔드 | 전체 기획 정리, DB 구조 설계, Node.js API, 정산 로직, 배포 환경 구성 |
+| 이승아 | 기획 / QA | 아이디어 구체화, 사용자 흐름 정리, 기능 테스트, 개선점 정리 |
+| 임예원 | 프론트엔드 | 화면 구성, React UI 구현, 반응형 웹/앱 화면 개선 |
+
+## 보안 메모
+
+실제 회원가입과 DB 저장까지 연결되어 있어서 아래 내용은 꼭 지켜야 합니다.
+
+- `.env`, `frontend/.env`, `.env.*` 파일은 GitHub에 올리지 않습니다.
+- Neon DB URL, Render/Vercel 토큰, Gemini API 키는 환경변수에만 저장합니다.
+- Vercel에는 공개되어도 되는 `VITE_` 값만 넣습니다.
+- 운영 환경에서는 `ALLOW_INSECURE_USER_CONTEXT=false`를 유지합니다.
+- 운영 API의 CORS 허용 도메인은 실제 프론트 주소만 넣습니다.
+- 비밀값이 한 번이라도 GitHub에 올라갔다면 파일만 지우지 말고 키를 새로 발급해야 합니다.
+
+자세한 내용은 [SECURITY.md](./SECURITY.md)에 정리했습니다.
+
+## 앞으로 더 만들고 싶은 것
+
+아직은 프로토타입에 가까운 부분도 있어서, 실제 서비스에 더 가까워지려면 아래 기능들이 더 필요합니다.
+
+- 실제 결제사 연동과 Webhook 검증
+- 이미지, 오디오, 영상 파일 업로드
+- 창작자 계약/동의 이력 관리
+- 관리자 신고 처리 대시보드 고도화
+- 앱 화면에서 더 가벼운 UI/UX
+- 시각장애인/저시력자 접근성 테스트
+
+## 테스트
+
+AI 매칭 로직은 간단한 smoke test를 따로 두었습니다.
+
+```bash
+npm run test:ai
+```
+
+프론트/백엔드 타입 검사는 아래처럼 확인합니다.
+
+```bash
+npm run build
+npm --prefix frontend run build
+```
+
+---
+
+Play Store 링크:
 
 https://play.google.com/store/apps/details?id=com.creatoruniverse.app
-<img width="1850" height="906" alt="image" src="https://github.com/user-attachments/assets/2910246c-6ec8-4ef3-9daa-8c6e477c8903" />
-
