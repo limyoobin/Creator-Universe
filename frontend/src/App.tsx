@@ -1740,11 +1740,37 @@ function detectExplicitAiRoles(prompt: string) {
   return Array.from(new Set([...phraseRoles, ...keywordRoles])).filter((role) => !excludedRoles.includes(role));
 }
 
+function detectAiRequestedLimit(prompt: string) {
+  const source = normalizeAiText(getAiRoleDetectionSource(prompt));
+  const directPatterns: Array<[RegExp, number]> = [
+    [/(한|1)\s*(명|분|사람)\s*만?/, 1],
+    [/(하나|한\s*명|원픽|1순위만|첫\s*번째만|top\s*1|top1)/, 1],
+    [/(두|2)\s*(명|분|사람)\s*만?/, 2],
+    [/(둘|2순위까지|top\s*2|top2)/, 2],
+    [/(세|3)\s*(명|분|사람)\s*만?/, 3],
+    [/(셋|3순위까지|top\s*3|top3)/, 3],
+  ];
+
+  for (const [pattern, count] of directPatterns) {
+    if (pattern.test(source)) {
+      return count;
+    }
+  }
+
+  const numericMatch = source.match(/(\d+)\s*(명|분|사람|개|팀)\s*(추천|찾|골라|뽑|보여)/);
+  if (numericMatch) {
+    return Math.max(1, Math.min(Number(numericMatch[1]), 6));
+  }
+
+  return null;
+}
+
 function buildLocalAiRecommendations(
   sourceCreators: Creator[],
   prompt: string,
   preferredRoles: string[],
   filters: string[],
+  requestedLimit = 3,
 ): AiMatchRecommendation[] {
   const keywords = buildAiPromptKeywords(prompt, filters);
   const normalizedPrompt = normalizeAiText(prompt);
@@ -1839,7 +1865,7 @@ function buildLocalAiRecommendations(
 
       return rightExplicitRole - leftExplicitRole || right.score - left.score || right.creator.responseRate - left.creator.responseRate;
     })
-    .slice(0, 3)
+    .slice(0, Math.max(1, Math.min(requestedLimit, 6)))
     .map((item, index) => ({ ...item, rank: index + 1 }));
 }
 
@@ -1923,7 +1949,8 @@ function buildLocalAiMatchingResponse(
   const explicitRoles = detectExplicitAiRoles(roleScopedPrompt);
   const excludedRoles = detectExcludedAiRoles(roleScopedPrompt);
   const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...(latestExplicitRoles.length > 0 ? [] : preferredRoles)])).filter((role) => !excludedRoles.includes(role));
-  const recommendations = buildLocalAiRecommendations(sourceCreators, roleScopedPrompt, effectivePreferredRoles, filters);
+  const requestedLimit = detectAiRequestedLimit(prompt) ?? detectAiRequestedLimit(recommendationPrompt) ?? 3;
+  const recommendations = buildLocalAiRecommendations(sourceCreators, roleScopedPrompt, effectivePreferredRoles, filters, requestedLimit);
   const keywords = buildAiPromptKeywords(conversationPrompt || prompt, filters);
   const topics = Object.keys(aiGenreKeywords)
     .filter((topic) => keywords.some((keyword) => normalizeAiText(topic).includes(normalizeAiText(keyword)) || normalizeAiText(keyword).includes(normalizeAiText(topic))))
@@ -5243,6 +5270,7 @@ export function App() {
     }
 
     const nextMessages: AiChatMessage[] = [...aiMatchMessages, { role: "user", content: prompt }];
+    const requestedLimit = detectAiRequestedLimit(prompt) ?? 3;
 
     setIsAiMatching(true);
     setAiMatchMessage("");
@@ -5257,7 +5285,7 @@ export function App() {
           preferredRoles: aiPreferredRoles,
           genres: matchingFilters,
           messages: nextMessages.slice(-8),
-          limit: 3,
+          limit: requestedLimit,
         }),
       });
 

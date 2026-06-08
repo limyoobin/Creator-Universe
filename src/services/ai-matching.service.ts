@@ -1393,6 +1393,31 @@ function detectReliableExplicitRoleNeeds(source: string) {
   return unique([...detectReliablePhraseRoles(source), ...detectReliableKeywordRoles(source)]).filter((role) => !excludedRoles.includes(role));
 }
 
+function detectRequestedRecommendationLimit(source: string) {
+  const normalizedSource = cleanNormalize(getReliableRoleDetectionSource(source));
+  const directCountPatterns: Array<[RegExp, number]> = [
+    [/(한|1)\s*(명|분|사람)\s*만?/, 1],
+    [/(하나|한\s*명|원픽|1순위만|첫\s*번째만|top\s*1|top1)/, 1],
+    [/(두|2)\s*(명|분|사람)\s*만?/, 2],
+    [/(둘|2순위까지|top\s*2|top2)/, 2],
+    [/(세|3)\s*(명|분|사람)\s*만?/, 3],
+    [/(셋|3순위까지|top\s*3|top3)/, 3],
+  ];
+
+  for (const [pattern, count] of directCountPatterns) {
+    if (pattern.test(normalizedSource)) {
+      return count;
+    }
+  }
+
+  const numericMatch = normalizedSource.match(/(\d+)\s*(명|분|사람|개|팀)\s*(추천|찾|골라|뽑|보여)/);
+  if (numericMatch) {
+    return Math.max(1, Math.min(Number(numericMatch[1]), 6));
+  }
+
+  return null;
+}
+
 function detectCleanTopics(source: string) {
   const normalizedSource = cleanNormalize(source);
 
@@ -1585,7 +1610,8 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
   const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription);
   const excludedRoles = detectReliableExcludedRoles(input.projectDescription);
   const preferredRoles = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role));
-  const limit = Math.max(1, Math.min(input.limit ?? 3, 6));
+  const requestedLimit = detectRequestedRecommendationLimit(input.projectDescription);
+  const limit = Math.max(1, Math.min(requestedLimit ?? input.limit ?? 3, 6));
   const brief = buildCleanBrief(input);
 
   const profiles = await prisma.creatorProfile.findMany({
@@ -1867,6 +1893,7 @@ export async function createAiMatchingChat(input: AiMatchingInput): Promise<AiMa
 export const __aiMatchingTestUtils = {
   detectExplicitRoleNeeds: detectReliableExplicitRoleNeeds,
   detectExcludedRoles: detectReliableExcludedRoles,
+  detectRequestedLimit: detectRequestedRecommendationLimit,
   detectRoleNeeds: (source: string, preferredRoles: MemberRole[]) =>
     unique([...detectReliableExplicitRoleNeeds(source), ...preferredRoles]).filter((role) => !detectReliableExcludedRoles(source).includes(role)),
 };

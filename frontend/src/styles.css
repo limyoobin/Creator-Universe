@@ -21202,3 +21202,141 @@ body.cu-android-app .quick-sheet-primary-actions button:first-child svg {
     font-size: 0.94rem !important;
   }
 }
+
+/* Android 1.0.10 final UX guard: wider quick actions, reachable signup, no horizontal drift. */
+body.cu-android-app {
+  --android-shell-width: min(calc(100vw - 18px), 440px);
+  --android-sheet-width: min(calc(100vw - 24px), 412px);
+  --android-bottom-safe: calc(112px + env(safe-area-inset-bottom));
+  touch-action: pan-y;
+}
+
+body.cu-android-app *,
+body.cu-android-app *::before,
+body.cu-android-app *::after {
+  max-width: 100%;
+}
+
+body.cu-android-app .app,
+body.cu-android-app main,
+body.cu-android-app .page-panel,
+body.cu-android-app .app-home-dashboard,
+body.cu-android-app .app-home-dashboard > *,
+body.cu-android-app .mobile-account-summary,
+body.cu-android-app .mobile-account-summary > *,
+body.cu-android-app .creator-detail-modal,
+body.cu-android-app .account-modal {
+  overflow-x: clip !important;
+}
+
+body.cu-android-app .auth-backdrop {
+  align-items: flex-start !important;
+  padding: max(8px, env(safe-area-inset-top)) 9px calc(148px + env(safe-area-inset-bottom)) !important;
+  overflow-y: auto !important;
+}
+
+body.cu-android-app .auth-modal {
+  width: var(--android-shell-width) !important;
+  max-height: calc(100dvh - 18px) !important;
+  padding: 13px 13px calc(86px + env(safe-area-inset-bottom)) !important;
+  overscroll-behavior: contain !important;
+}
+
+body.cu-android-app .auth-form {
+  padding-bottom: calc(18px + env(safe-area-inset-bottom)) !important;
+}
+
+body.cu-android-app .auth-form > .primary-button[type="submit"] {
+  position: sticky !important;
+  bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+  width: 100% !important;
+}
+
+body.cu-android-app .mobile-quick-sheet,
+body.cu-android-app .mobile-quick-sheet.open {
+  width: var(--android-sheet-width) !important;
+  max-width: var(--android-sheet-width) !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: calc(var(--android-bottom-safe) + 10px) !important;
+  transform: translateX(-50%) !important;
+  max-height: min(68dvh, 590px) !important;
+  border-radius: 28px !important;
+  padding: 16px !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+body.cu-android-app .quick-sheet-head strong {
+  font-size: clamp(1.22rem, 6.2vw, 1.55rem) !important;
+}
+
+body.cu-android-app .quick-sheet-head span {
+  max-width: 24em !important;
+  font-size: 0.82rem !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions,
+body.cu-android-app .quick-sheet-secondary-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 9px !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button,
+body.cu-android-app .quick-sheet-secondary-actions button {
+  min-height: 76px !important;
+  border-radius: 20px !important;
+  padding: 10px 6px !important;
+}
+
+body.cu-android-app .quick-sheet-primary-actions button span,
+body.cu-android-app .quick-sheet-secondary-actions button span {
+  font-size: clamp(0.92rem, 4.1vw, 1.05rem) !important;
+  line-height: 1.15 !important;
+  word-break: keep-all !important;
+  white-space: normal !important;
+}
+
+body.cu-android-app .quick-sheet-secondary-actions button svg,
+body.cu-android-app .quick-sheet-primary-actions button svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+body.cu-android-app .app-primary-tabs {
+  width: var(--android-shell-width) !important;
+  max-width: var(--android-shell-width) !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 4px !important;
+}
+
+body.cu-android-app .app-primary-tabs button.active:not(.mobile-plus-tab) {
+  transform: none !important;
+}
+
+body.cu-android-app .mobile-account-summary {
+  width: 100% !important;
+  padding-bottom: calc(var(--android-bottom-safe) + 18px) !important;
+}
+
+body.cu-android-app .mobile-account-summary h2,
+body.cu-android-app .creator-detail-copy h2 {
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+body.cu-android-app .account-danger-actions {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 370px) {
+  body.cu-android-app {
+    --android-shell-width: min(calc(100vw - 12px), 430px);
+    --android-sheet-width: min(calc(100vw - 18px), 398px);
+  }
+
+  body.cu-android-app .quick-sheet-primary-actions button,
+  body.cu-android-app .quick-sheet-secondary-actions button {
+    min-height: 70px !important;
+  }
+}

@@ -6,6 +6,7 @@ type SmokeCase = {
   prompt: string;
   includes: MemberRole[];
   excludes?: MemberRole[];
+  limit?: number;
 };
 
 const cases: SmokeCase[] = [
@@ -41,6 +42,19 @@ const cases: SmokeCase[] = [
     prompt: "전에 글 그림 작가를 봤는데, 지금은 사운드 디자이너 매칭 있나? 추천해줄 사람 있나?",
     includes: [MemberRole.SOUND_DIRECTOR],
   },
+  {
+    name: "글 작가 한 명만 요청은 글 직군과 1명 제한",
+    prompt: "감성 로맨스 웹소설에 맞는 글 작가 한 명만 추천해줘.",
+    includes: [MemberRole.WRITER],
+    limit: 1,
+  },
+  {
+    name: "성우 제외 후 글 작가 한 명만 요청",
+    prompt: "성우 말고 글 작가 한명만 추천해줘. 대본 각색 가능한 사람이면 좋아.",
+    includes: [MemberRole.WRITER],
+    excludes: [MemberRole.VOICE_ACTOR],
+    limit: 1,
+  },
 ];
 
 const failures: string[] = [];
@@ -60,6 +74,13 @@ for (const testCase of cases) {
       failures.push(
         `${testCase.name}: expected ${role} to be excluded. detected=${detectedRoles.join(", ") || "none"} excluded=${excludedRoles.join(", ") || "none"}`,
       );
+    }
+  }
+
+  if (testCase.limit !== undefined) {
+    const detectedLimit = __aiMatchingTestUtils.detectRequestedLimit(testCase.prompt);
+    if (detectedLimit !== testCase.limit) {
+      failures.push(`${testCase.name}: expected limit ${testCase.limit}, got ${detectedLimit ?? "none"}`);
     }
   }
 }

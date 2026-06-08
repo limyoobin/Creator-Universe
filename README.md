@@ -32,6 +32,7 @@ Creator Universe는 쉽게 말하면 `창작자 매칭 + 콘텐츠 유통 + 코�
 | 작품 탐색 | 소설, 웹툰, 만화, 애니메이션, 오디오드라마, 믹스미디어 작품 탐색 |
 | 장르 필터 | 로맨스, 판타지, 미스터리, 스릴러, 일상, BL, 힐링 등 복합 필터 |
 | 매칭 프로필 | 글, 그림, 목소리, BGM 등 직군별 창작자 프로필 등록 |
+| AI 매칭 매니저 | 작품 설명을 대화형으로 받아 필요한 직군과 후보를 추천. `글 작가 한 명만`, `사운드 디자이너만`처럼 인원/직군 조건도 반영 |
 | 채팅 / 매칭 제안 | 창작자끼리 DM을 보내고 수익 지분율을 포함한 협업 제안 가능 |
 | 코인 지갑 | 코인 충전, 작품 구매, 후원, 정산 입금 내역 관리 |
 | 스마트 정산 | 일반 13%, 파트너 8% 수수료 차감 후 지분율대로 자동 분배 |
@@ -153,7 +154,8 @@ GEMINI_MODEL=gemini-2.5-flash-lite
 GEMINI_DAILY_REQUEST_LIMIT=40
 ```
 
-Gemini AI 매칭 매니저는 무료 베타 운영 기준으로 붙였습니다. `GEMINI_FREE_ONLY=true`일 때는 허용한 Flash/Flash-Lite 계열 모델만 호출하고, 서버에서 하루 호출 수와 요청 간격을 제한합니다. API 키가 없거나 한도에 걸리거나 Gemini 응답이 실패하면 기존 로컬 AI 매칭 답변으로 자동 전환됩니다.
+Gemini AI 매칭 매니저는 무료 베타 운영 기준으로 붙였습니다. `GEMINI_FREE_ONLY=true`일 때는 허용한 Flash/Flash-Lite 계열 모델만 호출하고, 서버에서 하루 호출 수와 요청 간격을 제한합니다. API 키가 없거나 한도에 걸리거나 Gemini 응답이 실패하면 기존 로컬 AI 매칭 답변으로 자동 전환됩니다.  
+로컬 fallback도 같은 직군/인원 해석 규칙을 쓰기 때문에 `글 작가 한 명만`, `성우 말고 그림 작가`, `사운드 디자이너 있나?` 같은 문장이 Gemini 실패 시에도 최대한 같은 결과로 처리됩니다.
 
 Vercel 프론트엔드 환경변수:
 
@@ -211,6 +213,23 @@ https://project-limyoobins-projects.vercel.app/privacy-policy.html
 ```
 
 앱에서 백엔드 연결이 안 될 경우, 앱이 접속하는 실제 프론트 도메인이 Render의 `CORS_ORIGINS`에 들어가 있는지 확인하면 됩니다.
+
+Android 앱 번들은 별도 프로젝트인 `D:\project\phone`에서 빌드합니다.
+
+```powershell
+cd D:\project\phone
+$env:JAVA_HOME="D:\android\jbr"
+$env:Path="D:\android\jbr\bin;$env:Path"
+.\gradlew.bat bundleRelease
+```
+
+최신 빌드 결과물:
+
+```text
+D:\project\phone\app\build\outputs\bundle\release\app-release.aab
+```
+
+현재 Android 릴리즈 버전은 `1.0.10`, `versionCode 10`입니다. Play Console에 새 버전을 올릴 때는 이전에 올린 번들보다 `versionCode`가 반드시 커야 합니다.
 
 https://play.google.com/store/apps/details?id=com.creatoruniverse.app
 <img width="1850" height="906" alt="image" src="https://github.com/user-attachments/assets/2910246c-6ec8-4ef3-9daa-8c6e477c8903" />
