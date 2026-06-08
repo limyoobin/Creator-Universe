@@ -92,6 +92,7 @@ npm --prefix frontend install
 ```
 
 `.env.example`을 참고해서 `.env` 파일을 만듭니다.
+DB 주소나 API 키처럼 민감한 값은 실제 `.env`에만 두고 GitHub에는 올리지 않습니다.
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
@@ -190,19 +191,6 @@ https://project-limyoobins-projects.vercel.app/privacy-policy.html
 | 임유빈 | 팀장 / 백엔드 | 전체 기획 정리, DB 구조 설계, Node.js API, 정산 로직, 배포 환경 구성 |
 | 이승아 | 기획 / QA | 아이디어 구체화, 사용자 흐름 정리, 기능 테스트, 개선점 정리 |
 | 임예원 | 프론트엔드 | 화면 구성, React UI 구현, 반응형 웹/앱 화면 개선 |
-
-## 보안 메모
-
-실제 회원가입과 DB 저장까지 연결되어 있어서 아래 내용은 꼭 지켜야 합니다.
-
-- `.env`, `frontend/.env`, `.env.*` 파일은 GitHub에 올리지 않습니다.
-- Neon DB URL, Render/Vercel 토큰, Gemini API 키는 환경변수에만 저장합니다.
-- Vercel에는 공개되어도 되는 `VITE_` 값만 넣습니다.
-- 운영 환경에서는 `ALLOW_INSECURE_USER_CONTEXT=false`를 유지합니다.
-- 운영 API의 CORS 허용 도메인은 실제 프론트 주소만 넣습니다.
-- 비밀값이 한 번이라도 GitHub에 올라갔다면 파일만 지우지 말고 키를 새로 발급해야 합니다.
-
-자세한 내용은 [SECURITY.md](./SECURITY.md)에 정리했습니다.
 
 ## 앞으로 더 만들고 싶은 것
 
