@@ -869,61 +869,19 @@ const coinProducts = [
 
 const introSlides = [
   {
-    eyebrow: "Creator Collaboration",
-    title: "흩어진 창작자를 하나의 오디오 스튜디오로",
+    title: "혼자 떠올린 이야기, 함께 만드는 유니버스",
     description:
-      "작가, 일러스트레이터, 성우, BGM 크리에이터가 포트폴리오를 보고 팀을 만들고 작품 단위로 협업하는 서브컬처 창작 허브입니다.",
-    stat: "4 Roles",
-    statLabel: "글 · 그림 · 목소리 · BGM",
-    visualTitle: "Creator Universe Studio",
-    visualLabel: "Collaboration Hub",
-    mobileChipTitle: "Role Match",
-    mobileChipText: "팀원 포트폴리오",
-    visualCards: {
-      work: ["작품 IP", "웹툰 · 소설 · 오디오"],
-      match: ["팀 매칭", "글 · 그림 · 목소리"],
-      voice: ["보이스 UX", "대본 · 음성 싱크"],
-      settle: ["수익 설계", "30 · 30 · 40"],
-    },
-    tone: "pink",
+      "글, 그림, 목소리, 음악이 만나 하나의 작품이 됩니다. 당신의 이야기를 완성할 동료와 새로운 취향을 여기서 만나보세요.",
   },
   {
-    eyebrow: "Smart Settlement",
-    title: "돈 문제는 시스템이 맡고, 팀은 창작에 집중",
+    title: "함께 만든 작품의 수익, 주 단위로 투명하게",
     description:
-      "프로젝트 생성 시 합의한 30:30:40 지분율을 저장하고, 독자 결제 즉시 수수료 차감 후 팀원 지갑으로 자동 분배합니다.",
-    stat: "1/N",
-    statLabel: "자동 정산 분배",
-    visualTitle: "Smart Split Engine",
-    visualLabel: "Auto Settlement",
-    mobileChipTitle: "Split Pay",
-    mobileChipText: "수익 자동 분배",
-    visualCards: {
-      work: ["결제 로그", "코인 · 열람권"],
-      match: ["팀 동의", "지분율 확정"],
-      voice: ["정산 원장", "투명한 기록"],
-      settle: ["자동 정산", "13% · 8%"],
-    },
-    tone: "cyan",
+      "팀이 합의한 지분율과 플랫폼 수수료를 한눈에 확인하세요. 주 단위 정산 안내와 팀원별 예상 분배액을 같은 화면에서 살펴볼 수 있어요.",
   },
   {
-    eyebrow: "Barrier-free Audio",
-    title: "시각장애인도 함께 즐기는 몰입형 콘텐츠",
+    title: "같은 이야기, 더 많은 사람이 즐길 수 있도록",
     description:
-      "고대비 오디오 감상, 대본-음성 싱크, 보이스 퍼스트 UX로 서브컬처 콘텐츠 접근성을 넓히는 ESG형 플랫폼입니다.",
-    stat: "Voice",
-    statLabel: "First UX",
-    visualTitle: "Barrier-free Access",
-    visualLabel: "Accessible Audio",
-    mobileChipTitle: "Voice First",
-    mobileChipText: "접근성 오디오",
-    visualCards: {
-      work: ["접근성 IP", "텍스트 · 오디오"],
-      match: ["성우 협업", "감정 연기"],
-      voice: ["대본 싱크", "고대비 감상"],
-      settle: ["팬 확장", "누구나 감상"],
-    },
-    tone: "violet",
+      "목소리로 만나는 작품, 함께 읽는 대본. 고대비 모드와 큰 글자 설정으로 나에게 편안한 감상 환경을 만들어보세요.",
   },
 ];
 
@@ -948,12 +906,6 @@ const featureCards = [
     title: "글로벌 협업 확장",
     text: "AI 번역, 로컬라이징, 해외 성우 협업까지 확장 가능한 오디오 IP 유통 구조를 지향합니다.",
   },
-];
-
-const roadmapItems = [
-  "1주차: 시장 분석, 유저 시나리오, 정산 ERD 설계",
-  "2주차: 보이스 퍼스트 UX와 창작자 대시보드 디자인",
-  "3주차: 오디오 스트리밍, 자동 정산, 결제 MVP 개발",
 ];
 
 const audienceSegments = [
@@ -1106,12 +1058,6 @@ const partnerPlans = [
     target: "우수 협업팀",
     perks: ["파트너 수수료 감면", "홈 추천 노출", "팬덤 커뮤니티 확장"],
   },
-];
-
-const growthTimeline = [
-  { year: "MVP", title: "교내 창작자 베타", text: "웹소설·성우·일러스트 창작자를 대상으로 매칭과 정산 흐름을 검증합니다." },
-  { year: "Beta", title: "배리어프리 현장 테스트", text: "복지기관과 연계해 화면 낭독, 고대비 감상 모드, 제스처 접근성을 개선합니다." },
-  { year: "Scale", title: "글로벌 오디오 IP 확장", text: "AI 번역과 로컬라이징으로 한국 IP와 해외 성우 협업을 연결합니다." },
 ];
 
 function formatCoins(value = 0) {
@@ -3449,7 +3395,7 @@ const policySections: Array<{
       "미사용 코인은 결제 수단별 승인 취소 가능 기간 내 환불 요청이 가능합니다.",
       "콘텐츠를 재생하거나 열람권을 사용한 경우 단순 변심 환불이 제한될 수 있습니다.",
       "중복 결제, 시스템 오류, 접근권 미지급은 확인 후 우선 환불 또는 재지급 처리합니다.",
-      "환불 완료 시 해당 거래의 자동 정산분은 다음 고정 정산일에 차감 또는 보정됩니다.",
+      "환불 완료 시 해당 거래의 자동 정산분은 다음 주 단위 정산에 차감 또는 보정됩니다.",
     ],
     url: "/refund-policy.html",
   },
@@ -4914,17 +4860,7 @@ export function App() {
     }
   }, [settlement?.appliedFeeRate, settlement?.members]);
 
-  useEffect(() => {
-    if (activePage !== "home") {
-      return;
-    }
 
-    const timer = window.setInterval(() => {
-      setActiveIntroSlide((index) => (index + 1) % introSlides.length);
-    }, 5200);
-
-    return () => window.clearInterval(timer);
-  }, [activePage]);
 
   useEffect(() => {
     if (activePage !== "home") {
@@ -5399,7 +5335,7 @@ export function App() {
       botReply = "결제/환불 문의는 결제 시각, 코인 금액, 열람권 지급 여부를 함께 적어주시면 가장 빠르게 확인할 수 있어요.";
       setSupportCategory("PAYMENT");
     } else if (lowerMessage.includes("정산") || lowerMessage.includes("수익") || lowerMessage.includes("지분")) {
-      botReply = "정산 문의는 프로젝트명, 팀원 지분율, 문제가 발생한 정산월을 적어주세요. 고정 수수료와 팀원별 분배 내역을 같이 확인합니다.";
+      botReply = "정산 문의는 프로젝트명, 팀원 지분율, 문제가 발생한 정산 기간을 적어주세요. 고정 수수료와 팀원별 분배 내역을 같이 확인합니다.";
       setSupportCategory("SETTLEMENT");
     } else if (lowerMessage.includes("접근") || lowerMessage.includes("시각") || lowerMessage.includes("감상") || lowerMessage.includes("대본")) {
       botReply = "접근성 문의는 사용 기기, 스크린리더 종류, 문제가 생긴 감상 화면을 알려주시면 우선순위로 확인할게요.";
@@ -5924,7 +5860,7 @@ export function App() {
         </div>
       )}
       <header className="topbar">
-        <button className="brand" onClick={() => navigate("home")}>
+        <button className="brand" aria-label="크리에이터 유니버스 홈으로 이동" onClick={() => navigate("home")}>
           <span className="brand-logo"><img src="/logo.png" alt="" /></span>
           <strong>크리에이터 유니버스</strong>
           <em>Audio Studio</em>
@@ -6147,7 +6083,7 @@ export function App() {
                         <Split size={17} />
                         <span>정산 예정</span>
                         <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
-                        <small>매월 15일 기준</small>
+                        <small>주 단위 정산</small>
                       </button>
                     </>
                   ) : (
@@ -6429,118 +6365,71 @@ export function App() {
               </div>
             </section>
 
-            <section className={`intro-hero reveal revealed ${introSlides[activeIntroSlide].tone}`}>
-              <div className="intro-copy">
-                <p className="kicker">Creator Universe</p>
-                <div className="slide-copy-stage">
-                  {introSlides.map((slide, index) => (
-                    <article className={`slide-copy-panel ${activeIntroSlide === index ? "active" : ""}`} key={slide.eyebrow}>
-                      <span className="slide-eyebrow">{slide.eyebrow}</span>
-                      <h1>{slide.title}</h1>
-                      <p className="lead">{slide.description}</p>
-                    </article>
+            <section className="welcome-hero" aria-labelledby="welcome-title">
+              <div className="welcome-copy">
+                <p className="welcome-eyebrow"><span /> CREATE TOGETHER, GROW TOGETHER</p>
+                <div className="welcome-tabs" role="group" aria-label="서비스 소개 선택">
+                  {["함께하는 창작", "주 단위 정산", "모두를 위한 감상"].map((label, index) => (
+                    <button type="button" key={label} aria-pressed={activeIntroSlide === index} onClick={() => setActiveIntroSlide(index)}>
+                      {label}
+                    </button>
                   ))}
                 </div>
-                <div className="intro-actions">
-                  <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보기</button>
-                  {isCreatorAccount ? (
-                    <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 스튜디오 열기</button>
-                  ) : (
-                    <button className="ghost-button" onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /> 스크랩 보관함</button>
-                  )}
+                <div className="welcome-story">
+                  <h1 id="welcome-title">{introSlides[activeIntroSlide].title}</h1>
+                  <p>{introSlides[activeIntroSlide].description}</p>
                 </div>
-                <div className="slide-dots" aria-label="소개 슬라이드 선택">
-                  {introSlides.map((slide, index) => (
-                    <button
-                      key={slide.eyebrow}
-                      className={activeIntroSlide === index ? "active" : ""}
-                      onClick={() => setActiveIntroSlide(index)}
-                      aria-label={`${index + 1}번 소개 슬라이드`}
-                    />
-                  ))}
+                <div className="welcome-actions">
+                  <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 둘러보기</button>
+                  <button className="ghost-button" onClick={() => navigate(isCreatorAccount ? "studio" : "matching")}><Users size={18} /> {isCreatorAccount ? "내 스튜디오" : "함께할 동료 찾기"}</button>
                 </div>
+                <p className="welcome-note"><ShieldCheck size={15} /> 초기 매칭 수수료 0원 · 합의한 지분대로 수익 분배</p>
               </div>
-
-              <aside className="studio-visual" aria-label="크리에이터 유니버스 서비스 미리보기">
-                <div className="visual-stage">
-                  {introSlides.map((slide, index) => (
-                    <div className={`visual-slide ${slide.tone} ${activeIntroSlide === index ? "active" : ""}`} key={slide.visualTitle}>
-                      <div className="visual-artwork">
-                        <div className="aurora-orb orb-one" />
-                        <div className="aurora-orb orb-two" />
-                        <div className="moon" />
-                        <div className="universe-3d-scene" aria-hidden="true">
-                          <div className="orbit-ring ring-one" />
-                          <div className="orbit-ring ring-two" />
-                          <div className="orbit-ring ring-three" />
-                          <div className="constellation-core">
-                            <img src="/logo.png" alt="" />
-                            <span />
-                            <span />
-                            <span />
-                          </div>
-                          <div className="orbit-card orbit-card-work">
-                            <BookOpen size={15} />
-                            <b>{slide.visualCards.work[0]}</b>
-                            <small>{slide.visualCards.work[1]}</small>
-                          </div>
-                          <div className="orbit-card orbit-card-match">
-                            <Users size={15} />
-                            <b>{slide.visualCards.match[0]}</b>
-                            <small>{slide.visualCards.match[1]}</small>
-                          </div>
-                          <div className="orbit-card orbit-card-voice">
-                            <Headphones size={15} />
-                            <b>{slide.visualCards.voice[0]}</b>
-                            <small>{slide.visualCards.voice[1]}</small>
-                          </div>
-                          <div className="orbit-card orbit-card-settle">
-                            <Split size={15} />
-                            <b>{slide.visualCards.settle[0]}</b>
-                            <small>{slide.visualCards.settle[1]}</small>
-                          </div>
-                        </div>
-                        <div className="mobile-visual-chip">
-                          <b>{slide.mobileChipTitle}</b>
-                          <span>{slide.mobileChipText}</span>
-                        </div>
-                        <div className="city-lines" />
-                        <div className="character-card">
-                          <span>{slide.visualLabel}</span>
-                          <strong>{slide.visualTitle}</strong>
-                        </div>
-                        <div className="floating-widget widget-left">
-                          <span>{slide.stat}</span>
-                          <b>{slide.statLabel}</b>
-                        </div>
-                        <div className="floating-widget widget-right">
-                          <span>{index === 1 ? "8%" : "0%"}</span>
-                          <b>{index === 1 ? "파트너 수수료" : "초기 매칭 수수료"}</b>
-                        </div>
-                      </div>
-                      <div className="visual-caption">{slide.statLabel}</div>
-                    </div>
-                  ))}
-                </div>
+              <aside className="welcome-universe" aria-label="글, 그림, 목소리, 음악이 만나는 창작 공간">
+                <div className="universe-orbit orbit-outer" aria-hidden="true" />
+                <div className="universe-orbit orbit-inner" aria-hidden="true" />
+                <div className="universe-core"><img src="/logo.png" alt="" /><span>Creator Universe</span><strong>하나의 이야기,<br />무한한 가능성.</strong></div>
+                <div className="universe-role role-writer"><BookOpen size={20} /><span>이야기의 시작<strong>작가</strong></span></div>
+                <div className="universe-role role-artist"><Sparkles size={20} /><span>세계를 그리는<strong>일러스트레이터</strong></span></div>
+                <div className="universe-role role-voice"><Headphones size={20} /><span>생명을 불어넣는<strong>성우</strong></span></div>
+                <div className="universe-role role-music"><Play size={20} /><span>감정을 완성하는<strong>BGM 크리에이터</strong></span></div>
+                <div className="universe-caption"><span /> 서로 다른 재능이 만나는 곳</div>
               </aside>
             </section>
 
-            <section className="intro-metrics reveal">
+            <section className="welcome-facts" aria-label="서비스 핵심 안내">
               <div><strong>0원</strong><span>초기 매칭 수수료</span></div>
-              <div><strong>13% / 8%</strong><span>일반 · 파트너 수수료</span></div>
-              <div><strong>30:30:40</strong><span>팀 지분율 자동 분배</span></div>
-              <div><strong>Voice-first</strong><span>배리어프리 UX</span></div>
+              <div><strong>13% / 8%</strong><span>일반 / 파트너 수수료</span></div>
+              <div><strong>주 단위 정산</strong><span>합의한 팀 지분율 기준</span></div>
+              <div><strong>함께 듣는 이야기</strong><span>오디오 · 대본 · 고대비 모드</span></div>
+            </section>
+
+            <section className="home-library" aria-labelledby="home-library-title">
+              <div className="home-library-head">
+                <div><p className="kicker">Discover your next story</p><h2 id="home-library-title">취향이 닿는 새로운 세계</h2><p>어떤 이야기부터 만나볼까요?</p></div>
+                <button className="ghost-button" onClick={() => navigate("discover")}>작품 전체 보기 <span aria-hidden="true">↗</span></button>
+              </div>
+              <div className="home-work-grid">
+                {rankedReaderWorks.slice(0, 4).map((work) => (
+                  <button className="home-work-card" key={work.id} onClick={() => { setSelectedWork(work); setReviewWorkId(work.id); }} aria-label={`${work.title} 작품 상세 보기`}>
+                    <div className="home-work-cover"><img src={work.coverImage} alt="" loading="lazy" /><span>{work.format}</span></div>
+                    <span className="home-work-genre">{work.genre}</span>
+                    <strong>{work.title}</strong>
+                    <span className="home-work-open">이야기 만나보기 <span aria-hidden="true">↗</span></span>
+                  </button>
+                ))}
+              </div>
             </section>
 
             <section className="start-guide-section reveal">
               <div className="section-head intro-head">
                 <div>
                   <p className="kicker">Start Guide</p>
-                  <h2>처음 들어와도 바로 이해되는 3가지 시작 동선</h2>
+                  <h2>당신의 다음 이야기는 어디서 시작하나요?</h2>
                 </div>
                 <p>
-                  독자는 작품을 보고, 창작자는 프로필을 올리고, 팀장은 제안과 정산을 관리합니다.
-                  각 역할별 핵심 행동을 한 화면에서 바로 시작할 수 있게 정리했습니다.
+                  작품 감상부터 팀 결성, 수익 관리까지.
+                  지금 필요한 시작점을 골라보세요.
                 </p>
               </div>
               <div className="start-guide-grid">
@@ -6567,9 +6456,9 @@ export function App() {
               <div className="section-head intro-head">
                 <div>
                 <p className="kicker">Why Creator Universe</p>
-                <h2>창작자 협업, 콘텐츠 유통, 정산 자동화를 하나의 스튜디오로 연결합니다</h2>
+                <h2>창작의 시작부터, 함께 나누는 수익까지</h2>
                 </div>
-                <p>흩어진 창작자가 팀을 만들고, 작품을 판매하고, 수익을 투명하게 나누는 과정을 하나의 제품 흐름으로 설계한 멀티 IP 플랫폼입니다.</p>
+                <p>내게 맞는 동료를 찾고, 함께 작품을 선보이고, 수익을 나누세요. 창작에 필요한 연결을 한곳에 모았습니다.</p>
               </div>
               <div className="feature-grid">
                 {featureCards.map((feature, index) => (
@@ -6601,7 +6490,7 @@ export function App() {
                 </article>
                 <article className="mock-card settlement-mock">
                   <span>Settlement</span>
-                  <strong>결제 즉시 1/N 자동 분배</strong>
+                  <strong>합의한 지분대로 주 단위 정산</strong>
                   <div className="mini-donut" />
                 </article>
                 <article className="mock-card viewer-mock">
@@ -6675,7 +6564,7 @@ export function App() {
               <div className="section-head intro-head">
                 <div>
                   <p className="kicker">Partner System</p>
-                  <h2>성공한 창작팀이 떠나지 않도록 수수료를 낮추는 락인 전략</h2>
+                  <h2>함께 성장할수록, 더 좋은 창작 조건</h2>
                 </div>
                 <p>일반 팀은 낮은 진입 장벽으로 시작하고, 성장한 팀은 파트너 등급으로 더 좋은 조건을 받습니다.</p>
               </div>
@@ -6695,8 +6584,8 @@ export function App() {
             <section className="universe-premium-card reveal">
               <div>
                 <p className="kicker">Universe Premium</p>
-                <h2>월 7,900코인으로 광고 없이 보고, 매달 보너스 코인까지 받는 구독 서비스</h2>
-                <p>홈에서 바로 이해되는 독자용 멤버십 상품입니다. 작품 페이지 광고 제거, 팬덤형 콘텐츠 선공개, 보너스 코인을 묶어 유튜브 프리미엄처럼 명확한 구독 가치를 제공합니다.</p>
+                <h2>좋아하는 이야기에 더 깊이 빠져드는 시간</h2>
+                <p>월 7,900코인으로 작품 페이지의 광고 없이 감상하고, 매월 1,000 보너스 코인과 프리미엄 작품 선공개 혜택을 만나보세요.</p>
                 <button onClick={openPayment}><Sparkles size={17} /> 프리미엄 구독 살펴보기</button>
               </div>
               <div>
@@ -6709,7 +6598,7 @@ export function App() {
               <div className="section-head intro-head">
                 <div>
                   <p className="kicker">Trust & Safety</p>
-                  <h2>돈과 권리가 오가는 플랫폼이라서 신뢰 흐름을 먼저 설계했습니다</h2>
+                  <h2>믿고 창작하고, 안심하고 즐기세요</h2>
                 </div>
                 <p>
                   코인 결제, 콘텐츠 열람권, 창작자 정산, 사용자 신고를 서로 분리하지 않고
@@ -6745,7 +6634,7 @@ export function App() {
                       <h3>{control.title}</h3>
                       <p>{control.text}</p>
                     </div>
-                    <button type="button" onClick={() => toggleAccessibilityPreference(control.key)}>
+                    <button type="button" aria-label={control.title} aria-pressed={accessibilityPreferences[control.key]} onClick={() => toggleAccessibilityPreference(control.key)}>
                       {accessibilityPreferences[control.key] ? "켜짐" : "켜기"}
                     </button>
                   </article>
@@ -6753,48 +6642,17 @@ export function App() {
               </div>
             </section>
 
-            <section className="timeline-section reveal">
-              <div>
-                <p className="kicker">Growth Roadmap</p>
-                <h2>프로토타입 이후에도 확장 가능한 실행 계획</h2>
-              </div>
-              <div className="timeline-list">
-                {growthTimeline.map((item) => (
-                  <article key={item.year}>
-                    <span>{item.year}</span>
-                    <div>
-                      <h3>{item.title}</h3>
-                      <p>{item.text}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="mission-section reveal">
-              <div>
-                <p className="kicker">ESG Mission</p>
-                <h2>시장성과 사회적 가치를 동시에 잡는 멀티 IP 플랫폼</h2>
-                <p>소설과 웹툰은 창작의 시작점이 되고, 오디오 버전과 배리어프리 감상 기능은 더 많은 사용자가 같은 작품을 즐기게 만드는 확장 채널이 됩니다.</p>
-              </div>
-              <div className="roadmap-card">
-                <Rocket size={26} />
-                <strong>3주 MVP 추진 계획</strong>
-                {roadmapItems.map((item) => <span key={item}>{item}</span>)}
-              </div>
-            </section>
-
             <section className="final-cta reveal">
               <span>Everything you create has a voice</span>
-              <h2>창작자가 모이고, 독자가 듣고, 수익이 공정하게 흐르는 오디오 유니버스</h2>
-              <p>이제 매칭, 작품 결제, 정산, 고객센터 화면에서 실제 MVP 흐름을 확인해보세요.</p>
+              <h2>당신의 이야기가 누군가의 세계가 되도록</h2>
+              <p>새로운 작품을 발견하거나, 함께 만들 동료를 만나보세요. 다음 이야기는 여기서 시작됩니다.</p>
               <div>
                 {isCreatorAccount ? (
                   <button className="primary-button" onClick={() => navigate("matching")}><Users size={18} /> 매칭 화면 보기</button>
                 ) : (
                   <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 추천 작품 보기</button>
                 )}
-                <button className="ghost-button" onClick={openPayment}><Coins size={18} /> 결제창 열기</button>
+                <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 창작 시작하기</button>
               </div>
             </section>
           </div>
@@ -8859,8 +8717,8 @@ export function App() {
           <section className="app-settlement-dashboard" aria-label="앱 정산 요약">
             <div className="app-settlement-head">
               <span>Smart Settlement</span>
-              <h2>이번 달 정산 요약</h2>
-              <p>매월 15일, 고정 수수료를 제외한 금액이 팀원 지분율대로 자동 분배됩니다.</p>
+              <h2>팀 정산 요약</h2>
+              <p>주 단위 정산으로, 플랫폼 수수료를 제외한 금액을 팀원 지분율에 따라 나눕니다.</p>
               <div className="settlement-3d-flow compact" aria-hidden="true">
                 <i className="coin-source" />
                 <span />
@@ -8876,7 +8734,7 @@ export function App() {
               <div>
                 <p>총 결제 {formatCoins(settlementPreview.grossAmount)}</p>
                 <p>수수료 {settlementConfig.platformFeeRate}%</p>
-                <p>정산일 매월 15일</p>
+                <p>주 단위 정산</p>
               </div>
             </div>
 
@@ -8911,8 +8769,8 @@ export function App() {
           <div className="settlement-hero">
             <div>
               <p className="kicker">Smart Settlement Console</p>
-              <h2>고정 규칙으로 운영되는 자동 정산실</h2>
-              <p>팀장은 지분율과 팀원 동의 상태만 관리합니다. 매월 15일, 플랫폼 수수료를 제외한 금액이 각자의 지분율대로 자동 분배됩니다.</p>
+              <h2>함께 만든 수익, 주 단위 정산</h2>
+              <p>팀이 합의한 지분율에 따라 수익을 나눕니다. 주 단위 정산을 기준으로 플랫폼 수수료와 팀원별 예상 분배액을 확인하세요.</p>
             </div>
             <div className="settlement-next-card">
               <div className="settlement-3d-flow" aria-hidden="true">
@@ -8922,16 +8780,16 @@ export function App() {
                 <b className="coin-member coin-two" />
                 <b className="coin-member coin-three" />
               </div>
-              <span><ShieldCheck size={16} /> 고정 정산일</span>
-              <strong>매월 15일</strong>
-              <p>전월 결제분을 자동 계산해 팀원 지갑으로 지급합니다.</p>
+              <span><ShieldCheck size={16} /> 정산 주기</span>
+              <strong>주 단위 정산</strong>
+              <p>주 단위로 결제 내역을 확인하고, 합의된 지분율에 따라 정산합니다.</p>
             </div>
           </div>
 
           <div className="settlement-kpis">
-            <article><span>이번 달 총 결제</span><strong>{formatCoins(settlementPreview.grossAmount)}</strong></article>
+            <article><span>정산 대상 총 결제</span><strong>{formatCoins(settlementPreview.grossAmount)}</strong></article>
             <article><span>플랫폼 수수료</span><strong>- {formatCoins(settlementPreview.platformFeeAmount)}</strong></article>
-            <article><span>정산 예정일</span><strong>매월 15일</strong></article>
+            <article><span>정산 주기</span><strong>주 단위 정산</strong></article>
             <article><span>팀 분배 대상</span><strong>{formatCoins(settlementPreview.distributableAmount)}</strong></article>
           </div>
 
@@ -8946,7 +8804,7 @@ export function App() {
               <div className="settlement-health">
                 <div><span>지분율 합계</span><b className={settlementPreview.shareTotal === 100 ? "ok" : "warn"}>{settlementPreview.shareTotal}%</b></div>
                 <div><span>적용 수수료</span><b>{settlementConfig.platformFeeRate}%</b></div>
-                <div><span>정산일</span><b>15일</b></div>
+                <div><span>정산 주기</span><b>주 단위</b></div>
               </div>
             </section>
 
@@ -8981,11 +8839,11 @@ export function App() {
                   </div>
                 </label>
                 <label>
-                  <span>고정 정산일</span>
+                  <span>정산 주기</span>
                   <div className="settlement-rule-card">
                     <i><ShieldCheck size={17} /></i>
-                    <strong>매월 15일</strong>
-                    <small>전월 1일-말일 결제분 자동 정산</small>
+                    <strong>주 단위 정산</strong>
+                    <small>주 단위 결제 내역 기준 정산</small>
                   </div>
                 </label>
                 <label>
@@ -9010,6 +8868,7 @@ export function App() {
                       min={0}
                       max={100}
                       value={member.sharePercentage}
+                      aria-label={`${member.displayName} 지분율 조절`}
                       onChange={(event) => updateMemberShare(member.userId, Number(event.target.value))}
                     />
                     <input
@@ -9017,6 +8876,7 @@ export function App() {
                       min={0}
                       max={100}
                       value={member.sharePercentage}
+                      aria-label={`${member.displayName} 지분율 (%)`}
                       onChange={(event) => updateMemberShare(member.userId, Number(event.target.value))}
                     />
                   </div>
@@ -9048,9 +8908,9 @@ export function App() {
           </section>
 
           <section className="settlement-ops">
-            <article><ShieldCheck size={22} /><strong>정산 잠금</strong><p>월 마감 이후 지분율 변경을 잠가 팀원 모두가 같은 기준으로 정산 내역을 확인합니다.</p></article>
-            <article><Wallet size={22} /><strong>투명 원장</strong><p>결제 ID, 적용 수수료, 팀원별 지급액을 월별 리포트로 남겨 창작팀 신뢰를 높입니다.</p></article>
-            <article><RefreshCw size={22} /><strong>입금 상태 알림</strong><p>매월 15일 지급 완료, 계좌 확인 필요, 지갑 반영 상태를 팀원에게 자동 안내합니다.</p></article>
+            <article><ShieldCheck size={22} /><strong>정산 잠금</strong><p>주 단위 마감을 기준으로 합의한 지분율과 팀원별 분배 내역을 함께 확인합니다.</p></article>
+            <article><Wallet size={22} /><strong>투명 원장</strong><p>결제 ID, 적용 수수료, 팀원별 분배액을 거래 내역과 함께 확인합니다.</p></article>
+            <article><RefreshCw size={22} /><strong>입금 상태 알림</strong><p>주 단위 정산의 지급 상태와 계좌 확인 필요 여부, 지갑 반영 내역을 확인하세요.</p></article>
           </section>
         </section>}
 
@@ -9138,7 +8998,7 @@ export function App() {
 
             <section className="support-guide-grid">
               <article><Coins size={22} /><strong>결제/환불</strong><p>코인 충전 실패, 중복 결제, 열람권 미지급을 빠르게 확인합니다.</p></article>
-              <article><Split size={22} /><strong>정산 확인</strong><p>지분율 변경, 고정 정산일, 파트너 수수료 적용 내역을 검토합니다.</p></article>
+              <article><Split size={22} /><strong>정산 확인</strong><p>지분율 변경, 정산 주기, 파트너 수수료 적용 내역을 검토합니다.</p></article>
               <article><Headphones size={22} /><strong>접근성 지원</strong><p>스크린리더, 고대비 감상 모드, 대본 동기화 문제를 우선 처리합니다.</p></article>
             </section>
 

@@ -218,7 +218,7 @@ const project = {
   synopsis: "비 오는 도시의 라디오 주파수에서 사라진 목소리를 추적하는 배리어프리 오디오 드라마.",
   priceCoins: 1000,
   isOfficialPartner: false,
-  platformFeeRate: 0.15,
+  platformFeeRate: 0.13,
   partnerFeeRate: 0.08,
   monthlyGrossAmount: 100000,
 };
@@ -277,6 +277,7 @@ function publicUser(user) {
     email: user.email,
     username: user.username,
     displayName: user.displayName,
+    role: user.userType,
   };
 }
 
