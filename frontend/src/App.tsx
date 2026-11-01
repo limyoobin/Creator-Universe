@@ -1273,14 +1273,20 @@ function readNotificationPreferences(): NotificationPreferences {
 }
 
 function readAccessibilityPreferences(): AccessibilityPreferences {
+  const defaults = {
+    ...defaultAccessibilityPreferences,
+    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  };
+
   try {
     const parsed = JSON.parse(localStorage.getItem("creator-universe-accessibility-preferences") || "null");
     return {
-      ...defaultAccessibilityPreferences,
-      ...(parsed && typeof parsed === "object" ? parsed : {}),
+      highContrast: typeof parsed?.highContrast === "boolean" ? parsed.highContrast : defaults.highContrast,
+      largeText: typeof parsed?.largeText === "boolean" ? parsed.largeText : defaults.largeText,
+      reducedMotion: typeof parsed?.reducedMotion === "boolean" ? parsed.reducedMotion : defaults.reducedMotion,
     };
   } catch {
-    return defaultAccessibilityPreferences;
+    return defaults;
   }
 }
 
@@ -4915,7 +4921,7 @@ export function App() {
   }, [settlement?.appliedFeeRate, settlement?.members]);
 
   useEffect(() => {
-    if (activePage !== "home") {
+    if (activePage !== "home" || accessibilityPreferences.reducedMotion) {
       return;
     }
 
@@ -4924,7 +4930,7 @@ export function App() {
     }, 5200);
 
     return () => window.clearInterval(timer);
-  }, [activePage]);
+  }, [activePage, accessibilityPreferences.reducedMotion]);
 
   useEffect(() => {
     if (activePage !== "home") {
