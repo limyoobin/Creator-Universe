@@ -16,7 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
-    "test:ai": "tsx scripts/ai-matching-smoke.ts"
+    "test:ai": "tsx scripts/ai-matching-smoke.ts && tsx scripts/creator-matching-test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

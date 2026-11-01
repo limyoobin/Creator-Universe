@@ -1,4 +1,5 @@
 import { MemberRole } from "@prisma/client";
+import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching.js";
 import { prisma } from "../lib/prisma.js";
 
 type AiChatMessage = {
@@ -25,6 +26,7 @@ type CreatorRecommendation = {
   rank: number;
   score: number;
   matchRate: number;
+  matchSignals?: MatchSignal[];
   reason: string;
   reasonDetails: string[];
   matchedKeywords: string[];
@@ -1348,15 +1350,7 @@ function reliableRoleAliases(role: MemberRole) {
 }
 
 function detectReliableExcludedRoles(source: string) {
-  const normalizedSource = cleanNormalize(getReliableRoleDetectionSource(source));
-
-  return unique(
-    Object.values(MemberRole).filter((role) =>
-      reliableRoleAliases(role).some((alias) =>
-        reliableRoleExclusionPhrases.some((phrase) => normalizedSource.includes(`${alias} ${cleanNormalize(phrase)}`)),
-      ),
-    ),
-  );
+  return detectMatchingExcludedRoles(source) as MemberRole[];
 }
 
 function detectReliablePhraseRoles(source: string) {
@@ -1388,34 +1382,11 @@ function detectReliableKeywordRoles(source: string) {
 }
 
 function detectReliableExplicitRoleNeeds(source: string) {
-  const excludedRoles = detectReliableExcludedRoles(source);
-
-  return unique([...detectReliablePhraseRoles(source), ...detectReliableKeywordRoles(source)]).filter((role) => !excludedRoles.includes(role));
+  return detectMatchingRoles(source) as MemberRole[];
 }
 
 function detectRequestedRecommendationLimit(source: string) {
-  const normalizedSource = cleanNormalize(getReliableRoleDetectionSource(source));
-  const directCountPatterns: Array<[RegExp, number]> = [
-    [/(한|1)\s*(명|분|사람)\s*만?/, 1],
-    [/(하나|한\s*명|원픽|1순위만|첫\s*번째만|top\s*1|top1)/, 1],
-    [/(두|2)\s*(명|분|사람)\s*만?/, 2],
-    [/(둘|2순위까지|top\s*2|top2)/, 2],
-    [/(세|3)\s*(명|분|사람)\s*만?/, 3],
-    [/(셋|3순위까지|top\s*3|top3)/, 3],
-  ];
-
-  for (const [pattern, count] of directCountPatterns) {
-    if (pattern.test(normalizedSource)) {
-      return count;
-    }
-  }
-
-  const numericMatch = normalizedSource.match(/(\d+)\s*(명|분|사람|개|팀)\s*(추천|찾|골라|뽑|보여)/);
-  if (numericMatch) {
-    return Math.max(1, Math.min(Number(numericMatch[1]), 6));
-  }
-
-  return null;
+  return detectMatchingLimit(source);
 }
 
 function detectCleanTopics(source: string) {
@@ -1438,7 +1409,7 @@ function buildCleanKeywords(input: AiMatchingInput) {
 function buildCleanTone(projectDescription: string, topics: string[]) {
   const source = cleanNormalize(projectDescription);
 
-  if (topics.includes("미스터리") || source.includes("괴담") || source.includes("밤") || source.includes("비")) {
+  if (topics.includes("미스터리") || source.includes("괴담") || /비가?\s*오는|비가\s*내리는/.test(source)) {
     return "어두운 미스터리와 몰입감이 중요한 분위기";
   }
 
@@ -1458,15 +1429,13 @@ function buildCleanTone(projectDescription: string, topics: string[]) {
 }
 
 function buildCleanBrief(input: AiMatchingInput): ProjectBrief {
-  const topics = unique([...detectCleanTopics([input.projectDescription, ...(input.genres ?? [])].join(" ")), ...(input.genres ?? [])]).slice(0, 6);
-  const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription);
-  const excludedRoles = detectReliableExcludedRoles(input.projectDescription);
-  const roleNeeds = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role)).slice(0, 5);
-  const neededRoles = roleNeeds.length > 0 ? roleNeeds.map((role) => reliableRoleLabels[role]) : ["그림", "목소리", "BGM"];
-  const tone = buildCleanTone(input.projectDescription, topics);
+  const context = resolveMatchingContext(input);
+  const topics = context.topics;
+  const neededRoles = context.roles.map(role => reliableRoleLabels[role as MemberRole]);
+  const tone = buildCleanTone(resolveMatchingContext(input).source, topics);
 
   return {
-    summary: `${tone}라서 ${neededRoles.join(", ")} 포지션을 붙이면 작품 완성도가 올라갈 것 같아요.`,
+    summary: neededRoles.length ? `${tone}에 맞는 ${neededRoles.join(", ")} 후보를 비교했어요.` : `${tone}로 읽었어요. 필요한 직군을 알려주면 더 정확하게 좁힐 수 있어요.`,
     tone,
     topics,
     neededRoles,
@@ -1606,12 +1575,7 @@ function buildCleanFollowUps(input: AiMatchingInput, recommendations: CreatorRec
 }
 
 async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchingResponse> {
-  const keywords = buildCleanKeywords(input);
-  const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription);
-  const excludedRoles = detectReliableExcludedRoles(input.projectDescription);
-  const preferredRoles = unique([...explicitRoles, ...(input.preferredRoles ?? [])]).filter((role) => !excludedRoles.includes(role));
-  const requestedLimit = detectRequestedRecommendationLimit(input.projectDescription);
-  const limit = Math.max(1, Math.min(requestedLimit ?? input.limit ?? 3, 6));
+  const context = resolveMatchingContext(input);
   const brief = buildCleanBrief(input);
 
   const profiles = await prisma.creatorProfile.findMany({
@@ -1629,81 +1593,31 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
     orderBy: [{ featured: "desc" }, { followerCount: "desc" }, { completedProjects: "desc" }],
   });
 
-  const recommendations = profiles
-    .map((profile) => {
-      const roleKeywordMatches = reliableRoleKeywords[profile.primaryRole].filter((keyword) => cleanNormalize(input.projectDescription).includes(cleanNormalize(keyword)));
-      const explicitRoleMatched = explicitRoles.length === 0 || explicitRoles.includes(profile.primaryRole);
-      const preferredRoleMatched = preferredRoles.length === 0 || preferredRoles.includes(profile.primaryRole);
-      const skillMatch = cleanWeightedMatches(profile.skills.join(" "), keywords, 18);
-      const headlineMatch = cleanWeightedMatches(profile.headline, keywords, 13);
-      const bioMatch = cleanWeightedMatches(profile.bio, keywords, 9);
-      const score = Math.max(
-        0,
-        skillMatch.score +
-          headlineMatch.score +
-          bioMatch.score +
-          roleKeywordMatches.length * 18 +
-          (explicitRoles.length === 0 ? 0 : explicitRoleMatched ? 95 : -55) +
-          (preferredRoleMatched ? 20 : -12) +
-          Math.min(profile.responseRate / 10, 10) +
-          Math.min(profile.completedProjects * 1.5, 12) +
-          (profile.featured ? 8 : 0),
-      );
-      const matchedKeywords = unique([...skillMatch.matches, ...headlineMatch.matches, ...bioMatch.matches, ...roleKeywordMatches]).slice(0, 8);
-      const reason =
-        matchedKeywords.length > 0
-          ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 작품 설명과 공개 포트폴리오에서 겹칩니다.`
-          : `${reliableRoleLabels[profile.primaryRole]} 역할과 협업 지표를 기준으로 추천했습니다.`;
-
-      return {
-        rank: 0,
-        score: Math.round(score),
-        matchRate: Math.max(42, Math.min(98, Math.round(52 + score * 0.72))),
-        reason,
-        reasonDetails: buildCleanReasonDetails({
-          role: profile.primaryRole,
-          matchedKeywords,
-          preferredRoleMatched,
-          responseRate: profile.responseRate,
-          completedProjects: profile.completedProjects,
-        }),
-        matchedKeywords,
-        suggestedMessage: buildCleanSuggestedMessage(input.projectDescription, profile.user.displayName, profile.primaryRole, matchedKeywords),
-        creator: {
-          id: profile.user.id,
-          userId: profile.user.id,
-          username: profile.user.username,
-          displayName: profile.user.displayName,
-          isPartner: profile.user.isPartner,
-          partnerTier: profile.user.partnerTier,
-          primaryRole: profile.primaryRole,
-          headline: profile.headline,
-          bio: profile.bio,
-          skills: profile.skills,
-          availabilityNote: profile.availabilityNote,
-          responseRate: profile.responseRate,
-          followerCount: profile.followerCount,
-          completedProjects: profile.completedProjects,
-          featured: profile.featured,
-          voiceDemo: profile.voiceDemoTitle
-            ? {
-                title: profile.voiceDemoTitle,
-                durationSeconds: profile.voiceDemoDurationSeconds,
-                waveform: profile.voiceWaveform,
-              }
-            : null,
-        },
-      };
-    })
-    .filter((item) => !excludedRoles.includes(item.creator.primaryRole))
-    .filter((item) => {
-      const scopedRoles = explicitRoles.length > 0 ? explicitRoles : preferredRoles;
-
-      return scopedRoles.length === 0 || scopedRoles.includes(item.creator.primaryRole);
-    })
-    .sort((left, right) => right.score - left.score || right.creator.responseRate - left.creator.responseRate)
-    .slice(0, limit)
-    .map((item, index) => ({ ...item, rank: index + 1 }));
+  const candidates = profiles.map(profile => ({
+    id: profile.user.id,
+    userId: profile.user.id,
+    username: profile.user.username,
+    displayName: profile.user.displayName,
+    isPartner: profile.user.isPartner,
+    partnerTier: profile.user.partnerTier,
+    primaryRole: profile.primaryRole,
+    headline: profile.headline,
+    bio: profile.bio,
+    skills: profile.skills,
+    availabilityNote: profile.availabilityNote,
+    responseRate: profile.responseRate,
+    followerCount: profile.followerCount,
+    completedProjects: profile.completedProjects,
+    featured: profile.featured,
+    voiceDemo: profile.voiceDemoTitle
+      ? {
+          title: profile.voiceDemoTitle,
+          durationSeconds: profile.voiceDemoDurationSeconds,
+          waveform: profile.voiceWaveform,
+        }
+      : null,
+  }));
+  const recommendations = rankMatchingCreators(candidates, context);
 
   return {
     provider: "local",
@@ -1879,8 +1793,7 @@ export async function recommendCreatorsForProject(input: AiMatchingInput): Promi
 }
 
 export async function createAiMatchingChat(input: AiMatchingInput): Promise<AiMatchingResponse> {
-  const conversationInput = buildConversationAwareInput(input);
-  const localResponse = await buildCleanLocalResponse(conversationInput);
+  const localResponse = await buildCleanLocalResponse(input);
   const conversationalResponse: AiMatchingResponse = {
     ...localResponse,
     assistantMessage: buildCleanAssistantMessage(input, localResponse.recommendations),

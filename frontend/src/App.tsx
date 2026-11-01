@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
 import {
   Bell,
   BookOpen,
@@ -162,6 +163,7 @@ type AiMatchRecommendation = {
   rank: number;
   score: number;
   matchRate: number;
+  matchSignals?: MatchSignal[];
   reason: string;
   reasonDetails?: string[];
   matchedKeywords: string[];
@@ -1713,166 +1715,24 @@ function getAiRoleAliases(role: string) {
 }
 
 function detectExcludedAiRoles(prompt: string) {
-  const source = normalizeAiText(getAiRoleDetectionSource(prompt));
-
-  return Array.from(new Set(
-    Object.keys(aiRoleKeywords).filter((role) =>
-      getAiRoleAliases(role).some((alias) =>
-        aiRoleExclusionPhrases.some((phrase) => {
-          const normalizedPhrase = normalizeAiText(phrase);
-
-          return source.includes(`${alias} ${normalizedPhrase}`);
-        }),
-      ),
-    ),
-  ));
+  return detectMatchingExcludedRoles(prompt);
 }
 
 function detectExplicitAiRoles(prompt: string) {
-  const source = normalizeAiText(getAiRoleDetectionSource(prompt));
-  const phraseRoles = Object.entries(aiRolePhraseKeywords)
-    .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
-    .map(([role]) => role);
-  const hasIllustratorPhrase = phraseRoles.includes("ILLUSTRATOR");
-  const hasWriterPhrase = phraseRoles.includes("WRITER");
-  const excludedRoles = detectExcludedAiRoles(prompt);
-
-  const keywordRoles = Object.entries(aiRoleKeywords)
-    .filter(([, aliases]) => aliases.some((alias) => source.includes(normalizeAiText(alias))))
-    .map(([role]) => role)
-    .filter((role) => !excludedRoles.includes(role))
-    .filter((role) => !(role === "WRITER" && hasIllustratorPhrase && !hasWriterPhrase));
-
-  return Array.from(new Set([...phraseRoles, ...keywordRoles])).filter((role) => !excludedRoles.includes(role));
+  return detectMatchingRoles(prompt);
 }
 
 function detectAiRequestedLimit(prompt: string) {
-  const source = normalizeAiText(getAiRoleDetectionSource(prompt));
-  const directPatterns: Array<[RegExp, number]> = [
-    [/(한|1)\s*(명|분|사람)\s*만?/, 1],
-    [/(하나|한\s*명|원픽|1순위만|첫\s*번째만|top\s*1|top1)/, 1],
-    [/(두|2)\s*(명|분|사람)\s*만?/, 2],
-    [/(둘|2순위까지|top\s*2|top2)/, 2],
-    [/(세|3)\s*(명|분|사람)\s*만?/, 3],
-    [/(셋|3순위까지|top\s*3|top3)/, 3],
-  ];
-
-  for (const [pattern, count] of directPatterns) {
-    if (pattern.test(source)) {
-      return count;
-    }
-  }
-
-  const numericMatch = source.match(/(\d+)\s*(명|분|사람|개|팀)\s*(추천|찾|골라|뽑|보여)/);
-  if (numericMatch) {
-    return Math.max(1, Math.min(Number(numericMatch[1]), 6));
-  }
-
-  return null;
+  return detectMatchingLimit(prompt);
 }
 
 function buildLocalAiRecommendations(
-  sourceCreators: Creator[],
-  prompt: string,
-  preferredRoles: string[],
-  filters: string[],
-  requestedLimit = 3,
+  sourceCreators: Creator[], prompt: string, preferredRoles: string[], filters: string[],
+  requestedLimit = 3, messages: AiChatMessage[] = [],
 ): AiMatchRecommendation[] {
-  const keywords = buildAiPromptKeywords(prompt, filters);
-  const normalizedPrompt = normalizeAiText(prompt);
-  const explicitRoles = detectExplicitAiRoles(prompt);
-  const excludedRoles = detectExcludedAiRoles(prompt);
-  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...preferredRoles])).filter((role) => !excludedRoles.includes(role));
-
-  return sourceCreators
-    .map((creator) => {
-      const portfolio = getCreatorPortfolio(creator);
-      const searchableText = normalizeAiText(
-        [
-          creator.displayName,
-          creator.username,
-          roleLabels[creator.primaryRole],
-          creator.headline,
-          creator.bio,
-          creator.portfolioSummary,
-          ...creator.skills,
-          ...portfolio.flatMap((item) => [item.title, item.category, item.description, ...item.tags]),
-        ]
-          .filter(Boolean)
-          .join(" "),
-      );
-      const matchedKeywords = keywords.filter((keyword) => searchableText.includes(normalizeAiText(keyword))).slice(0, 8);
-      const roleKeywordHits = (aiRoleKeywords[creator.primaryRole] ?? []).filter((keyword) =>
-        normalizedPrompt.includes(normalizeAiText(keyword)),
-      );
-      const explicitRoleMatched = explicitRoles.length === 0 || explicitRoles.includes(creator.primaryRole);
-      const roleBoost =
-        explicitRoles.length > 0
-          ? explicitRoleMatched
-            ? 95
-            : -45
-          : effectivePreferredRoles.length === 0 || effectivePreferredRoles.includes(creator.primaryRole)
-            ? 24
-            : -10;
-      const portfolioBoost = portfolio.some((item) =>
-        item.tags.some((tag) => keywords.some((keyword) => normalizeAiText(tag).includes(normalizeAiText(keyword)))),
-      )
-        ? 18
-        : 0;
-      const score =
-        matchedKeywords.length * 13 +
-        roleKeywordHits.length * 12 +
-        roleBoost +
-        portfolioBoost +
-        Math.min(creator.responseRate / 10, 10) +
-        Math.min(creator.completedProjects * 1.5, 12);
-      const reason =
-        matchedKeywords.length > 0
-          ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 포트폴리오와 겹쳐 이번 프로젝트에 잘 맞습니다.`
-          : `${roleLabels[creator.primaryRole]} 역할과 응답률, 포트폴리오 완성도를 기준으로 추천했습니다.`;
-      const reasonDetails = [
-        explicitRoles.length > 0
-          ? explicitRoleMatched
-            ? `문장에 직접 나온 요청 직군과 ${roleLabels[creator.primaryRole]} 역할이 정확히 맞습니다.`
-            : `${roleLabels[creator.primaryRole]} 역할은 이번 질문의 핵심 직군은 아니라 보조 후보로만 봤습니다.`
-          : effectivePreferredRoles.length === 0 || effectivePreferredRoles.includes(creator.primaryRole)
-            ? `요청한 직군과 ${roleLabels[creator.primaryRole]} 역할이 맞습니다.`
-            : `${roleLabels[creator.primaryRole]} 역할은 보조 포지션으로 검토할 만합니다.`,
-        matchedKeywords.length > 0
-          ? `${matchedKeywords.slice(0, 4).join(", ")} 키워드가 작품 설명과 연결됩니다.`
-          : "공개 프로필의 협업 지표와 활동성을 기준으로 골랐습니다.",
-        creator.responseRate >= 90 ? `응답률 ${creator.responseRate}%라서 빠른 상담이 기대됩니다.` : "포트폴리오 확인 후 세부 조건을 조율하면 좋습니다.",
-      ];
-      const suggestedMessage = `${creator.displayName}님, 제 작품 방향과 ${matchedKeywords.slice(0, 3).join(", ") || "포트폴리오"} 결이 잘 맞아 보여서 ${roleLabels[creator.primaryRole]} 포지션으로 협업 상담을 드리고 싶습니다.`;
-
-      return {
-        rank: 0,
-        score: Math.max(0, Math.round(score)),
-        matchRate: Math.max(45, Math.min(98, Math.round(54 + score * 0.7))),
-        reason,
-        reasonDetails,
-        matchedKeywords,
-        suggestedMessage,
-        creator,
-      };
-    })
-    .filter((item) => {
-      if (excludedRoles.includes(item.creator.primaryRole)) {
-        return false;
-      }
-
-      const scopedRoles = explicitRoles.length > 0 ? explicitRoles : effectivePreferredRoles;
-
-      return scopedRoles.length === 0 || scopedRoles.includes(item.creator.primaryRole);
-    })
-    .sort((left, right) => {
-      const leftExplicitRole = explicitRoles.includes(left.creator.primaryRole) ? 1 : 0;
-      const rightExplicitRole = explicitRoles.includes(right.creator.primaryRole) ? 1 : 0;
-
-      return rightExplicitRole - leftExplicitRole || right.score - left.score || right.creator.responseRate - left.creator.responseRate;
-    })
-    .slice(0, Math.max(1, Math.min(requestedLimit, 6)))
-    .map((item, index) => ({ ...item, rank: index + 1 }));
+  return rankMatchingCreators(sourceCreators, resolveMatchingContext({
+    projectDescription: prompt, preferredRoles, genres: filters, limit: requestedLimit, messages,
+  }));
 }
 
 function buildLocalRankedRecommendationBlock(recommendations: AiMatchRecommendation[]) {
@@ -1946,22 +1806,12 @@ function buildLocalAiMatchingResponse(
 ): AiMatchingResponse {
   const userMessages = messages.filter((message) => message.role === "user").map((message) => message.content.trim()).filter(Boolean);
   const previousUserMessages = userMessages.filter((message, index) => index !== userMessages.length - 1);
-  const projectSignalMessages = Array.from(new Set([...userMessages, prompt].filter(Boolean))).filter((message) => !isLowSignalAiText(message));
-  const conversationPrompt = (projectSignalMessages.length > 0 ? projectSignalMessages : userMessages).join("\n");
-  const recommendationPrompt = conversationPrompt || prompt;
-  const latestExplicitRoles = detectExplicitAiRoles(prompt);
-  const latestExcludedRoles = detectExcludedAiRoles(prompt);
-  const roleScopedPrompt = latestExplicitRoles.length > 0 || latestExcludedRoles.length > 0 ? prompt : recommendationPrompt;
-  const explicitRoles = detectExplicitAiRoles(roleScopedPrompt);
-  const excludedRoles = detectExcludedAiRoles(roleScopedPrompt);
-  const effectivePreferredRoles = Array.from(new Set([...explicitRoles, ...(latestExplicitRoles.length > 0 ? [] : preferredRoles)])).filter((role) => !excludedRoles.includes(role));
-  const requestedLimit = detectAiRequestedLimit(prompt) ?? detectAiRequestedLimit(recommendationPrompt) ?? 3;
-  const recommendations = buildLocalAiRecommendations(sourceCreators, roleScopedPrompt, effectivePreferredRoles, filters, requestedLimit);
-  const keywords = buildAiPromptKeywords(conversationPrompt || prompt, filters);
-  const topics = Object.keys(aiGenreKeywords)
-    .filter((topic) => keywords.some((keyword) => normalizeAiText(topic).includes(normalizeAiText(keyword)) || normalizeAiText(keyword).includes(normalizeAiText(topic))))
-    .slice(0, 5);
-  const neededRoles = effectivePreferredRoles.length > 0 ? effectivePreferredRoles.map((roleId) => roleLabels[roleId]).filter(Boolean) : ["그림", "목소리", "BGM"];
+  const context = resolveMatchingContext({ projectDescription: prompt, preferredRoles, genres: filters, messages });
+  const conversationPrompt = context.source;
+  const explicitRoles = context.roles;
+  const recommendations = buildLocalAiRecommendations(sourceCreators, prompt, preferredRoles, filters, context.limit, messages);
+  const topics = context.topics;
+  const neededRoles = context.roles.map(roleId => roleLabels[roleId]).filter(Boolean);
   const tone = topics.includes("미스터리")
     ? "어두운 미스터리 무드"
     : topics.includes("로맨스")
@@ -1969,7 +1819,7 @@ function buildLocalAiMatchingResponse(
       : topics.includes("힐링")
         ? "잔잔하고 따뜻한 힐링 무드"
         : "멀티 콘텐츠로 확장하기 좋은 분위기";
-  const summary = `${tone}가 강해서 ${neededRoles.join(", ")} 포지션을 붙이면 작품 완성도가 올라갈 것 같아요.`;
+  const summary = neededRoles.length ? `${tone}에 맞는 ${neededRoles.join(", ")} 후보를 비교했어요.` : `${tone}로 읽었어요. 필요한 직군을 알려주면 더 정확하게 좁힐 수 있어요.`;
   const topRecommendation = recommendations[0];
   const secondRecommendation = recommendations[1];
   const topCreator = topRecommendation?.creator.displayName;
@@ -2079,7 +1929,8 @@ async function request<T>(path: string, token: string | null, options: RequestIn
           ...options.headers,
         },
       });
-    } catch {
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
       lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
       continue;
     }
@@ -4070,6 +3921,7 @@ export function App() {
   const [isBootLoading, setIsBootLoading] = useState(true);
   const librarySectionRef = useRef<HTMLElement | null>(null);
   const aiChatLogRef = useRef<HTMLDivElement | null>(null);
+  const aiRequestRef = useRef<AbortController | null>(null);
 
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
@@ -4810,8 +4662,8 @@ export function App() {
       return;
     }
 
-    chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: "smooth" });
-  }, [aiMatchMessages, isAiMatching]);
+    chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: accessibilityPreferences.reducedMotion ? "auto" : "smooth" });
+  }, [aiMatchMessages, isAiMatching, accessibilityPreferences.reducedMotion]);
 
   useEffect(() => {
     if (aiMatchMessages.length === 0) {
@@ -5260,6 +5112,9 @@ export function App() {
   }
 
   function resetAiMatchingConversation() {
+    aiRequestRef.current?.abort();
+    aiRequestRef.current = null;
+    setIsAiMatching(false);
     setAiMatchPrompt("");
     setAiMatchMessages([]);
     setIsAiHistoryOpen(false);
@@ -5269,14 +5124,22 @@ export function App() {
   }
 
   async function runAiMatchingRecommendation(promptOverride?: string) {
+    if (aiRequestRef.current) return;
     const prompt = (promptOverride ?? aiMatchPrompt).trim();
     if (prompt.length < 2) {
       setAiMatchMessage("AI 매칭 매니저에게 물어볼 내용을 짧게라도 적어주세요.");
       return;
     }
+    if (prompt.length > 1200) {
+      setAiMatchMessage("작품 설명은 1,200자 이내로 적어주세요.");
+      return;
+    }
 
     const nextMessages: AiChatMessage[] = [...aiMatchMessages, { role: "user", content: prompt }];
     const requestedLimit = detectAiRequestedLimit(prompt) ?? 3;
+    const controller = new AbortController();
+    aiRequestRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 25000);
 
     setIsAiMatching(true);
     setAiMatchMessage("");
@@ -5286,14 +5149,16 @@ export function App() {
     try {
       const response = await request<AiMatchingResponse>("/api/ai/matching-chat", token, {
         method: "POST",
+        signal: controller.signal,
         body: JSON.stringify({
           projectDescription: prompt,
           preferredRoles: aiPreferredRoles,
           genres: matchingFilters,
-          messages: nextMessages.slice(-8),
+          messages: nextMessages.slice(-8).map(message => ({ ...message, content: message.content.slice(0, 2000) })),
           limit: requestedLimit,
         }),
       });
+      if (aiRequestRef.current !== controller) return;
 
       setAiMatchResponse(response);
       setAiMatchResults(response.recommendations);
@@ -5305,6 +5170,7 @@ export function App() {
         response.recommendations.length > 0 ? "" : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
       );
     } catch (error) {
+      if (aiRequestRef.current !== controller) return;
       const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters, nextMessages);
       setAiMatchResponse(fallbackResponse);
       setAiMatchResults(fallbackResponse.recommendations);
@@ -5314,11 +5180,15 @@ export function App() {
       ]);
       setAiMatchMessage(
         fallbackResponse.recommendations.length > 0
-          ? "백엔드 추천 API가 잠시 불안정해서, 앱 안의 포트폴리오 분석으로 추천했습니다."
+          ? "연결을 기다리는 대신, 현재 공개 프로필에서 같은 기준으로 추천했어요."
           : `추천 실패: ${getFriendlyError(error)}`,
       );
     } finally {
-      setIsAiMatching(false);
+      window.clearTimeout(timeout);
+      if (aiRequestRef.current === controller) {
+        aiRequestRef.current = null;
+        setIsAiMatching(false);
+      }
     }
   }
 
@@ -8171,7 +8041,7 @@ export function App() {
                 추천 이유와 다음 질문까지 이어서 정리합니다.
               </p>
               <div className="ai-availability-note" aria-label="AI 매칭 동작 기준">
-                <span>Gemini 우선 응답</span>
+                <span>작품 조건별 추천</span>
                 <span>등록 후보만 추천</span>
                 <span>후보 없으면 솔직 안내</span>
               </div>
@@ -8198,11 +8068,11 @@ export function App() {
               <div className="ai-workbench-status" aria-label="AI 매칭 현재 상태">
                 <article>
                   <span>AI 상태</span>
-                  <strong>{aiMatchResponse?.provider === "gemini" ? "Gemini 연결" : aiMatchResponse ? "로컬 보조" : "대기 중"}</strong>
+                  <strong>{isAiMatching ? "추천 분석 중" : aiMatchResponse ? "분석 완료" : "준비 완료"}</strong>
                 </article>
                 <article>
                   <span>공개 후보</span>
-                  <strong>{filteredCreators.length}명</strong>
+                  <strong>{creators.length}명</strong>
                 </article>
                 <article>
                   <span>선택 직군</span>
@@ -8216,6 +8086,8 @@ export function App() {
                     <button
                       key={item}
                       className={aiPreferredRoles.includes(item) ? "active" : ""}
+                      aria-pressed={aiPreferredRoles.includes(item)}
+                      disabled={isAiMatching}
                       onClick={() => toggleAiPreferredRole(item)}
                       type="button"
                     >
@@ -8238,14 +8110,14 @@ export function App() {
                         대화 기억 {aiMatchMessages.filter((message) => message.role === "user").length}개 · 공개 포트폴리오 기반 추천
                         <span className={`ai-provider-badge ${aiMatchResponse?.provider ?? "waiting"}`}>
                           {aiMatchResponse?.provider === "gemini"
-                            ? "Gemini API"
+                            ? "AI 분석"
                             : aiMatchResponse
-                              ? "로컬 추천"
-                              : "Gemini 대기"}
+                              ? "프로필 분석"
+                              : "조건 입력 대기"}
                         </span>
                       </p>
-                      {aiMatchResponse?.provider === "local" && aiMatchResponse.providerNote && (
-                        <small className="ai-provider-note">{aiMatchResponse.providerNote}</small>
+                      {aiMatchResponse?.provider === "local" && (
+                        <small className="ai-provider-note">현재 공개된 프로필과 요청 조건을 비교한 추천입니다.</small>
                       )}
                     </div>
                   </div>
@@ -8269,14 +8141,14 @@ export function App() {
                 {aiMatchMessages.length === 0 && (
                   <div className="ai-starter-grid" aria-label="AI 매칭 시작 질문">
                     {aiStarterPrompts.map((item) => (
-                      <button key={item.label} type="button" onClick={() => void runAiMatchingRecommendation(item.prompt)}>
+                      <button key={item.label} type="button" disabled={isAiMatching} onClick={() => void runAiMatchingRecommendation(item.prompt)}>
                         <strong>{item.label}</strong>
                         <span>{item.helper}</span>
                       </button>
                     ))}
                   </div>
                 )}
-                <div className="ai-chat-log" aria-label="AI 매칭 대화 기록" ref={aiChatLogRef}>
+                <div className="ai-chat-log" role="log" aria-live="polite" aria-busy={isAiMatching} aria-label="AI 매칭 대화 기록" ref={aiChatLogRef}>
                   {aiMatchMessages.length === 0 && (
                     <div className="ai-chat-bubble assistant">
                       <span>AI 매칭 매니저</span>
@@ -8300,34 +8172,37 @@ export function App() {
                   {isAiMatching && (
                     <div className="ai-chat-bubble assistant ai-typing">
                       <span>AI 매칭 매니저</span>
-                      <p>후보 점수와 이전 질문을 같이 계산하고 있어요...</p>
+                      <p><i className="ai-thinking-dots" aria-hidden="true"><b /><b /><b /></i>작품 분위기와 작업 경험을 비교하고 있어요.</p>
                     </div>
                   )}
                 </div>
 
                 <label className="ai-chat-composer">
                   <textarea
+                    aria-label="AI 매칭 질문"
+                    maxLength={1200}
                     value={aiMatchPrompt}
                     onChange={(event) => setAiMatchPrompt(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
+                      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
                         event.preventDefault();
                         void runAiMatchingRecommendation();
                       }
                     }}
                     placeholder="예: 비 오는 도시괴담 웹소설인데 낮은 톤 성우랑 네온 일러스트가 필요해. 누구랑 하면 좋을까?"
                   />
-                  <button type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching}>
+                  <button type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching || aiMatchPrompt.trim().length < 2}>
                     <Send size={17} />
                     {isAiMatching ? "분석 중" : "보내기"}
                   </button>
                 </label>
                 <div className="ai-chat-hints" aria-label="AI 매칭 사용 힌트">
+                  <span>{aiMatchPrompt.length.toLocaleString()} / 1,200자</span>
                   <span>Enter 전송</span>
                   <span>Shift+Enter 줄바꿈</span>
                   <span>“왜?”라고 물으면 근거를 다시 설명해요</span>
                 </div>
-                {aiMatchMessage && <p className="ai-match-message">{aiMatchMessage}</p>}
+                {aiMatchMessage && <p className="ai-match-message" role="status">{aiMatchMessage}</p>}
               </div>
             </div>
 
@@ -8347,6 +8222,7 @@ export function App() {
                     <button
                       key={question}
                       type="button"
+                      disabled={isAiMatching}
                       onClick={() => void runAiMatchingRecommendation(question)}
                     >
                       {question}
@@ -8359,13 +8235,13 @@ export function App() {
             {aiMatchResults.length > 0 && (
               <div className="ai-recommendation-grid">
                 {aiMatchResults.map((item) => {
-                  const portfolio = getCreatorPortfolio(item.creator)[0];
+                  const portfolio = item.creator.portfolioItems?.[0];
 
                   return (
-                    <article className={`ai-recommendation-card ${item.creator.primaryRole.toLowerCase()}`} key={`${item.creator.userId}-${item.rank}`}>
+                    <article className={`ai-recommendation-card ${item.creator.primaryRole.toLowerCase()}`} key={`${item.creator.userId}-${item.rank}`} style={{ animationDelay: `${(item.rank - 1) * 70}ms` }}>
                       <div className="ai-rank-badge">
                         <b>{item.rank}</b>
-                        <span>{item.matchRate}% 매칭</span>
+                        <span>{item.matchSignals ? `추천 점수 ${item.score} / 100` : `${item.matchRate}% 매칭`}</span>
                       </div>
                       <div className="ai-creator-line">
                         <i>{item.creator.displayName.slice(0, 1)}</i>
@@ -8375,7 +8251,20 @@ export function App() {
                         </div>
                       </div>
                       <p>{item.reason}</p>
-                      {item.reasonDetails && item.reasonDetails.length > 0 && (
+                      {item.matchSignals && (
+                        <details className="ai-score-details">
+                          <summary>추천 근거 자세히 보기 <ChevronDown size={14} /></summary>
+                          <p>직군·작품 방향·작업 역량·협업 기록을 합산한 점수예요.</p>
+                          {item.matchSignals.map(signal => (
+                            <div className="ai-score-row" key={signal.label}>
+                              <span>{signal.label}</span><b>{signal.points} / {signal.maximum}</b>
+                              <div className="ai-score-track" aria-hidden="true"><i style={{ width: `${signal.points / signal.maximum * 100}%` }} /></div>
+                              <small>{signal.detail}</small>
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {!item.matchSignals && item.reasonDetails && item.reasonDetails.length > 0 && (
                         <ul className="ai-reason-list">
                           {item.reasonDetails.slice(0, 4).map((detail) => (
                             <li key={detail}>{detail}</li>
@@ -8403,6 +8292,27 @@ export function App() {
                   );
                 })}
               </div>
+            )}
+
+            {aiMatchResults.length > 1 && (
+              <details className="ai-candidate-comparison">
+                <summary><Users size={18} /> 후보 한눈에 비교 <ChevronDown size={16} /></summary>
+                <div className="ai-comparison-scroll" tabIndex={0} role="region" aria-label="추천 후보 비교 표">
+                  <table>
+                    <caption>같은 프로젝트 조건으로 추천한 후보 비교</caption>
+                    <thead><tr><th scope="col">창작자</th><th scope="col">직군</th><th scope="col">일치 키워드</th><th scope="col">응답률</th><th scope="col">완료 작업</th></tr></thead>
+                    <tbody>{aiMatchResults.map(item => (
+                      <tr key={item.creator.userId}>
+                        <th scope="row">{item.rank}. {item.creator.displayName}</th>
+                        <td>{roleLabels[item.creator.primaryRole]}</td>
+                        <td>{item.matchedKeywords.join(" · ") || "상담에서 확인"}</td>
+                        <td>{item.creator.responseRate}%</td>
+                        <td>{item.creator.completedProjects}건</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </details>
             )}
 
             {aiMatchResponse && aiMatchResults.length === 0 && (
