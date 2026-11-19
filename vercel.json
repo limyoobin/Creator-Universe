@@ -3,6 +3,12 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install && npm --prefix frontend install",
   "framework": "vite",
+  "headers": [
+    {
+      "source": "/auth/return/:provider",
+      "headers": [{ "key": "Referrer-Policy", "value": "no-referrer" }]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

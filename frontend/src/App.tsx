@@ -1,9 +1,13 @@
 import { CoinCheckout } from "./CoinCheckout";
 import { IdentityCheck } from "./IdentityCheck";
+import { EasyLoginPanel } from "./EasyLoginPanel";
+import { clearEasy, pendingEasy, readEasyReturn, type EasyReturn } from "./easy-login";
 import { cancelPasskeyPrompt, passkeyError, passkeySupported, verifyAccountPasskey, type SignupAccount } from "./passkeys";
 import { useIntegrationStatus, readProviderReturn, clearProviderReturn, saveChallenge, type IdentityProof } from "./portone";
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { WorksCatalog } from "./WorksCatalog";
+import { MatchingProviders, matchProviderNames } from "./MatchingProviders";
+import type { MatchingProviderIssues } from "../../shared/matching-providers";
 import { TideReader, type TideMode } from "./TideReader";
 import { tideWork } from "./tide-letter";
 import { ArrowUpRight, Trophy } from "lucide-react";
@@ -179,12 +183,12 @@ type AiMatchRecommendation = {
   creator: Creator;
 };
 
-const matchProviderNames = { groq: "Groq", nvidia: "NVIDIA", gemini: "Gemini" } as const;
 type MatchProvider = keyof typeof matchProviderNames;
 
 type AiMatchingResponse = {
   provider?: MatchProvider | "local" | "ensemble";
   providersUsed?: MatchProvider[];
+  providerIssues?: MatchingProviderIssues;
   providerNote?: string;
   assistantMessage: string;
   projectBrief: {
@@ -808,6 +812,7 @@ type NotificationItem = {
 };
 
 const studioSections = ["studio", "matching", "settlement"] as const;
+const initialEasyReturn = readEasyReturn();
 const entryParams = new URLSearchParams(window.location.search);
 const studioWindow = studioSections.some(section => section === entryParams.get("studio"));
 const readerDestinations = ["discover", "ranking", "creators", "library", "support", "home"] as const;
@@ -1930,7 +1935,7 @@ const apiResponseParseErrorMessage = "API 응답을 읽을 수 없습니다. 프
 async function request<T>(path: string, token: string | null, options: RequestInit = {}) {
   const apiBases = [
     API_URL,
-    import.meta.env.PROD && !token && (!options.method || options.method === "GET") && !path.startsWith("/api/integrations/") && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
+    import.meta.env.PROD && !token && (!options.method || options.method === "GET") && !path.startsWith("/api/integrations/") && !path.startsWith("/api/auth/") && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
   ].filter((baseUrl, index, list) => baseUrl && list.indexOf(baseUrl) === index);
   let lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
 
@@ -2008,16 +2013,28 @@ function getActiveAuthToken(currentToken: string | null) {
   return currentToken || localStorage.getItem("creator-universe-token");
 }
 
+type AuthView = "login" | "signup" | "recovery" | "link";
 function AuthModal({
   mode,
   onClose,
   onAuth,
+  token,
+  returned,
 }: {
-  mode: "login" | "signup" | "recovery";
+  mode: AuthView;
   onClose: () => void;
   onAuth: (user: User, token: string) => void;
+  token: string | null;
+  returned: EasyReturn | null;
 }) {
   const [view, setView] = useState(mode);
+  const [easyReturn, setEasyReturn] = useState(returned);
+  const [exclusive, setExclusive] = useState(() => Boolean(returned || pendingEasy()?.signup));
+  const [easyAvailable, setEasyAvailable] = useState<boolean | null>(null);
+  const [showExisting, setShowExisting] = useState(false);
+  function changeView(next: AuthView) {
+    clearEasy(); setEasyReturn(null); setExclusive(false); setView(next);
+  }
   const enrollment = useIntegrationStatus(request, view === "signup");
   const [identity, setIdentity] = useState<IdentityProof | null>(null);
   const passkeyRequest = useRef<AbortController | null>(null);
@@ -2151,33 +2168,39 @@ function AuthModal({
   }
 
   return (
-    <div className="modal-backdrop auth-backdrop" role="dialog" aria-modal="true">
-      <div className="auth-modal">
+    <div className="modal-backdrop auth-backdrop cu-auth-backdrop" role="dialog" aria-modal="true" aria-labelledby="cu-auth-heading">
+      <div className="auth-modal cu-auth-modal">
         <div className="modal-header">
           <div>
-            <p className="kicker">Account</p>
-            <h2>{view === "login" ? "로그인" : view === "signup" ? "회원가입" : "계정 찾기"}</h2>
+            <h2 id="cu-auth-heading">{view === "link" ? "로그인 방법 연결" : view === "login" ? "로그인" : view === "signup" ? "회원가입" : "계정 찾기"}</h2>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="닫기">
-            ×
+            <X size={20} />
           </button>
         </div>
 
-        <div className="segmented">
-          <button className={view === "login" ? "active" : ""} onClick={() => setView("login")}>
+        {view !== "link" && !exclusive && <div className="segmented">
+          <button className={view === "login" ? "active" : ""} onClick={() => changeView("login")}>
             로그인
           </button>
-          <button className={view === "signup" ? "active" : ""} onClick={() => setView("signup")}>
+          <button className={view === "signup" ? "active" : ""} onClick={() => changeView("signup")}>
             회원가입
           </button>
-          <button className={view === "recovery" ? "active" : ""} onClick={() => setView("recovery")}>
+          <button className={view === "recovery" ? "active" : ""} onClick={() => changeView("recovery")}>
             계정 찾기
           </button>
-        </div>
+        </div>}
 
         {message && <div className="notice" role="status">{message}</div>}
 
-        {view === "login" && (
+        {view !== "recovery" && <EasyLoginPanel<User> request={request} token={token} mode={view === "link" ? "link" : "login"} returned={easyReturn}
+          identityReturn={providerReturn?.flow === "identity" ? providerReturn : null}
+          onAuth={(account, session) => { onAuth(account, session); onClose(); }}
+          onUseExisting={() => { changeView("login"); setShowExisting(true); }} onAvailable={setEasyAvailable} onExclusive={setExclusive} />}
+
+        {view === "login" && !exclusive && (
+          <details className="auth-other-methods" open={showExisting || easyAvailable === false || undefined}>
+            <summary>패스키 · 비밀번호 로그인</summary>
           <div className="auth-form">
             <button className="primary-button" type="button" disabled={passkeyBusy || isLoginPending || !supportsPasskeys} onClick={() => void finishPasskey()}>
               <ShieldCheck size={18} /> {passkeyBusy ? "기기 인증 중…" : "패스키로 로그인"}
@@ -2195,9 +2218,12 @@ function AuthModal({
               </form>
             </details>
           </div>
+          </details>
         )}
 
-        {view === "signup" && (
+        {view === "signup" && !exclusive && (
+          <details className="auth-other-methods" open={easyAvailable === false || providerReturn?.flow === "identity" || undefined}>
+          <summary>패스키로 회원가입</summary>
           <form className="auth-form" onSubmit={submitSignup}>
             <p className="auth-help">한 계정으로 작품을 감상하고 창작자 스튜디오를 이용할 수 있어요. 지문, 얼굴 또는 화면 잠금으로 패스키를 등록하세요.</p>
             <IdentityCheck request={request} status={enrollment.status} onVerified={setIdentity} returned={providerReturn?.flow === "identity" ? providerReturn : null} />
@@ -2208,6 +2234,7 @@ function AuthModal({
             {!supportsPasskeys && <p className="auth-help" role="status">이 브라우저에서는 패스키를 등록할 수 없어요. 휴대폰이나 컴퓨터의 지원 브라우저에서 HTTPS 주소로 열어주세요.</p>}
             <button className="primary-button" type="submit" disabled={!supportsPasskeys || passkeyBusy || Boolean(enrollment.status?.identityRequired && !identity)}><ShieldCheck size={18} /> {passkeyBusy ? "기기 인증 중…" : "패스키로 가입하기"}</button>
           </form>
+          </details>
         )}
 
         {view === "recovery" && (
@@ -3237,6 +3264,7 @@ const policySections: Array<{
     summary: "크리에이터 유니버스는 만 12세 이상 이용 가능한 웹앱 서비스로, 창작자 매칭과 콘텐츠 열람, 코인 결제, 자동 정산, 고객지원에 필요한 개인정보만 최소한으로 처리합니다.",
     items: [
       "수집 항목: 이메일, 아이디, 닉네임, 비밀번호 해시, 콘텐츠 구매/스크랩, 코인 거래, 창작자 프로필, 매칭/채팅, 문의/신고, 서비스 이용 로그",
+      "간편로그인을 선택하면 카카오·네이버의 앱별 회원 식별정보 또는 본인인증기관에서 확인한 CI의 키 기반 해시를 계정 연결에 사용합니다. 인증 수단별 보관 항목은 개인정보 처리방침 전문에서 확인할 수 있습니다.",
       "이용 목적: 회원 인증, 콘텐츠 열람권 발급, 코인 충전/사용, 팀 정산, 매칭 제안 처리, 고객지원, 부정 이용 방지, 접근성 품질 개선",
       "이용 연령: 만 12세 이상 이용 가능하며, 만 12세 미만 이용자는 서비스를 이용할 수 없습니다.",
       "제공/위탁: 개인정보를 판매하지 않으며, 결제 처리, 클라우드 인프라, 이메일/알림 발송 등 운영에 필요한 범위에서만 처리 위탁합니다.",
@@ -3352,6 +3380,7 @@ function PolicyModal({ initialTab, onClose }: { initialTab: PolicyTabId; onClose
 
 function AccountModal({
   user,
+  onOpenLogins,
   wallet,
   purchasedWorkIds,
   scrappedWorkIds,
@@ -3371,6 +3400,7 @@ function AccountModal({
   onOpenLibrary,
 }: {
   user: User;
+  onOpenLogins: () => void;
   wallet: number | null;
   purchasedWorkIds: string[];
   scrappedWorkIds: string[];
@@ -3422,6 +3452,7 @@ function AccountModal({
           <button className="ghost-button compact" onClick={onOpenPayment}><Coins size={16} /> 코인 충전</button>
         </section>
 
+        <button className="account-login-methods" onClick={onOpenLogins}><ShieldCheck size={20} /> 로그인 방법 연결 <ArrowUpRight size={16} /></button>
         <section className="app-account-dashboard" aria-label="앱 내 계정 요약">
           <div className="app-account-balance">
             <span>My Universe</span>
@@ -3766,12 +3797,14 @@ export function App() {
   const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>([]);
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
   const [aiMatchResponse, setAiMatchResponse] = useState<AiMatchingResponse | null>(null);
+  const requestedMatchingFocus = useRef(false);
   const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>([]);
   const [aiHistoryUserId, setAiHistoryUserId] = useState<string | null>(null);
   const [isAiHistoryOpen, setIsAiHistoryOpen] = useState(false);
   const [isAiMatching, setIsAiMatching] = useState(false);
   const [aiMatchMessage, setAiMatchMessage] = useState("");
   const [readerSearch, setReaderSearch] = useState("");
+  const catalogSearch = useRef<HTMLInputElement>(null);
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("recent");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
@@ -3869,7 +3902,9 @@ export function App() {
     return storedMode === "creator" ? "creator" : "reader";
   });
   const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery" | null>(providerReturn?.flow === "identity" ? "signup" : null);
+  const [easyReturned, setEasyReturned] = useState(initialEasyReturn);
+  const [authMode, setAuthMode] = useState<AuthView | null>(() => initialEasyReturn?.mode ?? (providerReturn?.flow === "identity" || pendingEasy()?.signup ? "signup" : null));
+  useEffect(() => { if (!authMode) setEasyReturned(null); }, [authMode]);
   const resumeCheckoutAfterLogin = useRef(false);
   const [isPaymentReturn, setIsPaymentReturn] = useState(providerReturn?.flow === "payment");
   useEffect(() => { clearProviderReturn(); }, []);
@@ -3880,7 +3915,7 @@ export function App() {
   const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
   const [accessibilityPreferences, setAccessibilityPreferences] = useState<AccessibilityPreferences>(() => readAccessibilityPreferences());
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(initialEasyReturn?.mode === "link");
   const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
   const [isMobileQuickOpen, setIsMobileQuickOpen] = useState(false);
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
@@ -3910,6 +3945,18 @@ export function App() {
     isNotificationOpen ? "notifications" : isAccountMenuOpen ? "account-menu" :
     isMessengerOpen ? "messenger" : isSupportBotOpen ? "help" : isAiHistoryOpen ? "ai-history" : null;
   useEffect(() => {
+    if (studioWindow || overlay) return;
+    function focusSearch(event: KeyboardEvent) {
+      if (event.key !== "/" || event.defaultPrevented || event.isComposing || event.altKey || event.metaKey || event.ctrlKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [role='textbox']"))) return;
+      event.preventDefault();
+      catalogSearch.current?.focus();
+    }
+    document.addEventListener("keydown", focusSearch);
+    return () => document.removeEventListener("keydown", focusSearch);
+  }, [overlay]);
+  useEffect(() => {
     if (!overlay) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = document.querySelector<HTMLElement>(`.${overlay}-backdrop[role="dialog"]`);
@@ -3926,7 +3973,7 @@ export function App() {
       if (event.key !== "Escape") return;
       event.preventDefault();
       switch (overlay) {
-        case "auth": setAuthMode(null); break;
+        case "auth": clearEasy(); setAuthMode(null); break;
         case "policy": setPolicyTab(null); break;
         case "payment": setIsPaymentOpen(false); break;
         case "match-proposal": setMatchProposalCreator(null); break;
@@ -5043,6 +5090,17 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }
 
+  function openStudioMatchingAi() {
+    const panel = document.getElementById("studio-matching-ai");
+    if (panel) {
+      panel.focus({ preventScroll: true });
+      panel.scrollIntoView({ block: "start" });
+    } else {
+      requestedMatchingFocus.current = true;
+      navigate("matching");
+    }
+  }
+
   function openMyAccount() {
     setIsMobileQuickOpen(false);
     setIsMobileMenuOpen(false);
@@ -5815,8 +5873,9 @@ export function App() {
             window.scrollTo(0, 0);
           }}>
             <Search size={18} aria-hidden="true" />
-            <input type="search" aria-label="작품명 또는 작가명 검색" placeholder="작품명, 작가명 검색"
+            <input type="search" ref={catalogSearch} aria-keyshortcuts="/" aria-label="작품명 또는 작가명 검색" placeholder="작품명, 작가명 검색"
               value={readerSearch} onChange={event => { setReaderSearch(event.target.value); selectPage("discover"); window.scrollTo(0, 0); }} />
+            <kbd aria-hidden="true">/</kbd>
           </form>}
         <div className="header-actions">
           <button className="ghost-button nav-pay-button" onClick={openPayment}>
@@ -6697,6 +6756,7 @@ export function App() {
 
         {(activePage === "discover" || activePage === "ranking") && (
           <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
+            lastReadEpisode={workProgress[tideWork.id]?.episodeNumber}
             onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
             onClearSearch={() => setReaderSearch("")} getRankScore={getWorkRankScore} getCreatorNames={getCreditNames}
             onOpenWork={(work, mode, episode) => { setTideEntryEpisode(episode ?? null); setTideMode(mode ?? "read"); setSelectedWork(work); setReviewWorkId(work.id); }} />
@@ -6989,8 +7049,8 @@ export function App() {
               >
                 <UserPlus size={16} /> 프로필 등록
               </button>
-              <button type="button" onClick={() => navigate("matching")}>
-                <Users size={16} /> 팀원 찾기
+              <button type="button" onClick={openStudioMatchingAi}>
+                <Sparkles size={16} /> AI 팀원 찾기
               </button>
               <button type="button" onClick={() => openCreatorMessenger()}>
                 <MessageCircle size={16} /> 채팅 열기
@@ -7010,7 +7070,8 @@ export function App() {
                 이 페이지는 Creator Universe의 창작자 홈이자 작품 운영 콘솔입니다.
               </p>
               <div className="studio-hero-actions">
-                <button className="primary-button" onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={18} /> 매칭 프로필 준비</button>
+                <button className="primary-button" onClick={openStudioMatchingAi}><Sparkles size={18} /> AI 매칭 매니저</button>
+                <button className="ghost-button" onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={18} /> 매칭 프로필 준비</button>
                 <button className="ghost-button" onClick={() => navigate("settlement")}><Split size={18} /> 정산 설정으로 이동</button>
               </div>
             </div>
@@ -7715,8 +7776,9 @@ export function App() {
             <div className="app-matching-head">
               <span>Team Matching</span>
               <h2>필요한 팀원을 빠르게 찾기</h2>
-              <p>직군을 고르고 검색한 뒤 바로 채팅하거나 지분 제안을 보낼 수 있게 앱 전용으로 단순화했습니다.</p>
+              <p>작품 분위기로 팀원을 추천받거나, 직군별로 직접 찾아보세요.</p>
               <div>
+                <button type="button" onClick={openStudioMatchingAi}><Sparkles size={16} /> AI 매칭</button>
                 <button
                   type="button"
                   onClick={() => {
@@ -7791,8 +7853,9 @@ export function App() {
               <h2>같은 세계관을 만들 팀원을 발견하세요</h2>
               <p>글, 그림, 목소리, BGM 창작자의 대표 작업과 협업 가능 상태를 한눈에 보고 포트폴리오까지 확인할 수 있습니다.</p>
               <div className="matching-hero-actions">
+                <button className="primary-button compact" onClick={openStudioMatchingAi}><Sparkles size={16} /> AI 팀원 추천</button>
                 <button
-                  className="primary-button compact"
+                  className="ghost-button compact"
                   onClick={() => {
                     if (!token) {
                       setAuthMode("login");
@@ -7825,24 +7888,27 @@ export function App() {
             </div>
           </div>
 
-          <section className="ai-match-panel" aria-label="AI 팀원 추천">
+          <section id="studio-matching-ai" tabIndex={-1} ref={panel => {
+            if (panel && requestedMatchingFocus.current) {
+              requestedMatchingFocus.current = false;
+              panel.focus({ preventScroll: true });
+              panel.scrollIntoView({ block: "start" });
+            }
+          }} className="ai-match-panel" aria-label="AI 팀원 추천">
             <div className="ai-match-copy">
               <p className="kicker">AI 매칭 매니저</p>
               <h2>이 작품, 누구와 만들까요?</h2>
               <p>
                 필요한 역할과 작품 분위기를 알려주세요. 후보의 공개 포트폴리오에서 맞닿는 작업을 찾아 추천 근거와 함께 보여드려요.
               </p>
-              <details className="ai-review-info">
-                <summary>추천은 어떻게 만들어지나요?</summary>
-                <p>공개 프로필을 직군, 작품 방향, 작업 역량, 협업 기록으로 비교합니다. Groq, NVIDIA, Gemini가 연결되어 있으면 작품 조건에서 추출한 키워드와 후보의 공개 프로필 키워드를 추가로 검토할 수 있어요. 각 답변에 실제로 참여한 AI를 표시합니다.</p>
-              </details>
+              <MatchingProviders request={request} token={token} providersUsed={aiMatchResponse?.providersUsed} providerIssues={aiMatchResponse?.providerIssues} />
             </div>
 
             <div className="ai-match-workbench">
               <div className="ai-workbench-status" aria-label="AI 매칭 현재 상태">
                 <article>
-                  <span>AI 상태</span>
-                  <strong>{isAiMatching ? "추천 분석 중" : aiMatchResponse ? "분석 완료" : "준비 완료"}</strong>
+                  <span>최근 요청</span>
+                  <strong>{isAiMatching ? "검토 중" : aiMatchResponse ? "답변 도착" : "대기 중"}</strong>
                 </article>
                 <article>
                   <span>공개 후보</span>
@@ -9404,7 +9470,7 @@ export function App() {
           {isSupportBotOpen ? <X size={24} /> : <Bot size={24} />}
         </button>
       </div>
-      {authMode && <AuthModal mode={authMode} onClose={() => { resumeCheckoutAfterLogin.current = false; setAuthMode(null); }} onAuth={completeAuth} />}
+      {authMode && <AuthModal mode={authMode} token={token} returned={easyReturned} onClose={() => { clearEasy(); resumeCheckoutAfterLogin.current = false; setAuthMode(null); }} onAuth={completeAuth} />}
       {matchProposalCreator && (
         <MatchProposalModal
           creator={matchProposalCreator}
@@ -9418,7 +9484,7 @@ export function App() {
           onSubmit={() => void submitMatchProposal()}
         />
       )}
-      {user && isAccountModalOpen && (
+      {user && isAccountModalOpen && !authMode && (
         <AccountModal
           user={user}
           wallet={wallet}
@@ -9429,6 +9495,7 @@ export function App() {
           premiumSubscription={premiumSubscription}
           notificationPreferences={notificationPreferences}
           isStudioMemberView={isStudioMemberView}
+          onOpenLogins={() => setAuthMode("link")}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
           onDeleteAccount={() => void deleteAccount()}

@@ -33,6 +33,7 @@ const result = await reviewMatchingShortlist(context, [], shortlist, baseline, {
   },
 });
 assert.deepEqual(result.providersUsed, ["groq", "nvidia"]);
+assert.deepEqual(result.providerIssues, {gemini: "invalid_response"});
 assert.deepEqual(result.recommendations.map(item => item.creator.displayName), ["온별"]);
 assert.ok(result.recommendations[0].reviewEvidence?.length);
 assert.equal(result.recommendations[0].score, shortlist[1].score);
@@ -49,7 +50,7 @@ const failures = await reviewMatchingShortlist(context, [], shortlist, baseline,
     return { picks: [{candidate: "C1", evidence: ["made up"]}, {candidate: "C2", evidence: []}] };
   },
 });
-assert.deepEqual(failures, {recommendations: baseline, providersUsed: []});
+assert.deepEqual(failures, {recommendations: baseline, providersUsed: [], providerIssues: {groq: "unavailable", nvidia: "invalid_response", gemini: "invalid_response"}});
 const mixed = resolveMatchingContext({ projectDescription: "성우와 사운드 디자이너 두 명, 몽환적인 분위기" });
 const mixedRank = rankMatchingCreators(profiles, {...mixed, limit:8});
 const team = await reviewMatchingShortlist(mixed, [], mixedRank, rankMatchingCreators(profiles, mixed), {providers: () => ["gemini"],
@@ -76,3 +77,41 @@ const fees = await chat("정산 주기랑 수수료는?");
 assert.match(fees.assistantMessage, /주 단위/);
 assert.match(fees.assistantMessage, /13%/);
 console.log("Matching consensus passed: grounded votes, exact IDs, privacy, partial/outage fallback, team diversity, hard filters and follow-up intent.");
+
+// Exercise the studio's normal request path with all three HTTP boundaries replaced by fixtures.
+const originalFetch = globalThis.fetch;
+const savedEnv = new Map<string, string | undefined>();
+const requestedHosts: string[] = [];
+try {
+  for (const provider of providers) {
+    for (const [suffix, value] of Object.entries({API_KEY: "fixture", AI_ENABLED: "true", MIN_INTERVAL_MS: "0", DAILY_REQUEST_LIMIT: "10", MODEL: ""})) {
+      const name = provider.toUpperCase() + "_" + suffix;
+      savedEnv.set(name, process.env[name]);
+      process.env[name] = value;
+    }
+  }
+  globalThis.fetch = async (url, options) => {
+    const host = new URL(String(url)).host;
+    requestedHosts.push(host);
+    const body = JSON.parse(String(options?.body));
+    const gemini = host === "generativelanguage.googleapis.com";
+    const prompt = JSON.parse(gemini ? body.contents[0].parts[0].text : body.messages[1].content);
+    const picks = prompt.candidates.map((item: {id: string; evidence: {id:string}[]}) => ({candidate: item.id, evidence: item.evidence.slice(0, 1).map(entry => entry.id)}));
+    const text = JSON.stringify({picks});
+    await Promise.resolve();
+    assert.equal(requestedHosts.length, 3);
+    return Response.json(gemini ? {candidates: [{finishReason: "STOP", content: {parts:[{text}]}}]} : {choices:[{finish_reason:"stop", message:{content:text}}]});
+  };
+  const ensemble = await __aiMatchingTestUtils.buildReviewedResponse({projectDescription:"성우 한 명 추천해줘"}, profiles, true);
+  assert.deepEqual(requestedHosts.sort(), ["api.groq.com", "generativelanguage.googleapis.com", "integrate.api.nvidia.com"]);
+  assert.equal(ensemble.provider, "ensemble");
+  assert.deepEqual(ensemble.providersUsed, providers);
+  assert.deepEqual(ensemble.providerIssues, {});
+  console.log("Studio matching passed parallel requests to all three provider adapters for a role-only project brief.");
+} finally {
+  globalThis.fetch = originalFetch;
+  for (const [name, value] of savedEnv) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+}

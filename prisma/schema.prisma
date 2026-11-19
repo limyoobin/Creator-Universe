@@ -99,6 +99,7 @@ model User {
   contentAccesses   ContentAccess[]
   authSessions      AuthSession[]
   passkeys          PasskeyCredential[]
+  easyIdentities    EasyLoginIdentity[]
   sentChatMessages   ChatMessage[]   @relation("ChatSender")
   receivedChatMessages ChatMessage[] @relation("ChatReceiver")
   sentMatchRequests  MatchRequest[]  @relation("MatchRequester")
@@ -113,6 +114,43 @@ model User {
   supportTickets SupportTicket[] @relation("SupportTickets")
   reportsMade UserReport[] @relation("ReportsMade")
   reportsReceived UserReport[] @relation("ReportsReceived")
+}
+
+model EasyLoginIdentity {
+  id          String @id @default(cuid())
+  provider    String
+  subjectHash String
+  kakaoUserId String?
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subjectHash])
+  @@unique([userId, provider])
+}
+
+model EasyLoginFlow {
+  id               String @id
+  provider         String
+  origin           String
+  proofHash        String
+  configScope      String
+  linkSessionHash  String?
+  status           String @default("pending")
+  subjectHash      String?
+  kakaoUserId      String?
+  verifiedAt       DateTime?
+  createdAt        DateTime @default(now())
+  expiresAt        DateTime
+
+  @@index([expiresAt])
+}
+
+model KakaoUnlinkRequest {
+  subjectHash String   @id
+  kakaoUserId String
+  retryAt     DateTime @default(now())
+
+  @@index([retryAt])
 }
 
 model Project {

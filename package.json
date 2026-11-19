@@ -19,7 +19,8 @@
     "test:ai": "tsx scripts/ai-matching-smoke.ts && tsx scripts/creator-matching-test.ts && tsx scripts/matching-providers-test.ts && tsx scripts/matching-consensus-test.ts",
     "test:portone": "tsx scripts/signup-identity-test.ts && tsx scripts/wallet-topup-test.ts",
     "test:portone:postgres": "tsx scripts/portone-postgres-integration.ts",
-    "test:passkeys:postgres": "tsx scripts/passkey-integration-test.ts"
+    "test:passkeys:postgres": "tsx scripts/passkey-integration-test.ts",
+    "test:easy-login:postgres": "tsx scripts/easy-login-integration-test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

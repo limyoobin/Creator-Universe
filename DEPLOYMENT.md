@@ -6,7 +6,7 @@ Creator Universe는 다음 조합으로 배포합니다.
 - **Backend API**: Render
 - **Database**: Neon PostgreSQL
 
-패스키는 별도 인증 업체 계약 없이 계정 가입과 로그인을 처리합니다. 포트원 채널을 연결하면 가입 시 실명 본인확인을 추가하거나 카드 충전을 열 수 있습니다. [포트원 운영 가이드](docs/portone-operations.md)
+카카오·네이버 앱을 연결하면 해당 계정으로 가입하거나 로그인할 수 있습니다. PASS를 이용하려면 포트원 본인인증 채널을, 코인을 카드로 충전하려면 결제 채널을 각각 연결하세요. 기존 패스키·비밀번호 계정은 로그인 후 간편 로그인 수단을 연결할 수 있습니다. [간편 로그인 설정](docs/easy-login.md) · [포트원 운영 가이드](docs/portone-operations.md)
 
 ## 1. Neon PostgreSQL 준비
 
@@ -86,13 +86,15 @@ https://project-limyoobins-projects.vercel.app
 
 ## 매칭 AI 제공사
 
-Render 백엔드의 **Environment**에 사용할 제공사의 키를 입력하고 변경을 배포합니다. 키가 있는 제공사만 추천 검토에 참여합니다.
+1. 아래 표의 발급 페이지에서 프로젝트별 API 키를 만듭니다. NVIDIA Build에서는 사용할 모델의 **Get API Key**에서 시작할 수도 있습니다.
+2. Render Dashboard에서 운영 API 주소가 `creator-universe-api-7qfc.onrender.com`인 Web Service를 선택합니다. 왼쪽 **Environment → Environment Variables → + Add Environment Variable**에서 아래 이름과 값을 세 줄로 입력하고 **Save and deploy**를 선택합니다. 키 값은 Render 서버에만 입력합니다. [Render 환경변수 설정](https://render.com/docs/configure-environment-variables)
+3. 배포가 완료되면 사이트의 **스튜디오 → AI 매칭**에서 ‘AI 검토 현황’을 열고 추천을 요청합니다. ‘키 설정됨’은 서버 설정을 읽은 결과입니다. 해당 추천에 유효한 응답을 낸 제공사에 ‘최근 답변 참여’가 표시됩니다. 세 곳 모두 표시되면 해당 추천에 세 모델이 함께 참여한 것입니다.
 
-| 제공사 | 서버 키 | 기본 모델 |
+| 키 발급 | Render 변수 이름 | 기본 모델 |
 | --- | --- | --- |
-| Groq | `GROQ_API_KEY` | `openai/gpt-oss-20b` |
-| NVIDIA Build | `NVIDIA_API_KEY` | `nvidia/nemotron-3.5-lightning-30b-a3b` |
-| Google AI Studio | `GEMINI_API_KEY` | `gemini-3.5-flash-lite` |
+| [GroqCloud API Keys](https://console.groq.com/keys) | `GROQ_API_KEY` | `openai/gpt-oss-20b` |
+| [NVIDIA Build API Keys](https://build.nvidia.com/settings/api-keys) | `NVIDIA_API_KEY` | `nvidia/nemotron-3.5-lightning-30b-a3b` |
+| [Google AI Studio API Keys](https://aistudio.google.com/apikey) | `GEMINI_API_KEY` | `gemini-3.5-flash-lite` |
 
 모델과 사용 가능 범위는 제공사별로 다릅니다. NVIDIA는 무료 호스팅 엔드포인트를 프로토타입 용도로 안내합니다. 운영 서비스에는 계정의 사용 조건에 맞는 채널을 연결하세요. Gemini의 `GEMINI_FREE_ONLY=true`는 무료 등급을 지원하는 모델의 허용 목록을 적용합니다. 실제 요금은 각 계정의 결제 등급과 사용량에 따라 결정됩니다. [Groq 모델](https://console.groq.com/docs/model/openai/gpt-oss-20b) · [NVIDIA 모델](https://build.nvidia.com/nvidia/nemotron-3.5-lightning-30b-a3b/build) · [NVIDIA 사용 범위](https://docs.api.nvidia.com/nim/docs/product) · [Gemini 요금](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite)
 
@@ -111,16 +113,13 @@ Render 백엔드의 **Environment**에 사용할 제공사의 키를 입력하�
 ## 4. 배포 후 확인 목록
 
 - `/health`가 `ok: true`를 반환하는지 확인합니다.
-- 테스트 환경에서 패스키 가입, 로그아웃 후 패스키 로그인, 기존 계정의 비밀번호 로그인을 확인합니다.
+- 테스트 환경에서 가입, 로그아웃 후 같은 간편 수단으로 재로그인, 기존 계정에 수단 연결, 기존 패스키·비밀번호 로그인을 확인합니다.
 - 로그인 후 코인 충전, 작품 구매, 지갑 내역이 정상 반영되는지 확인합니다.
 - 매칭 프로필 등록과 채팅/매칭 제안이 정상 동작하는지 확인합니다.
 - 정산 대시보드가 로그인 상태에서 정상 표시되는지 확인합니다.
 
 ## 5. 운영 단계에서 추가하면 좋은 것
 
-- `JWT_SECRET` 환경변수 분리
-- Vercel 도메인 기준 CORS 제한
-- Toss Payments, PortOne 같은 실제 결제사 Webhook 검증
 - 이미지/오디오 업로드를 위한 Object Storage
 - 관리자 권한과 신고 처리 대시보드
 - DB 백업과 장애 대응 정책

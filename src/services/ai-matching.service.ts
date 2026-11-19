@@ -2,6 +2,7 @@ import { MemberRole } from "@prisma/client";
 import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, matchingReviewTags, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching.js";
 import { reviewMatchingShortlist } from "./matching-consensus.js";
 import type { MatchingProvider } from "../lib/matching-providers.js";
+import type { MatchingProviderIssues } from "../../shared/matching-providers.js";
 import { prisma } from "../lib/prisma.js";
 
 type AiChatMessage = {
@@ -61,6 +62,7 @@ type CreatorRecommendation = {
 type AiMatchingResponse = {
   provider: "local" | "ensemble" | MatchingProvider;
   providersUsed: MatchingProvider[];
+  providerIssues?: MatchingProviderIssues;
   providerNote?: string;
   assistantMessage: string;
   projectBrief: ProjectBrief;
@@ -1320,6 +1322,7 @@ async function buildReviewedResponse(input: AiMatchingInput, profiles: Profile[]
   const baseline = rankMatchingCreators(profiles, context);
   let recommendations: CreatorRecommendation[] = baseline;
   let providersUsed: MatchingProvider[] = [];
+  let providerIssues: MatchingProviderIssues = {};
   let providerNote = "공개 프로필과 작품 조건을 기준으로 매칭했습니다.";
   if (referenced.length) {
     // Preserve the people the user asked to discuss, including the earlier order
@@ -1333,11 +1336,12 @@ async function buildReviewedResponse(input: AiMatchingInput, profiles: Profile[]
     const review = await reviewMatchingShortlist(context, input.genres ?? [], shortlist, baseline);
     recommendations = review.recommendations;
     providersUsed = review.providersUsed;
+    providerIssues = review.providerIssues;
     if (providersUsed.length) providerNote = "공개 프로필에서 확인한 작업 키워드를 바탕으로 후보 순서를 검토했습니다.";
   }
   return {
     provider: providersUsed.length > 1 ? "ensemble" : providersUsed[0] ?? "local",
-    providersUsed, providerNote, projectBrief: brief, recommendations,
+    providersUsed, providerIssues, providerNote, projectBrief: brief, recommendations,
     assistantMessage: buildMatchingMessage(input, brief, intent, recommendations),
     followUpSuggestions: buildCleanFollowUps(input, recommendations),
   };

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { configuredMatchingProviders, requestMatchingJson, type MatchingProvider } from "../src/lib/matching-providers.js";
+import { configuredMatchingProviders, matchingProviderSettings, MatchingProviderError, requestMatchingJson, type MatchingProvider } from "../src/lib/matching-providers.js";
 
 const providers: MatchingProvider[] = ["groq", "nvidia", "gemini"];
 for (const provider of providers) {
@@ -25,6 +25,7 @@ globalThis.fetch = async (request, options) => {
 
 try {
   assert.deepEqual(configuredMatchingProviders(), []);
+  assert.deepEqual(matchingProviderSettings(), providers.map(provider => ({provider, state: "missing_key"})));
   await assert.rejects(requestMatchingJson("groq", system, input));
   assert.equal(requests.length, 0);
   for (const provider of providers) {
@@ -33,8 +34,13 @@ try {
     process.env[provider.toUpperCase() + "_DAILY_REQUEST_LIMIT"] = "10";
   }
   assert.deepEqual(configuredMatchingProviders(), providers);
+  assert.deepEqual(matchingProviderSettings(), providers.map(provider => ({provider, state: "configured"})));
+  process.env.NVIDIA_DAILY_REQUEST_LIMIT = "0";
+  assert.equal(matchingProviderSettings().find(item => item.provider === "nvidia")?.state, "disabled");
+  process.env.NVIDIA_DAILY_REQUEST_LIMIT = "10";
   process.env.GEMINI_MODEL = "unknown-paid-model";
   assert.equal(configuredMatchingProviders().includes("gemini"), false);
+  assert.equal(matchingProviderSettings().find(item => item.provider === "gemini")?.state, "disabled");
   delete process.env.GEMINI_MODEL;
 
   for (const provider of providers) {
@@ -68,8 +74,10 @@ try {
   await assert.rejects(requestMatchingJson("gemini", system, input));
   answer = Response.json({choices: [{message: {content: "fixture-key-nvidia"}}]});
   await assert.rejects(requestMatchingJson("nvidia", system, input), error => String(error).includes("complete JSON") && !String(error).includes("fixture-key"));
+  answer = new Response("provider echoed private payload", {status: 403});
+  await assert.rejects(requestMatchingJson("nvidia", system, input), error => error instanceof MatchingProviderError && error.issue === "credentials" && !error.message.includes("private"));
   answer = new Response("provider echoed private payload", {status: 429, headers: {"retry-after": "2"}});
-  await assert.rejects(requestMatchingJson("nvidia", system, input));
+  await assert.rejects(requestMatchingJson("nvidia", system, input), error => error instanceof MatchingProviderError && error.issue === "quota");
   const after429 = requests.length;
   await assert.rejects(requestMatchingJson("nvidia", system, input));
   assert.equal(requests.length, after429);

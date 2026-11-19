@@ -1,5 +1,5 @@
 import { matchingReviewTags, type MatchableCreator, type MatchingContext } from "../../shared/creator-matching.js";
-import { configuredMatchingProviders, requestMatchingJson, type MatchingProvider } from "../lib/matching-providers.js";
+import { configuredMatchingProviders, MatchingProviderError, requestMatchingJson, type MatchingProvider, type MatchingReviewIssue } from "../lib/matching-providers.js";
 
 type RankedProfile = { creator: MatchableCreator; score: number; rank: number; matchedKeywords: string[] };
 type Evidence = { id: string; tag: string };
@@ -45,13 +45,13 @@ const defaultClient: ReviewClient = { providers: configuredMatchingProviders, re
 
 export async function reviewMatchingShortlist<T extends RankedProfile>(
   context: MatchingContext, genres: string[], shortlist: T[], baseline: T[], client: ReviewClient = defaultClient,
-): Promise<{ recommendations: (T & { reviewEvidence?: string[] })[]; providersUsed: MatchingProvider[] }> {
-  const local = { recommendations: baseline, providersUsed: [] };
+): Promise<{ recommendations: (T & { reviewEvidence?: string[] })[]; providersUsed: MatchingProvider[]; providerIssues: Partial<Record<MatchingProvider, MatchingReviewIssue>> }> {
+  const providerIssues: Partial<Record<MatchingProvider, MatchingReviewIssue>> = {};
+  const local = { recommendations: baseline, providersUsed: [], providerIssues };
   const providers = client.providers();
   if (!providers.length || !shortlist.length) return local;
   const work = matchingReviewTags([context.source, ...genres].join(" ")).slice(0, 30);
-  // A role filter alone provides no useful basis for an external semantic review.
-  if (!work.length) return local;
+  if (!work.length && !context.roles.length) return local;
   const terms = new Set(work);
   const candidates = shortlist.map((item, index) => ({
     id: "C" + (index + 1), role: item.creator.primaryRole, evidence: evidenceFor(item, terms),
@@ -60,10 +60,14 @@ export async function reviewMatchingShortlist<T extends RankedProfile>(
   const prompt = JSON.stringify({ brief: { roles: context.roles, work }, candidates });
   const responses = await Promise.allSettled(providers.map(async provider => {
     const picks = validatePicks(await client.request(provider, instructions, prompt), candidates);
-    return picks ? { provider, picks } : null;
+    if (!picks) throw new MatchingProviderError("invalid_response");
+    return { provider, picks };
   }));
   const reviews: Review[] = [];
-  for (const response of responses) if (response.status === "fulfilled" && response.value) reviews.push(response.value);
+  responses.forEach((response, index) => {
+    if (response.status === "fulfilled") reviews.push(response.value);
+    else providerIssues[providers[index]] = response.reason instanceof MatchingProviderError ? response.reason.issue : "unavailable";
+  });
   if (!reviews.length) return local;
 
   const reviewed = shortlist.map((item, index) => {
@@ -97,5 +101,6 @@ export async function reviewMatchingShortlist<T extends RankedProfile>(
   return {
     recommendations: reviewed.filter(entry => selected.has(entry.item.creator.userId)).map(({ item }, i) => ({ ...item, rank: i + 1 })),
     providersUsed: reviews.map(review => review.provider),
+    providerIssues,
   };
 }

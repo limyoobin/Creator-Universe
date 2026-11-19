@@ -22,6 +22,7 @@ type CatalogProps<W extends CatalogWork> = {
   works: readonly W[];
   query: string;
   mode: CatalogMode;
+  lastReadEpisode?: number;
   onModeChange: (mode: CatalogMode) => void;
   onClearSearch: () => void;
   onOpenWork: (work: W, mode?: "read" | "motion", episode?: number) => void;
@@ -66,12 +67,12 @@ function useReducedMotion() {
   return reduced;
 }
 
-type FeaturedProps<W extends CatalogWork> = Pick<CatalogProps<W>, "works" | "onOpenWork"> & {
+type FeaturedProps<W extends CatalogWork> = Pick<CatalogProps<W>, "works" | "onOpenWork" | "lastReadEpisode"> & {
   popularWork?: W;
   onOpenRanking: () => void;
 };
 
-function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking, popularWork }: FeaturedProps<W>) {
+function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking, popularWork, lastReadEpisode }: FeaturedProps<W>) {
   const slides = features.flatMap((feature) => {
     const work = works.find((entry) => entry.id === feature.id);
     return work ? [{ work, image: feature.image, ranking: false }] : [];
@@ -97,6 +98,7 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   const selected = index % count;
   const { work, image, ranking } = slides[selected];
   const original = work.id === tideWork.id && !ranking;
+  const action = ranking ? "랭킹 보기" : !original ? "작품 보기" : lastReadEpisode ? `${lastReadEpisode}화 이어 읽기` : "웹툰 읽기";
   function move(amount: number) {
     setIndex((selected + amount + count) % count);
     setPaused(true);
@@ -131,14 +133,19 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
         {ranking && <img className="cu-feature-poster" src={image} alt="" />}
       </div>
       <div className="cu-feature-shade" />
+      {count > 1 && <div className="cu-feature-jumps" role="group" aria-label="추천 작품 선택">
+        {slides.map((slide, n) => <button key={slide.ranking ? "ranking" : slide.work.id} type="button"
+          aria-pressed={n === selected} aria-label={slide.ranking ? "인기 랭킹 슬라이드" : slide.work.title + " 슬라이드"}
+          onClick={() => { setIndex(n); setPaused(true); }} />)}
+      </div>}
       <div className="cu-feature-copy" aria-live={paused || reducedMotion ? "polite" : "off"} aria-atomic="true">
         <span className="cu-feature-meta">{original ? "오리지널 웹툰" : ranking ? "인기 랭킹 1위" : work.format}<i />{work.genre}</span>
         <h2>{work.title}</h2>
         {original && <p className="cu-original-deck">내일의 소인이 찍힌 편지가 도착했다.</p>}
         <div className="cu-feature-actions">
         <button type="button" className="cu-feature-open" onClick={() => ranking ? onOpenRanking() : onOpenWork(work)}
-          aria-label={ranking ? "인기 작품 랭킹 보기" : work.title + (original ? " 웹툰 읽기" : " 작품 보기")}>
-          {ranking ? "랭킹 보기" : original ? "웹툰 읽기" : "작품 보기"} <ArrowRight size={16} />
+          aria-label={ranking ? "인기 작품 랭킹 보기" : work.title + " " + action}>
+          {action} <ArrowRight size={16} />
         </button>
         {original && <button type="button" className="cu-motion-open" onClick={() => onOpenWork(work, "motion")}><Play size={14} fill="currentColor"/>모션툰 보기</button>}
         </div>
@@ -204,7 +211,7 @@ export function WorksCatalog<W extends CatalogWork>(props: CatalogProps<W>) {
   const browseHeading = search ? "검색 결과" : rankedView ? "작품 랭킹" : "작품 둘러보기";
   return <div className={"cu-catalog" + (rankedView ? " cu-catalog-ranking" : "")}>
     {!search && !rankedView && <div className="cu-feature-row">
-      <FeaturedWorks works={works} onOpenWork={onOpenWork} popularWork={ranked[0]} onOpenRanking={openRanking} />
+      <FeaturedWorks works={works} onOpenWork={onOpenWork} popularWork={ranked[0]} onOpenRanking={openRanking} lastReadEpisode={props.lastReadEpisode} />
       <aside className="cu-rank-preview" aria-labelledby="cu-rank-preview-title">
         <div className="cu-rank-head"><h2 id="cu-rank-preview-title"><TrendingUp size={21} />인기 랭킹 <small>샘플 집계</small></h2>
           <button type="button" onClick={openRanking} aria-label="인기 랭킹 전체 보기"><ChevronRight size={20} /></button>
@@ -217,7 +224,7 @@ export function WorksCatalog<W extends CatalogWork>(props: CatalogProps<W>) {
       <div className="cu-episode-links">{tideChapters.map((chapter, index) => <button type="button" key={chapter.title}
         aria-label={original.title + " " + (index + 1) + "화 " + chapter.title + " 읽기"} onClick={() => onOpenWork(original, "read", index + 1)}>
         <img src={chapter.panels[index === 2 ? 0 : 1].art} alt="" loading="lazy" />
-        <span><small>제 {index + 1} 화</small><strong>{chapter.title}</strong></span><ChevronRight size={17}/>
+        <span><small>{index + 1}화{props.lastReadEpisode === index + 1 && " · 최근 읽은 회차"}</small><strong>{chapter.title}</strong></span><ChevronRight size={17}/>
       </button>)}</div>
     </section>}
     <section className="cu-shelf" aria-labelledby="cu-catalog-heading">

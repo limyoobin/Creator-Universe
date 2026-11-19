@@ -2,5 +2,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm ci",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/auth/return/:provider", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/auth/return/:provider",
+      "headers": [{ "key": "Referrer-Policy", "value": "no-referrer" }]
+    }
+  ]
 }

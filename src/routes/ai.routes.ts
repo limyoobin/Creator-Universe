@@ -3,6 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { createAiMatchingChat, recommendCreatorsForProject } from "../services/ai-matching.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import { matchingProviderSettings } from "../lib/matching-providers.js";
 
 const matchingRecommendationSchema = z.object({
   projectDescription: z.string().trim().min(5).max(1200),
@@ -25,6 +26,10 @@ const matchingChatSchema = matchingRecommendationSchema.extend({
 });
 
 export const aiRouter = Router();
+
+aiRouter.get("/matching-providers", (_req, res) => {
+  res.set("Cache-Control", "no-store").json({ success: true, data: { providers: matchingProviderSettings() } });
+});
 
 aiRouter.post(
   "/matching-recommendations",

@@ -1,0 +1,90 @@
+.modal-backdrop.cu-auth-backdrop {
+  background: rgb(11 22 39 / 45%);
+  backdrop-filter: blur(10px);
+}
+.auth-modal.cu-auth-modal {
+  width: min(430px, 100%);
+  padding: clamp(20px, 4vw, 32px);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgb(8 20 42 / 20%);
+  scrollbar-gutter: auto;
+}
+.auth-modal.cu-auth-modal::before { display: none; }
+.cu-auth-modal .modal-header {
+  border: 0;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.cu-auth-modal .modal-header h2 { margin: 0; font-size: clamp(1.45rem, 4vw, 1.85rem); letter-spacing: -.05em; }
+.cu-auth-modal.auth-modal .segmented { margin: 0 0 20px; padding: 4px; gap: 2px; border: 0; border-radius: 13px; background: var(--surface-2); }
+.cu-auth-modal.auth-modal .segmented button { min-height: 40px; padding: 6px; border-radius: 10px; font-size: .87rem; font-weight: 650; }
+.cu-auth-modal.auth-modal .segmented button.active { background: var(--surface); box-shadow: 0 2px 5px rgb(20 35 52 / 10%); }
+.cu-auth-modal .easy-panel, .cu-auth-modal .auth-other-methods[open] > .auth-form {
+  display: grid;
+  gap: 10px;
+}
+.cu-auth-modal .easy-provider {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 20px;
+  align-items: center;
+  column-gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 8px 14px 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  text-align: left;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.cu-auth-modal .easy-mark { display: grid; place-items: center; }
+.cu-auth-modal .easy-kakao { background: #fee500; color: #191919; }
+.cu-auth-modal .easy-naver { background: #03a94d; }
+.cu-auth-modal .easy-pass { background: #233957; }
+.cu-auth-modal .easy-provider > svg { justify-self: end; }
+.cu-auth-modal .easy-provider:disabled { cursor: default; opacity: .76; }
+.cu-auth-modal .easy-status, .cu-auth-modal .easy-feedback {
+  margin: 0;
+  padding: 10px 0 2px;
+  color: var(--muted);
+  font-size: .84rem;
+  line-height: 1.55;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.cu-auth-modal .easy-status button, .cu-auth-modal .auth-help button {
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cu-auth-modal .easy-feedback { padding: 12px; border-radius: 12px; background: var(--surface-2); color: var(--text); }
+.cu-auth-modal .easy-confirmed { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
+.cu-auth-modal .auth-other-methods { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 4px; }
+.cu-auth-modal .auth-other-methods > summary { padding: 12px 0; cursor: pointer; color: var(--text); font-size: .91rem; font-weight: 650; }
+.cu-auth-modal .primary-button { background: #2666d3; color: #fff; box-shadow: none; }
+.cu-auth-modal .auth-form input { background: var(--surface-2); font-size: 1rem; }
+.cu-auth-modal .auth-help { margin: 0; line-height: 1.55; }
+.account-modal .account-login-methods {
+  display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px;
+  padding: 12px 16px; margin: 14px 0; border: 1px solid var(--line);
+  border-radius: 14px; background: var(--surface); color: var(--text); font-weight: 650;
+}
+.account-login-methods > svg:last-child { margin-left: auto; }
+.cu-auth-modal :is(button, summary):focus-visible, .account-login-methods:focus-visible { outline: 3px solid #66a1ff; outline-offset: 3px; }
+@media (prefers-reduced-motion: no-preference) {
+  .cu-auth-backdrop .cu-auth-modal { animation: easy-modal-enter .2s ease-out both; }
+  .easy-provider { transition: filter .16s, transform .16s; }
+  .easy-provider:enabled:hover { filter: brightness(.96); }
+  .easy-provider:enabled:active { transform: scale(.985); }
+  @keyframes easy-modal-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+}
+@media (max-width: 480px) {
+  .modal-backdrop.cu-auth-backdrop { padding: 12px; }
+  .auth-modal.cu-auth-modal { max-height: calc(100dvh - 24px); border-radius: 22px; }
+}

@@ -1,5 +1,11 @@
-const providerNames = ["groq", "nvidia", "gemini"] as const;
-export type MatchingProvider = typeof providerNames[number];
+import { matchingProviderIds, type MatchingProvider, type MatchingProviderSetting, type MatchingReviewIssue } from "../../shared/matching-providers.js";
+export type { MatchingProvider, MatchingReviewIssue } from "../../shared/matching-providers.js";
+
+export class MatchingProviderError extends Error {
+  constructor(readonly issue: MatchingReviewIssue) {
+    super(issue === "invalid_response" ? "Matching provider did not return a complete JSON response" : "Matching provider request unavailable");
+  }
+}
 
 const defaultModels: Record<MatchingProvider, string> = {
   groq: "openai/gpt-oss-20b",
@@ -43,7 +49,17 @@ function configuration(provider: MatchingProvider) {
 }
 
 export function configuredMatchingProviders(): MatchingProvider[] {
-  return providerNames.filter(provider => configuration(provider));
+  return matchingProviderSettings().filter(item => item.state === "configured").map(item => item.provider);
+}
+
+// This snapshot reads environment settings only. Fetching it never contacts a vendor or consumes a request.
+export function matchingProviderSettings(): MatchingProviderSetting[] {
+  return matchingProviderIds.map(provider => {
+    const config = configuration(provider);
+    const state = !process.env[provider.toUpperCase() + "_API_KEY"]?.trim() ? "missing_key"
+      : config && config.dailyLimit > 0 ? "configured" : "disabled";
+    return { provider, state };
+  });
 }
 
 type Budget = { day: string; count: number; nextAt: number };
@@ -55,7 +71,7 @@ function reserve(provider: MatchingProvider, dailyLimit: number, minIntervalMs: 
   const day = new Date(now).toISOString().slice(0, 10);
   const budget = budgets.get(provider) ?? { day, count: 0, nextAt: 0 };
   if (budget.day !== day) { budget.day = day; budget.count = 0; }
-  if (budget.count >= dailyLimit || now < budget.nextAt) throw new Error("Matching provider rate limited");
+  if (budget.count >= dailyLimit || now < budget.nextAt) throw new MatchingProviderError("quota");
   budget.count += 1;
   budget.nextAt = now + minIntervalMs;
   budgets.set(provider, budget);
@@ -128,13 +144,18 @@ export async function requestMatchingJson(provider: MatchingProvider, systemInst
     if (!response.ok) {
       if (response.status === 429) pauseAfterRateLimit(budget, response.headers.get("retry-after"));
       await response.body?.cancel();
-      throw new Error();
+      if (response.status === 429) throw new MatchingProviderError("quota");
+      if (response.status === 401 || response.status === 403) throw new MatchingProviderError("credentials");
+      throw new MatchingProviderError("unavailable");
     }
-    const text = completionText(provider, await response.json()).trim();
-    const fenced = /^\x60{3}(?:json)?\s*([\s\S]*?)\s*\x60{3}$/i.exec(text);
-    return JSON.parse(fenced?.[1] ?? text) as unknown;
-  } catch {
-    // Provider bodies/errors can echo the matching brief or credentials. Keep them off the response and logs.
-    throw new Error("Matching provider did not return a complete JSON response");
+    try {
+      const text = completionText(provider, await response.json()).trim();
+      const fenced = /^\x60{3}(?:json)?\s*([\s\S]*?)\s*\x60{3}$/i.exec(text);
+      return JSON.parse(fenced?.[1] ?? text) as unknown;
+    } catch { throw new MatchingProviderError("invalid_response"); }
+  } catch (error) {
+    // Network exceptions and provider error bodies may contain private inputs.
+    if (error instanceof MatchingProviderError) throw error;
+    throw new MatchingProviderError("unavailable");
   }
 }

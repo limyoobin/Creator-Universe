@@ -24,7 +24,7 @@ export function passkeyOrigin(origin: string | undefined) {
       if (url.origin === origin) return { origin, rpID: url.hostname };
     } catch { /* Invalid loopback origins use the same rejection as external origins. */ }
   }
-  throw new AppError("크리에이터 유니버스 사이트에서 패스키를 이용해 주세요.", 403);
+  throw new AppError("크리에이터 유니버스 공식 사이트에서 인증을 진행해 주세요.", 403);
 }
 type Site = ReturnType<typeof passkeyOrigin>;
 type Purpose = "register" | "login";

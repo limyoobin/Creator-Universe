@@ -4,6 +4,7 @@ import { AppError } from "../errors/app-error.js";
 import { createSessionToken, hashPassword, hashToken, verifyPassword } from "../utils/auth.js";
 import { type IdentityProof } from "./signup-identity.service.js";
 import { identityReady, identityRequired, paymentReady } from "../lib/portone.js";
+import { scheduleKakaoUnlinks } from "./kakao-unlink.service.js";
 
 const SESSION_DAYS = 7;
 
@@ -55,7 +56,7 @@ export async function issueSession(userId: string, db: Prisma.TransactionClient 
   return { token, expiresAt };
 }
 
-export async function checkSignupAvailability(input: SignupAccount, db: Prisma.TransactionClient = prisma) {
+export async function checkSignupAvailability(input: SignupAccount, db: Prisma.TransactionClient = prisma, conflictMessage?: string) {
   const [emailExists, usernameExists, displayNameExists] = await Promise.all([
     db.user.findUnique({ where: { email: input.email }, select: { id: true } }),
     db.user.findUnique({ where: { username: input.username }, select: { id: true } }),
@@ -63,15 +64,15 @@ export async function checkSignupAvailability(input: SignupAccount, db: Prisma.T
   ]);
 
   if (emailExists) {
-    throw new AppError("Already registered email.", 409);
+    throw new AppError(conflictMessage ?? "Already registered email.", 409);
   }
 
   if (usernameExists) {
-    throw new AppError("Username is already taken.", 409);
+    throw new AppError(conflictMessage ?? "Username is already taken.", 409);
   }
 
   if (displayNameExists) {
-    throw new AppError("Nickname is already taken.", 409);
+    throw new AppError(conflictMessage ?? "Nickname is already taken.", 409);
   }
 
 }
@@ -219,9 +220,16 @@ export async function deactivateAccount(token: string) {
 
   const deletedSuffix = `${session.userId.slice(0, 8)}-${Date.now()}`;
 
-  await prisma.$transaction(async (tx) => {
+  const kakaoUnlinked = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${session.userId} FOR UPDATE`;
+    const kakao = await tx.easyLoginIdentity.findUnique({where: {userId_provider: {userId: session.userId, provider: "kakao"}}});
+    if (kakao?.kakaoUserId) {
+      await tx.kakaoUnlinkRequest.upsert({where: {subjectHash: kakao.subjectHash}, update: {},
+        create: {subjectHash: kakao.subjectHash, kakaoUserId: kakao.kakaoUserId}});
+      await tx.easyLoginFlow.deleteMany({where: {provider: "kakao", subjectHash: kakao.subjectHash}});
+    }
     await tx.passkeyCredential.deleteMany({ where: { userId: session.userId } });
+    await tx.easyLoginIdentity.deleteMany({ where: { userId: session.userId } });
     await tx.authSession.deleteMany({
       where: { userId: session.userId },
     });
@@ -243,8 +251,9 @@ export async function deactivateAccount(token: string) {
         partnerTier: PartnerTier.NONE,
       },
     });
+    return Boolean(kakao?.kakaoUserId);
   });
-
+  if (kakaoUnlinked) scheduleKakaoUnlinks();
   return { ok: true };
 }
 
