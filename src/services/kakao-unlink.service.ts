@@ -7,6 +7,8 @@ import { hashToken } from "../utils/auth.js";
 // The row is created in the local account-deletion transaction. A stopped service
 // or temporary provider outage must not lose the revocation request.
 export async function flushKakaoUnlinks() {
+  // Delete incomplete signups, including any temporary provider identifiers.
+  await prisma.easyLoginFlow.deleteMany({where: {expiresAt: {lte: new Date()}}});
   if (!kakaoAdminKey()) return;
   const due = await prisma.kakaoUnlinkRequest.findMany({where: {retryAt: {lte: new Date()}}, orderBy: {retryAt: "asc"}, take: 10});
   for (const job of due) {
