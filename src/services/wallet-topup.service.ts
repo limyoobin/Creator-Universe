@@ -1,23 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { AppError } from "../errors/app-error.js";
 import { prisma } from "../lib/prisma.js";
-import { paymentReady, portOneConfig, portOneGet } from "../lib/portone.js";
-import { inspectPayment, reflectsEvent, topUpProducts, topUpTransition, type PaymentObservation, type ProviderPayment, type TopUpEvent } from "./wallet-topup-policy.js";
-
-export async function createTopUp(userId: string, productId: keyof typeof topUpProducts) {
-  if (!paymentReady()) throw new AppError("코인 결제 서비스 연결을 준비하고 있습니다.", 503);
-  const config = portOneConfig();
-  const order = await prisma.walletTopUpOrder.create({ data: {
-    id: "cu-" + randomUUID().replaceAll("-", ""), userId, productId, ...topUpProducts[productId],
-    storeId: config.storeId, channelKey: config.paymentChannelKey, live: config.live,
-  } });
-  return {
-    storeId: order.storeId, channelKey: order.channelKey, paymentId: order.id,
-    orderName: `크리에이터 유니버스 ${order.coins.toLocaleString("ko-KR")}코인`,
-    totalAmount: order.amountKrw, currency: "KRW", payMethod: "CARD",
-    customer: { customerId: userId }, test: !order.live,
-  };
-}
+import { portOneGet } from "../lib/portone.js";
+import { inspectPayment, reflectsEvent, topUpTransition, type PaymentObservation, type ProviderPayment, type TopUpEvent } from "./wallet-topup-policy.js";
 
 // A signed webhook passes no userId. For browser calls the order must belong to the session.
 export async function reconcileTopUp(paymentId: string, userId?: string, event?: TopUpEvent) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { makeTestPasskey } from "./passkey-test-fixture.js";
+import type { AddressInfo } from "node:net";
 
 // Run migrations on a disposable local Postgres cluster using the cu_portone_qa
 // DB user. Require an explicit test URL; ignore the application's DATABASE_URL.
@@ -14,16 +14,16 @@ Object.assign(process.env, {
   PORTONE_IDENTITY_CHANNEL_KEY: "identity-fixture", PORTONE_IDENTITY_REQUIRED: "true",
 });
 const { prisma } = await import("../src/lib/prisma.js");
-const { startPasskeyRegistration, finishPasskeyRegistration } = await import("../src/services/passkey.service.js");
-const { passkeyOrigin } = await import("../src/services/passkey.service.js");
-const site = passkeyOrigin("https://project-limyoobins-projects.vercel.app");
-async function signup(account: Parameters<typeof startPasskeyRegistration>[1]) {
-  const { options, ceremonyId } = await startPasskeyRegistration(site, account);
-  const localKey = makeTestPasskey(site.rpID);
-  return finishPasskeyRegistration(site, ceremonyId, account, localKey.register(options.challenge, site.origin));
+const { signup } = await import("../src/services/auth.service.js");
+const { default: app } = await import("../src/app.js");
+const { reconcileTopUp } = await import("../src/services/wallet-topup.service.js");
+async function historicalOrder(userId: string, live: boolean) {
+  const order = await prisma.walletTopUpOrder.create({ data: {
+    id: "cu-" + randomUUID().replaceAll("-", ""), userId, productId: "coin-1000", coins: 1000, amountKrw: 1000,
+    storeId: "store-fixture", channelKey: "card-fixture", live,
+  } });
+  return {paymentId: order.id, storeId: order.storeId, channelKey: order.channelKey, totalAmount: order.amountKrw};
 }
-const { startSignupIdentity, confirmSignupIdentity } = await import("../src/services/signup-identity.service.js");
-const { createTopUp, reconcileTopUp } = await import("../src/services/wallet-topup.service.js");
 const { settleContentPurchase, purchasedLibrary, saleCatalog, purchasedAudio } = await import("../src/services/settlement.service.js");
 const { AppError } = await import("../src/errors/app-error.js");
 const records = new Map<string, unknown>();
@@ -34,32 +34,30 @@ globalThis.fetch = async input => {
   assert.equal(url.searchParams.get("storeId"), "store-fixture");
   return records.has(url.pathname) ? Response.json(records.get(url.pathname)) : new Response("", { status: 404 });
 };
-const account = () => {
-  const tag = randomUUID().slice(0, 8);
-  return { username: "test_" + tag, email: tag + "@example.invalid", displayName: "test_" + tag };
-};
 const rejected = (code: number) => (err: unknown) => err instanceof AppError && err.statusCode === code;
 
 try {
-  await assert.rejects(signup(account()), rejected(422));
-  const { identityVerificationId, proof } = await startSignupIdentity();
-  const token = { identityVerificationId, proof };
-  const path = "/identity-verifications/" + identityVerificationId;
-  const identity = { id: identityVerificationId, status: "VERIFIED", verifiedAt: new Date().toISOString(), channel: { key: "identity-fixture", type: "LIVE" } };
-  await assert.rejects(confirmSignupIdentity({ ...token, proof: "f".repeat(64) }), rejected(409));
-  records.set(path, { ...identity, channel: { ...identity.channel, type: "TEST" } });
-  await assert.rejects(confirmSignupIdentity(token), rejected(409));
-  records.set(path, identity);
-  await confirmSignupIdentity(token);
-  const attempts = await Promise.allSettled([1, 2].map(() => signup({ ...account(), identityVerification: token })));
-  const registered = attempts.flatMap(attempt => attempt.status === "fulfilled" ? [attempt.value] : []);
-  assert.equal(registered.length, 1);
-  assert.equal(attempts.filter(attempt => attempt.status === "rejected" && rejected(409)(attempt.reason)).length, 1);
-  const userId = registered[0].user.id;
-  assert.equal((await prisma.user.findUniqueOrThrow({ where: {id: userId} })).identityVerificationLive, true);
-  await assert.rejects(confirmSignupIdentity(token), rejected(409));
+  const tag = randomUUID().slice(0, 8);
+  const member = await signup({username: "test_" + tag, email: tag + "@example.invalid", displayName: "test_" + tag, password: "local-qa!" + tag});
+  const userId = member.user.id;
+  const server = app.listen(0, "127.0.0.1");
+  try {
+    await new Promise<void>(resolve => server.once("listening", resolve));
+    const base = "http://127.0.0.1:" + (server.address() as AddressInfo).port;
+    const status = await originalFetch(base + "/api/integrations/portone");
+    assert.equal((await status.json()).data.paymentReady, false);
+    for (const path of ["/api/users/me/wallet/charge", "/api/users/me/wallet/orders"]) {
+      const response = await originalFetch(base + path, {
+        method: "POST", headers: {Authorization: "Bearer " + member.token, "Content-Type": "application/json"},
+        body: JSON.stringify({productId: "coin-1000", coinAmount: 1000}),
+      });
+      assert.equal(response.status, 410);
+    }
+    assert.equal(await prisma.walletTopUpOrder.count({where: {userId}}), 0);
+    assert.equal(Number((await prisma.wallet.findUniqueOrThrow({where: {userId}})).balance), 0);
+  } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 
-  const order = await createTopUp(userId, "coin-1000");
+  const order = await historicalOrder(userId, true);
   const paymentPath = "/payments/" + order.paymentId;
   const paid = { id: order.paymentId, status: "PAID", storeId: order.storeId, channel: { key: order.channelKey, type: "LIVE" },
     paidAt: new Date().toISOString(), customer: {id: userId}, method: {type: "PaymentMethodCard"}, currency: "KRW",
@@ -91,7 +89,7 @@ try {
   assert.equal(await balance(), opening);
 
   process.env.PORTONE_MODE = "test";
-  const testOrder = await createTopUp(userId, "coin-1000");
+  const testOrder = await historicalOrder(userId, false);
   records.set("/payments/" + testOrder.paymentId, { ...paid, id: testOrder.paymentId, channel: {key: testOrder.channelKey, type: "TEST"} });
   await reconcileTopUp(testOrder.paymentId, userId);
   assert.equal(await balance(), opening);
@@ -166,7 +164,7 @@ try {
     [2, "https://qa-media.invalid/episode2.mp3"], [3, "https://qa-media.invalid/episode3.mp3"],
   ]);
   assert.deepEqual(episodes[0].transcriptCues.map(cue => cue.text), ["First", "Second"]);
-  console.log("PostgreSQL integration passed: single-use signup, concurrent top-ups, cancellation, test payment isolation, server-priced purchases, rollback and buyer-only published audio.");
+  console.log("PostgreSQL integration passed: new charges disabled, historical approvals and refunds, test payment isolation, server-priced purchases, rollback and buyer-only published audio.");
 } finally {
   globalThis.fetch = originalFetch;
   await prisma.$disconnect();

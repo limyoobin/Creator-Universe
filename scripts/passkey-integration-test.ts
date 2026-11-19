@@ -30,26 +30,16 @@ const rpId = new URL(site).hostname;
 try {
   const who = account();
   const key = makeTestPasskey(rpId);
-  assert.equal((await request("/api/auth/signup", "POST", who)).status, 410);
-  assert.equal((await request("/api/auth/passkeys/register/options", "POST", who, undefined, "https://fixture.invalid")).status, 403);
-  const started = await passkey("register/options", who);
-  assert.equal(started.status, 200);
-  const {ceremonyId, options} = started.value.data;
-  assert.equal(options.rp.id, rpId);
-  assert.equal(options.authenticatorSelection.userVerification, "required");
-  assert.equal(options.authenticatorSelection.residentKey, "required");
+  assert.equal((await passkey("register/options", who)).status, 410);
+  assert.equal((await passkey("register/verify", {})).status, 410);
+  // Seed a credential as issued by the previous deployment. New public registration is closed.
+  const {passkeyOrigin, startPasskeyRegistration, finishPasskeyRegistration} = await import("../src/services/passkey.service.js");
+  const rp = passkeyOrigin(site);
+  const {ceremonyId, options} = await startPasskeyRegistration(rp, who);
   const handle = options.user.id;
-  const enrollment = {ceremonyId, account:who, response:key.register(options.challenge,site)};
-  assert.equal((await passkey("register/verify", {...enrollment,account:{...who, email:"changed@example.invalid"}})).status, 401);
-  assert.equal((await passkey("register/verify", {...enrollment,response:key.register(options.challenge,"https://fixture.invalid")})).status, 401);
-  assert.equal((await passkey("register/verify", {...enrollment,response:key.register(options.challenge,site,false)})).status, 401);
-  assert.equal(await prisma.user.count({where:{username:who.username}}), 0);
-  const registered = await passkey("register/verify", enrollment);
-  assert.equal(registered.status, 201);
-  const {user, token} = registered.value.data;
+  const {user, token} = await finishPasskeyRegistration(rp, ceremonyId, who, key.register(options.challenge, site));
   assert.equal((await prisma.user.findUniqueOrThrow({where:{id:user.id}})).passwordHash, null);
   assert.equal(user.role, "READER");
-  assert.equal((await passkey("register/verify", enrollment)).status, 401);
   assert.equal((await request("/api/auth/me", "GET", undefined, token)).value.data.username, who.username);
   assert.equal((await request("/api/auth/logout", "POST", {}, token)).status, 200);
   assert.equal((await request("/api/auth/me", "GET", undefined, token)).value.data, null);
@@ -89,7 +79,7 @@ try {
     assert.deepEqual(result.value.data.providersUsed,[]);
     assert.ok(result.value.data.recommendations.some((item: {creator:{primaryRole:string}})=>item.creator.primaryRole === "VOICE_ACTOR"));
   }
-  console.log("PostgreSQL HTTP checks passed: passkey registration/login, origin, user verification, replay, logout, deletion, legacy password login and both matching endpoints.");
+  console.log("PostgreSQL HTTP checks passed: existing passkey login, origin, user verification, replay, logout, deletion, password login and both matching endpoints.");
 } finally {
   await new Promise<void>((resolve,reject)=>server.close(err=>err ? reject(err) : resolve()));
   await prisma.$disconnect();

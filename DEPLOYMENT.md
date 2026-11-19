@@ -6,7 +6,7 @@ Creator Universe는 다음 조합으로 배포합니다.
 - **Backend API**: Render
 - **Database**: Neon PostgreSQL
 
-카카오·네이버 앱을 연결하면 해당 계정으로 가입하거나 로그인할 수 있습니다. PASS를 이용하려면 포트원 본인인증 채널을, 코인을 카드로 충전하려면 결제 채널을 각각 연결하세요. 기존 패스키·비밀번호 계정은 로그인 후 간편 로그인 수단을 연결할 수 있습니다. [간편 로그인 설정](docs/easy-login.md) · [포트원 운영 가이드](docs/portone-operations.md)
+현재 버전은 자체 아이디·비밀번호 가입과 화면 내 코인 충전 체험을 제공합니다. 배포에 소셜 로그인 앱이나 포트원 키가 필요하지 않습니다. 기존 거래를 관리하는 서버에서는 결제 확인과 취소 통지를 처리할 수 있도록 기존 설정을 유지하세요. [포트원 운영 가이드](docs/portone-operations.md)
 
 ## 1. Neon PostgreSQL 준비
 
@@ -80,7 +80,7 @@ https://project-limyoobins-projects.vercel.app
 
 ## 패스키 도메인
 
-운영 패스키의 RP ID는 `project-limyoobins-projects.vercel.app`이고, 서버가 허용하는 운영 출처는 `https://project-limyoobins-projects.vercel.app`입니다. 사용자는 이 주소를 브라우저에서 직접 열어 가입하거나 로그인합니다. 개발 서버는 `localhost`와 `127.0.0.1`에서도 테스트할 수 있습니다. 가입과 로그인에는 같은 호스트를 사용하세요. 인증 요청은 시작한 출처에 묶이며 5분 안에 한 번만 사용할 수 있습니다.
+기존 패스키 회원의 로그인에 사용하는 운영 RP ID는 `project-limyoobins-projects.vercel.app`입니다. 서버 허용 출처는 `https://project-limyoobins-projects.vercel.app`이며 개발 서버는 `localhost`와 `127.0.0.1`을 지원합니다. 신규 가입은 아이디와 비밀번호를 사용합니다.
 
 커스텀 도메인 전환 시 기존 계정의 패스키가 등록된 RP ID를 고려해야 합니다. 서버의 허용 출처와 RP ID, 기존 계정의 기기 인증 방법을 함께 점검하세요. [WebAuthn RP ID](https://www.w3.org/TR/webauthn-3/#relying-party-identifier)
 
@@ -113,8 +113,8 @@ https://project-limyoobins-projects.vercel.app
 ## 4. 배포 후 확인 목록
 
 - `/health`가 `ok: true`를 반환하는지 확인합니다.
-- 테스트 환경에서 가입, 로그아웃 후 같은 간편 수단으로 재로그인, 기존 계정에 수단 연결, 기존 패스키·비밀번호 로그인을 확인합니다.
-- 로그인 후 코인 충전, 작품 구매, 지갑 내역이 정상 반영되는지 확인합니다.
+- 테스트 환경에서 일반 가입, 로그아웃, 비밀번호 재로그인, 기존 패스키 로그인을 확인합니다.
+- 충전 체험을 마친 뒤 실제 잔액이 유지되는지, 보유 코인으로 작품을 구매하면 지갑에 반영되는지 확인합니다.
 - 매칭 프로필 등록과 채팅/매칭 제안이 정상 동작하는지 확인합니다.
 - 정산 대시보드가 로그인 상태에서 정상 표시되는지 확인합니다.
 

@@ -1,31 +1,17 @@
 import {
-  browserSupportsWebAuthn, startAuthentication, startRegistration, WebAuthnAbortService,
-  type PublicKeyCredentialCreationOptionsJSON, type PublicKeyCredentialRequestOptionsJSON,
+  browserSupportsWebAuthn, startAuthentication, WebAuthnAbortService,
+  type PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
-import type { ApiRequest, IdentityProof } from "./portone";
-
-export type SignupAccount = {
-  displayName: string;
-  email: string;
-  username: string;
-  identityVerification?: IdentityProof;
-};
+import type { ApiRequest } from "./portone";
 
 export const passkeySupported = () => window.isSecureContext && browserSupportsWebAuthn();
 export const cancelPasskeyPrompt = () => WebAuthnAbortService.cancelCeremony();
 
-export async function verifyAccountPasskey<T>(request: ApiRequest, signal: AbortSignal, account?: SignupAccount): Promise<T> {
-  const action = account ? "register" : "login";
-  const path = "/api/auth/passkeys/" + action;
+export async function verifyAccountPasskey<T>(request: ApiRequest, signal: AbortSignal): Promise<T> {
+  const path = "/api/auth/passkeys/login";
   const post = <R>(step: string, payload: unknown) => request<R>(path + "/" + step, null, {
     method: "POST", signal, body: JSON.stringify(payload),
   });
-  if (account) {
-    const { ceremonyId, options } = await post<{ceremonyId: string; options: PublicKeyCredentialCreationOptionsJSON}>("options", account);
-    signal.throwIfAborted();
-    const response = await startRegistration({ optionsJSON: options });
-    return post<T>("verify", { ceremonyId, response, account });
-  }
   const { ceremonyId, options } = await post<{ceremonyId: string; options: PublicKeyCredentialRequestOptionsJSON}>("options", {});
   signal.throwIfAborted();
   const response = await startAuthentication({ optionsJSON: options });

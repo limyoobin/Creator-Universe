@@ -1,4 +1,4 @@
-import { Router, urlencoded, type Request } from "express";
+import { Router, urlencoded } from "express";
 import { z } from "zod";
 import {
   PASSWORD_RULE_MESSAGE,
@@ -11,38 +11,26 @@ import {
   login,
   logout,
   resetPassword,
+  signup,
 } from "../services/auth.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 import { getBearerToken } from "../utils/token.js";
 import { AppError } from "../errors/app-error.js";
-import { confirmSignupIdentity, startSignupIdentity } from "../services/signup-identity.service.js";
-import { finishPasskeyLogin, finishPasskeyRegistration, passkeyOrigin, startPasskeyLogin, startPasskeyRegistration } from "../services/passkey.service.js";
-import { easyProviderStatus } from "../lib/easy-login-providers.js";
-import { completeEasyLogin, easyConnections, registerEasyAccount, startEasyLogin } from "../services/easy-login.service.js";
-import { hashToken } from "../utils/auth.js";
+import { finishPasskeyLogin, passkeyOrigin, startPasskeyLogin } from "../services/passkey.service.js";
 import { acceptKakaoUnlink } from "../services/kakao-unlink.service.js";
-
-const identityProofSchema = z.object({
-  identityVerificationId: z.string().uuid(),
-  proof: z.string().regex(/^[0-9a-f]{64}$/),
-});
 
 const signupSchema = z.object({
   email: z.string().trim().max(254).email(),
-  username: z.string().trim().min(2).max(24).regex(/^[a-zA-Z0-9_]+$/, "Username can contain only letters, numbers, and underscores."),
+  username: z.string().trim().min(2).max(24).regex(/^[a-zA-Z0-9_]+$/, "영문, 숫자와 밑줄로 아이디를 입력해 주세요."),
   displayName: z.string().trim().min(1).max(20),
-  identityVerification: identityProofSchema.optional(),
+  password: z.string().min(8).max(256),
 });
 
 const base64url = (max: number) => z.string().min(1).max(max).regex(/^[A-Za-z0-9_-]+$/);
 const browserCredential = z.object({
   type: z.literal("public-key"), id: base64url(2048), rawId: base64url(2048),
   clientExtensionResults: z.object({credProps: z.object({rk: z.boolean().optional()}).optional()}).default({}),
-});
-const registerVerify = z.object({
-  ceremonyId: z.string().uuid(), account: signupSchema,
-  response: browserCredential.extend({response: z.object({clientDataJSON: base64url(8200), attestationObject: base64url(131072)})}),
 });
 const loginVerify = z.object({
   ceremonyId: z.string().uuid(),
@@ -76,73 +64,26 @@ const checkNicknameSchema = z.object({
 
 export const authRouter = Router();
 
-const easyProvider = z.enum(["kakao", "naver", "pass"]);
-const easyProof = z.object({state: z.string().uuid(), proof: z.string().regex(/^[0-9a-f]{64}$/)});
-const easyStart = z.object({mode: z.enum(["login","link"])});
-const easyComplete = easyProof.extend({code: z.string().min(1).max(4096).optional()});
-const easySignup = easyProof.extend({account: signupSchema});
-const easySession = (req: Request) => {
-  const token = getBearerToken(req);
-  return token ? hashToken(token) : null;
-};
-
 authRouter.use("/easy", (_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 authRouter.post("/easy/kakao/unlink-callback", urlencoded({extended: false, limit: "4kb"}), asyncHandler(async (req, res) => {
   await acceptKakaoUnlink(req.header("authorization"), req.body?.user_id);
   res.status(200).end();
 }));
-authRouter.get("/easy/providers", (_req, res) => res.json({success: true, data: easyProviderStatus()}));
-authRouter.get("/easy/connections", asyncHandler(async (req, res) => {
-  const tokenHash = easySession(req);
-  if (!tokenHash) throw new AppError("로그인 후 연결한 수단을 확인해 주세요.", 401);
-  res.json({success: true, data: await easyConnections(tokenHash)});
-}));
-authRouter.post("/easy/:provider/start", asyncHandler(async (req, res) => {
-  const provider = easyProvider.parse(req.params.provider);
-  const {origin} = passkeyOrigin(req.header("origin"));
-  const {mode} = easyStart.parse(req.body);
-  const data = await startEasyLogin(provider, origin, mode, easySession(req));
-  res.status(201).json({success: true, data});
-}));
-authRouter.post("/easy/:provider/complete", asyncHandler(async (req, res) => {
-  const provider = easyProvider.parse(req.params.provider);
-  const {origin} = passkeyOrigin(req.header("origin"));
-  const data = await completeEasyLogin(provider, origin, easyComplete.parse(req.body), easySession(req));
-  res.json({success: true, data});
-}));
-authRouter.post("/easy/:provider/signup", asyncHandler(async (req, res) => {
-  const provider = easyProvider.parse(req.params.provider);
-  const {origin} = passkeyOrigin(req.header("origin"));
-  const {account, ...proof} = easySignup.parse(req.body);
-  const data = await registerEasyAccount(provider, origin, proof, account);
-  res.status(201).json({success: true, data});
-}));
-
-authRouter.post("/identity/start", asyncHandler(async (_req, res) => {
-  const data = await startSignupIdentity();
-  res.set("Cache-Control", "no-store").status(201).json({ success: true, data });
-}));
-
-authRouter.post("/identity/confirm", asyncHandler(async (req, res) => {
-  const data = await confirmSignupIdentity(identityProofSchema.parse(req.body));
-  res.set("Cache-Control", "no-store").json({ success: true, data });
-}));
-
-authRouter.post("/signup", (_req, res) => {
-  res.status(410).json({success: false, message: "크리에이터 유니버스의 회원가입 화면에서 가입을 진행해 주세요."});
+authRouter.get("/easy/providers", (_req, res) => {
+  res.json({success: true, data: {kakao: false, naver: false, pass: false}});
 });
 
-authRouter.post("/passkeys/register/options", asyncHandler(async (req, res) => {
-  const site = passkeyOrigin(req.header("origin"));
-  const data = await startPasskeyRegistration(site, signupSchema.parse(req.body));
-  res.set("Cache-Control", "no-store").json({success: true, data});
+authRouter.use(["/easy", "/identity", "/passkeys/register"], (_req, res) => {
+  res.set("Cache-Control", "no-store").status(410).json({
+    success: false, message: "현재 아이디와 비밀번호로 가입하고 로그인할 수 있어요. 홈페이지를 새로고침해 주세요.",
+  });
+});
+
+authRouter.post("/signup", asyncHandler(async (req, res) => {
+  const result = await signup(signupSchema.parse(req.body));
+  res.set("Cache-Control", "no-store").status(201).json({success: true, data: result});
 }));
-authRouter.post("/passkeys/register/verify", asyncHandler(async (req, res) => {
-  const site = passkeyOrigin(req.header("origin"));
-  const {ceremonyId, account, response} = registerVerify.parse(req.body);
-  const data = await finishPasskeyRegistration(site, ceremonyId, account, response);
-  res.set("Cache-Control", "no-store").status(201).json({success: true, data});
-}));
+
 authRouter.post("/passkeys/login/options", asyncHandler(async (req, res) => {
   const data = await startPasskeyLogin(passkeyOrigin(req.header("origin")));
   res.set("Cache-Control", "no-store").json({success: true, data});

@@ -1,11 +1,5 @@
 import { AppError } from "../errors/app-error.js";
 
-export const topUpProducts = {
-  "coin-1000": { coins: 1000, amountKrw: 1000 },
-  "coin-3000": { coins: 3000, amountKrw: 3000 },
-  "coin-5000": { coins: 5000, amountKrw: 5000 },
-} as const;
-
 type ExpectedOrder = {
   id: string; userId: string; amountKrw: number; coins: number; storeId: string; channelKey: string; live: boolean;
 };

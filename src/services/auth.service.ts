@@ -1,4 +1,4 @@
-import { PartnerTier, UserRole, type Prisma } from "@prisma/client";
+import { PartnerTier, UserRole, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 import { createSessionToken, hashPassword, hashToken, verifyPassword } from "../utils/auth.js";
@@ -75,6 +75,31 @@ export async function checkSignupAvailability(input: SignupAccount, db: Prisma.T
     throw new AppError(conflictMessage ?? "Nickname is already taken.", 409);
   }
 
+}
+
+export async function signup(account: Pick<SignupAccount, "username" | "displayName" | "email"> & {password: string}) {
+  if (!isValidPassword(account.password)) {
+    throw new AppError("비밀번호에 특수문자를 포함해 8자 이상 입력해 주세요.", 422);
+  }
+  const passwordHash = await hashPassword(account.password);
+  const conflict = "이미 사용 중인 가입 정보입니다. 이메일, 아이디와 닉네임을 확인해 주세요.";
+  try {
+    return await prisma.$transaction(async tx => {
+      // Unlike the email and username fields, displayName has no unique index.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${account.displayName}))`;
+      await checkSignupAvailability(account, tx, conflict);
+      const user = await tx.user.create({data: {
+        username: account.username, displayName: account.displayName, email: account.email,
+        passwordHash, role: UserRole.READER, wallet: {create: {currency: "COIN"}},
+      }});
+      return {user: publicUser(user), ...await issueSession(user.id, tx)};
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new AppError(conflict, 409);
+    }
+    throw error;
+  }
 }
 
 export async function login(username: string, password: string) {

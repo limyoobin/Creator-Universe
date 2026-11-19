@@ -12,7 +12,7 @@ import { uploadRouter } from "./routes/upload.routes.js";
 import { userRouter } from "./routes/user.routes.js";
 import { viewerRouter } from "./routes/viewer.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
-import { identityReady, identityRequired, paymentReady, portOneConfig } from "./lib/portone.js";
+import { portOneConfig } from "./lib/portone.js";
 import { portOneWebhook } from "./routes/payment-webhook.js";
 
 const app = express();
@@ -81,7 +81,7 @@ app.get("/health", (_req, res) => {
 app.get("/api/integrations/portone", (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ success: true, data: {
-    paymentReady: paymentReady(), identityReady: identityReady(), identityRequired: identityRequired(),
+    paymentReady: false, identityReady: false, identityRequired: false,
     mode: portOneConfig().live ? "live" : "test",
   } });
 });

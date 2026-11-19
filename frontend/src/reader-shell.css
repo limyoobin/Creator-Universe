@@ -96,6 +96,28 @@ body[data-theme="dark"] :is(.reader-shell,.studio-shell) { --cu-action: #a6c5ff;
   color: var(--cu-action); background: color-mix(in srgb, var(--cu-action) 9%, var(--surface));
 }
 .cu-studio-link:hover { color: var(--text); }
+.cu-classic-shortcut {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: .86rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.cu-classic-shortcut:hover { color: var(--text); }
+.cu-drawer-classic {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 650;
+}
+@media (max-width: 730px) { .cu-classic-shortcut { display: none; } }
 .cu-masthead .mobile-drawer.open { display: block; position: absolute; inset: 100% max(16px, calc((100% - 1240px) / 2)) auto auto; width: min(310px, calc(100% - 32px)); max-height: 70vh; overflow: auto; z-index: 4; padding: 0; border-radius: 16px; box-shadow: var(--shadow); }
 .cu-masthead .mobile-drawer-card { display: grid; gap: 6px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
 .reader-shell main { width: min(1240px, calc(100% - 64px)); padding-top: 26px; }

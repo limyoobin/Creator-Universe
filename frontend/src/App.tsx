@@ -1,16 +1,14 @@
-import { CoinCheckout } from "./CoinCheckout";
-import { IdentityCheck } from "./IdentityCheck";
-import { EasyLoginPanel } from "./EasyLoginPanel";
-import { clearEasy, pendingEasy, readEasyReturn, type EasyReturn } from "./easy-login";
-import { cancelPasskeyPrompt, passkeyError, passkeySupported, verifyAccountPasskey, type SignupAccount } from "./passkeys";
-import { useIntegrationStatus, readProviderReturn, clearProviderReturn, saveChallenge, type IdentityProof } from "./portone";
+import { PreviousTopUp } from "./PreviousTopUp";
+import "./easy-login.css";
+import { cancelPasskeyPrompt, passkeyError, passkeySupported, verifyAccountPasskey } from "./passkeys";
+import { readProviderReturn, clearProviderReturn } from "./portone";
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { WorksCatalog } from "./WorksCatalog";
 import { MatchingProviders, matchProviderNames } from "./MatchingProviders";
 import type { MatchingProviderIssues } from "../../shared/matching-providers";
 import { TideReader, type TideMode } from "./TideReader";
 import { tideWork } from "./tide-letter";
-import { ArrowUpRight, Trophy } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Trophy } from "lucide-react";
 import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
 import {
   Bell,
@@ -812,7 +810,8 @@ type NotificationItem = {
 };
 
 const studioSections = ["studio", "matching", "settlement"] as const;
-const initialEasyReturn = readEasyReturn();
+const previousLoginReturn = /^\/auth\/return\/(kakao|naver|pass)\/?$/.test(window.location.pathname);
+if (previousLoginReturn) window.history.replaceState(null, "", "/");
 const entryParams = new URLSearchParams(window.location.search);
 const studioWindow = studioSections.some(section => section === entryParams.get("studio"));
 const readerDestinations = ["discover", "ranking", "creators", "library", "support", "home"] as const;
@@ -1990,285 +1989,120 @@ function getRejectedMessage(result: PromiseSettledResult<unknown>) {
   return result.status === "rejected" ? getFriendlyError(result.reason) : "";
 }
 
-function getLoginErrorMessage(error: unknown) {
-  const message = getFriendlyError(error);
-  if (message.includes("없는 계정") || message.includes("not found")) {
-    return "없는 계정입니다.";
-  }
-  if (message.includes("Invalid username or password") || message.includes("password") || message.includes("비밀번호")) {
-    return "아이디 또는 비밀번호가 잘못 입력되었습니다.";
-  }
-  return message;
-}
-
 function isStrongPassword(password: string) {
   return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
-}
-
-function isValidEmailAddress(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function getActiveAuthToken(currentToken: string | null) {
   return currentToken || localStorage.getItem("creator-universe-token");
 }
 
-type AuthView = "login" | "signup" | "recovery" | "link";
-function AuthModal({
-  mode,
-  onClose,
-  onAuth,
-  token,
-  returned,
-}: {
+type AuthView = "login" | "signup" | "recovery";
+function AuthModal({ mode, onClose, onAuth }: {
   mode: AuthView;
   onClose: () => void;
   onAuth: (user: User, token: string) => void;
-  token: string | null;
-  returned: EasyReturn | null;
 }) {
   const [view, setView] = useState(mode);
-  const [easyReturn, setEasyReturn] = useState(returned);
-  const [exclusive, setExclusive] = useState(() => Boolean(returned || pendingEasy()?.signup));
-  const [easyAvailable, setEasyAvailable] = useState<boolean | null>(null);
-  const [showExisting, setShowExisting] = useState(false);
-  function changeView(next: AuthView) {
-    clearEasy(); setEasyReturn(null); setExclusive(false); setView(next);
-  }
-  const enrollment = useIntegrationStatus(request, view === "signup");
-  const [identity, setIdentity] = useState<IdentityProof | null>(null);
-  const passkeyRequest = useRef<AbortController | null>(null);
-  const [passkeyBusy, setPasskeyBusy] = useState(false);
-  const [recoveryMode, setRecoveryMode] = useState<"find-id" | "reset-password">("find-id");
   const [message, setMessage] = useState("");
-  const [isLoginPending, setIsLoginPending] = useState(false);
-  const supportsPasskeys = passkeySupported();
-
+  const [busy, setBusy] = useState(false);
+  const active = useRef<AbortController | null>(null);
   useEffect(() => {
     setMessage("");
-    setPasskeyBusy(false);
+    setBusy(false);
     return () => {
-      if (passkeyRequest.current) {
-        passkeyRequest.current.abort();
-        passkeyRequest.current = null;
-        cancelPasskeyPrompt();
-      }
+      active.current?.abort();
+      active.current = null;
+      cancelPasskeyPrompt();
     };
   }, [view]);
 
-  async function finishPasskey(account?: SignupAccount) {
-    if (passkeyRequest.current || isLoginPending || !supportsPasskeys) return;
+  async function run(action: (signal: AbortSignal) => Promise<void>) {
+    if (active.current) return;
     const controller = new AbortController();
-    passkeyRequest.current = controller;
-    setPasskeyBusy(true);
+    active.current = controller;
+    setBusy(true);
     setMessage("");
-    try {
-      const result = await verifyAccountPasskey<{user: User; token: string}>(request, controller.signal, account);
-      if (controller.signal.aborted) return;
-      if (account) saveChallenge(null);
-      onAuth(result.user, result.token);
-      onClose();
-    } catch (error) {
-      if (!controller.signal.aborted) setMessage(passkeyError(error));
-    } finally {
-      if (passkeyRequest.current === controller) {
-        passkeyRequest.current = null;
-        setPasskeyBusy(false);
+    try { await action(controller.signal); }
+    catch (error) { if (!controller.signal.aborted) setMessage(getFriendlyError(error)); }
+    finally { if (active.current === controller) { active.current = null; setBusy(false); } }
+  }
+  type Session = {user: User; token: string};
+  function signedIn(result: Session, signal: AbortSignal) {
+    if (signal.aborted) return;
+    onAuth(result.user, result.token);
+    onClose();
+  }
+  async function legacyPasskey(signal: AbortSignal) {
+    try { signedIn(await verifyAccountPasskey<Session>(request, signal), signal); }
+    catch (error) { throw new Error(passkeyError(error)); }
+  }
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const username = String(form.get("username") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    const email = String(form.get("email") ?? "").trim();
+    const displayName = String(form.get("displayName") ?? "").trim();
+    if (view === "signup" && !isStrongPassword(password)) {
+      setMessage("비밀번호에 특수문자를 포함해 8자 이상 입력해 주세요."); return;
+    }
+    if (view === "signup" && password !== form.get("passwordConfirm")) {
+      setMessage("비밀번호 확인이 일치하지 않습니다."); return;
+    }
+    void run(async signal => {
+      if (view === "recovery") {
+        const result = await request<{username: string}>("/api/auth/find-id", null, {method: "POST", signal, body: JSON.stringify({email})});
+        if (!signal.aborted) setMessage("가입한 아이디는 " + result.username + "입니다.");
+        return;
       }
-    }
+      const payload = view === "signup" ? {username, password, email, displayName} : {username, password};
+      const result = await request<Session>("/api/auth/" + view, null, {method: "POST", signal, body: JSON.stringify(payload)});
+      signedIn(result, signal);
+    });
   }
 
-  async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isLoginPending || passkeyRequest.current) {
-      return;
-    }
-    const data = new FormData(event.currentTarget);
-    setMessage("");
-    setIsLoginPending(true);
-    try {
-      const result = await request<{ user: User; token: string }>("/api/auth/login", null, {
-        method: "POST",
-        body: JSON.stringify({
-          username: data.get("username"),
-          password: data.get("password"),
-        }),
-      });
-      onAuth(result.user, result.token);
-      onClose();
-    } catch (error) {
-      setMessage(getLoginErrorMessage(error));
-    } finally {
-      setIsLoginPending(false);
-    }
-  }
-
-  async function submitSignup(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (enrollment.status?.identityRequired && !identity) { setMessage("가입 전 본인인증을 완료해 주세요."); return; }
-    const data = new FormData(event.currentTarget);
-    const displayName = String(data.get("displayName") || "").trim();
-    const username = String(data.get("username") || "").trim();
-    const email = String(data.get("email") || "").trim();
-    if (!isValidEmailAddress(email)) {
-      setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
-      return;
-    }
-    await finishPasskey({ displayName, email, username, ...(identity ? {identityVerification: identity} : {}) });
-  }
-
-  async function submitFindId(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const email = String(data.get("email") || "").trim();
-    if (!isValidEmailAddress(email)) {
-      setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
-      return;
-    }
-    setMessage("");
-    try {
-      const result = await request<{ username: string; displayName: string }>("/api/auth/find-id", null, {
-        method: "POST",
-        body: JSON.stringify({ email }),
-      });
-      setMessage(`${result.displayName}님의 아이디는 ${result.username} 입니다.`);
-    } catch (error) {
-      setMessage(`아이디 찾기 실패: ${getFriendlyError(error)}`);
-    }
-  }
-
-  async function submitResetPassword(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const email = String(data.get("email") || "").trim();
-    const newPassword = String(data.get("newPassword") || "");
-    if (!isValidEmailAddress(email)) {
-      setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
-      return;
-    }
-    if (!isStrongPassword(newPassword)) {
-      setMessage("새 비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다.");
-      return;
-    }
-    setMessage("");
-    try {
-      await request("/api/auth/reset-password", null, {
-        method: "POST",
-        body: JSON.stringify({
-          username: data.get("username"),
-          email,
-          newPassword,
-        }),
-      });
-      setMessage("비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.");
-      setView("login");
-    } catch (error) {
-      setMessage(`비밀번호 재설정 실패: ${getFriendlyError(error)}`);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop auth-backdrop cu-auth-backdrop" role="dialog" aria-modal="true" aria-labelledby="cu-auth-heading">
-      <div className="auth-modal cu-auth-modal">
-        <div className="modal-header">
-          <div>
-            <h2 id="cu-auth-heading">{view === "link" ? "로그인 방법 연결" : view === "login" ? "로그인" : view === "signup" ? "회원가입" : "계정 찾기"}</h2>
-          </div>
-          <button className="icon-button" onClick={onClose} aria-label="닫기">
-            <X size={20} />
-          </button>
-        </div>
-
-        {view !== "link" && !exclusive && <div className="segmented">
-          <button className={view === "login" ? "active" : ""} onClick={() => changeView("login")}>
-            로그인
-          </button>
-          <button className={view === "signup" ? "active" : ""} onClick={() => changeView("signup")}>
-            회원가입
-          </button>
-          <button className={view === "recovery" ? "active" : ""} onClick={() => changeView("recovery")}>
-            계정 찾기
-          </button>
-        </div>}
-
-        {message && <div className="notice" role="status">{message}</div>}
-
-        {view !== "recovery" && <EasyLoginPanel<User> request={request} token={token} mode={view === "link" ? "link" : "login"} returned={easyReturn}
-          identityReturn={providerReturn?.flow === "identity" ? providerReturn : null}
-          onAuth={(account, session) => { onAuth(account, session); onClose(); }}
-          onUseExisting={() => { changeView("login"); setShowExisting(true); }} onAvailable={setEasyAvailable} onExclusive={setExclusive} />}
-
-        {view === "login" && !exclusive && (
-          <details className="auth-other-methods" open={showExisting || easyAvailable === false || undefined}>
-            <summary>패스키 · 비밀번호 로그인</summary>
-          <div className="auth-form">
-            <button className="primary-button" type="button" disabled={passkeyBusy || isLoginPending || !supportsPasskeys} onClick={() => void finishPasskey()}>
-              <ShieldCheck size={18} /> {passkeyBusy ? "기기 인증 중…" : "패스키로 로그인"}
-            </button>
-            {!supportsPasskeys && <p className="auth-help">패스키는 HTTPS 주소의 지원 브라우저에서 이용할 수 있습니다.</p>}
-            <details className="auth-password-login" open={!supportsPasskeys || undefined}>
-              <summary>기존 비밀번호로 로그인</summary>
-              <form className="auth-form" onSubmit={submitLogin}>
-                <label>아이디<input name="username" autoComplete="username" required placeholder="가입한 아이디" /></label>
-                <label>비밀번호<input name="password" autoComplete="current-password" required type="password" placeholder="비밀번호" /></label>
-                <button className="ghost-button" type="submit" disabled={isLoginPending || passkeyBusy}>
-                  <LogIn size={18} />
-                  {isLoginPending ? "로그인 확인 중" : "비밀번호로 로그인"}
-                </button>
-              </form>
-            </details>
-          </div>
-          </details>
-        )}
-
-        {view === "signup" && !exclusive && (
-          <details className="auth-other-methods" open={easyAvailable === false || providerReturn?.flow === "identity" || undefined}>
-          <summary>패스키로 회원가입</summary>
-          <form className="auth-form" onSubmit={submitSignup}>
-            <p className="auth-help">한 계정으로 작품을 감상하고 창작자 스튜디오를 이용할 수 있어요. 지문, 얼굴 또는 화면 잠금으로 패스키를 등록하세요.</p>
-            <IdentityCheck request={request} status={enrollment.status} onVerified={setIdentity} returned={providerReturn?.flow === "identity" ? providerReturn : null} />
-            {enrollment.failed && <p className="auth-help" role="status">실명인증 서비스의 연결 상태를 확인하지 못했어요. <button type="button" onClick={enrollment.retry}>다시 확인</button></p>}
-            <label>닉네임<input name="displayName" autoComplete="nickname" maxLength={20} required placeholder="공개 프로필에 사용할 이름" /></label>
-            <label>이메일<input name="email" type="email" autoComplete="email" required /></label>
-            <label>아이디<input name="username" autoComplete="username" minLength={2} maxLength={24} pattern="[A-Za-z0-9_]+" required placeholder="영문, 숫자, 밑줄 2~24자" /></label>
-            {!supportsPasskeys && <p className="auth-help" role="status">이 브라우저에서는 패스키를 등록할 수 없어요. 휴대폰이나 컴퓨터의 지원 브라우저에서 HTTPS 주소로 열어주세요.</p>}
-            <button className="primary-button" type="submit" disabled={!supportsPasskeys || passkeyBusy || Boolean(enrollment.status?.identityRequired && !identity)}><ShieldCheck size={18} /> {passkeyBusy ? "기기 인증 중…" : "패스키로 가입하기"}</button>
-          </form>
-          </details>
-        )}
-
-        {view === "recovery" && (
-          <>
-            <div className="segmented small">
-              <button className={recoveryMode === "find-id" ? "active" : ""} onClick={() => setRecoveryMode("find-id")}>
-                아이디 찾기
-              </button>
-              <button className={recoveryMode === "reset-password" ? "active" : ""} onClick={() => setRecoveryMode("reset-password")}>
-                비밀번호 찾기
-              </button>
-            </div>
-            {recoveryMode === "find-id" ? (
-              <form className="auth-form" onSubmit={submitFindId}>
-                <label>가입 이메일<input name="email" type="email" required /></label>
-                <button className="primary-button" type="submit"><Search size={18} /> 아이디 찾기</button>
-              </form>
-            ) : (
-              <form className="auth-form" onSubmit={submitResetPassword}>
-                <label>아이디<input name="username" required /></label>
-                <label>가입 이메일<input name="email" type="email" required /></label>
-                <label>
-                  새 비밀번호
-                  <input name="newPassword" type="password" minLength={8} required placeholder="8자 이상, 특수문자 1개 이상" />
-                  <small className="auth-help">새 비밀번호에도 특수문자를 1개 이상 포함해야 합니다.</small>
-                </label>
-                <button className="primary-button" type="submit"><RefreshCw size={18} /> 비밀번호 재설정</button>
-              </form>
-            )}
-          </>
-        )}
+  return <div className="modal-backdrop auth-backdrop cu-auth-backdrop" role="dialog" aria-modal="true" aria-labelledby="cu-auth-heading">
+    <div className="auth-modal cu-auth-modal">
+      <div className="modal-header">
+        <h2 id="cu-auth-heading">{view === "login" ? "로그인" : view === "signup" ? "회원가입" : "계정 찾기"}</h2>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={20}/></button>
       </div>
+      <div className="segmented">
+        <button className={view === "login" ? "active" : ""} onClick={() => setView("login")}>로그인</button>
+        <button className={view === "signup" ? "active" : ""} onClick={() => setView("signup")}>회원가입</button>
+        <button className={view === "recovery" ? "active" : ""} onClick={() => setView("recovery")}>계정 찾기</button>
+      </div>
+      {message && <div className="notice" role="status">{message}</div>}
+      <form key={view} className="auth-form" onSubmit={submit}>
+        {view === "signup" && <>
+          <p className="auth-help">하나의 계정으로 작품을 감상하고 창작자 스튜디오를 이용할 수 있어요.</p>
+          <label>닉네임<input name="displayName" autoComplete="nickname" required maxLength={20} placeholder="공개 프로필에 사용할 이름" /></label>
+        </>}
+        {view !== "login" && <label>가입 이메일<input name="email" type="email" autoComplete="email" required maxLength={254} /></label>}
+        {view !== "recovery" && <>
+          <label>아이디<input name="username" autoComplete="username" required
+            minLength={view === "signup" ? 2 : undefined} maxLength={view === "signup" ? 24 : undefined}
+            pattern={view === "signup" ? "[A-Za-z0-9_]+" : undefined} placeholder={view === "signup" ? "영문, 숫자, 밑줄 2~24자" : "가입한 아이디"} /></label>
+          <label>비밀번호<input name="password" type="password" autoComplete={view === "signup" ? "new-password" : "current-password"}
+            required minLength={view === "signup" ? 8 : undefined} maxLength={view === "signup" ? 256 : undefined}
+            placeholder={view === "signup" ? "8자 이상, 특수문자 1개 이상" : "비밀번호"} /></label>
+        </>}
+        {view === "signup" && <label>비밀번호 확인<input name="passwordConfirm" type="password" autoComplete="new-password" required /></label>}
+        <button className="primary-button" type="submit" disabled={busy}>
+          {view === "signup" ? <UserPlus size={18}/> : view === "login" ? <LogIn size={18}/> : <Search size={18}/>}
+          {busy ? "확인 중…" : view === "signup" ? "회원가입" : view === "login" ? "로그인" : "아이디 찾기"}
+        </button>
+      </form>
+      {view === "login" && <details className="auth-other-methods">
+        <summary>이전에 패스키로 가입하셨나요?</summary>
+        {passkeySupported()
+          ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void run(legacyPasskey)}><ShieldCheck size={18} />기존 패스키로 로그인</button>
+          : <p className="auth-help">가입할 때 사용한 패스키를 지원하는 기기나 브라우저에서 열어주세요.</p>}
+      </details>}
+      {view === "recovery" && <p className="auth-help">비밀번호 재설정은 가입한 이메일로 고객센터에 문의해 주세요. <a href="mailto:support@creator-universe.app">support@creator-universe.app</a></p>}
     </div>
-  );
+  </div>;
 }
 
 function PaymentModal({
@@ -2279,7 +2113,6 @@ function PaymentModal({
   onClose,
   onConfirm,
   onLogin,
-  onSwitchToCharge,
   isLoggedIn, token, userId, onBalance, salePrice, isPaymentReturn,
 }: {
   mode: "charge" | "content";
@@ -2293,7 +2126,6 @@ function PaymentModal({
   salePrice: number | undefined;
   isPaymentReturn: boolean;
   onLogin: () => void;
-  onSwitchToCharge: () => void;
   isLoggedIn: boolean;
 }) {
   const [selectedProductId, setSelectedProductId] = useState("coin-1000");
@@ -2301,17 +2133,15 @@ function PaymentModal({
   const [paymentMessage, setPaymentMessage] = useState("");
   const selectedProduct = coinProducts.find((item) => item.id === selectedProductId) || coinProducts[0];
   const isChargeMode = mode === "charge";
-  const connection = useIntegrationStatus(request, isChargeMode);
+  const [previewed, setPreviewed] = useState(false);
   const contentPrice = salePrice ?? 0;
   const purchasing = useRef(false);
   const feeRate = project?.appliedFeeRate ?? STANDARD_PLATFORM_FEE_RATE;
   const estimatedCreatorShare = Math.floor(contentPrice * (1 - feeRate));
   const hasEnoughCoins = wallet !== null && wallet >= contentPrice;
-  const finalPaymentLabel = isChargeMode ? formatWon(selectedProduct.priceKrw) : formatCoins(contentPrice);
+  const finalPaymentLabel = isChargeMode ? formatWon(0) : formatCoins(contentPrice);
   const currentWallet = wallet ?? 0;
-  const expectedWalletAfterPayment = isChargeMode
-    ? currentWallet + selectedProduct.coins
-    : Math.max(0, currentWallet - contentPrice);
+  const expectedWalletAfterPayment = Math.max(0, currentWallet - contentPrice);
 
   async function submitPayment() {
     setPaymentMessage("");
@@ -2320,12 +2150,7 @@ function PaymentModal({
       return;
     }
 
-    if (!isChargeMode && !hasEnoughCoins) {
-      onSwitchToCharge();
-      return;
-    }
-
-    if (purchasing.current || salePrice === undefined) return;
+    if (purchasing.current || salePrice === undefined || !hasEnoughCoins) return;
     purchasing.current = true; setIsPaying(true);
     try {
       await onConfirm(contentPrice);
@@ -2342,8 +2167,7 @@ function PaymentModal({
       <div className="payment-modal">
         <div className="modal-header">
           <div>
-            <p className="kicker">Coin Checkout</p>
-            <h2>{isChargeMode ? "코인 충전" : "콘텐츠 결제"}</h2>
+            <h2>{isChargeMode ? "코인 충전 체험" : "콘텐츠 결제"}</h2>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="결제창 닫기">
             <X size={19} />
@@ -2352,9 +2176,9 @@ function PaymentModal({
 
         <div className="payment-hero">
           <div>
-            <span className="payment-label">{isChargeMode ? "Wallet Top-up" : "콘텐츠 열람권"}</span>
-            <strong>{isChargeMode ? "필요한 만큼 코인을 충전하세요" : work?.title || project?.title || "미드나잇 시그널"}</strong>
-            <p>{isChargeMode ? "충전한 코인으로 판매 중인 작품의 열람권을 구매할 수 있습니다." : work?.tagline || project?.synopsis || "작품 정보를 불러오는 중입니다."}</p>
+            <span className="payment-label">{isChargeMode ? "무료 체험" : "콘텐츠 열람권"}</span>
+            <strong>{isChargeMode ? "체험할 코인을 선택하세요" : work?.title || project?.title || "미드나잇 시그널"}</strong>
+            <p>{isChargeMode ? "이 화면에서만 충전 결과를 미리 볼 수 있어요. 지갑 잔액은 그대로예요." : work?.tagline || project?.synopsis || "작품 정보를 불러오는 중입니다."}</p>
           </div>
           <div className="coin-orb">
             <Coins size={34} />
@@ -2368,7 +2192,8 @@ function PaymentModal({
               <button
                 key={item.id}
                 className={selectedProductId === item.id ? "active" : ""}
-                onClick={() => setSelectedProductId(item.id)}
+                aria-pressed={selectedProductId === item.id}
+                onClick={() => { setSelectedProductId(item.id); setPreviewed(false); }}
                 type="button"
               >
                 <span>{item.badge}</span>
@@ -2382,60 +2207,62 @@ function PaymentModal({
           <div className="payment-content-ticket">
             <span>열람권 구매</span>
             <strong>{formatCoins(contentPrice)}</strong>
-            <p>{hasEnoughCoins ? "보유 코인에서 차감됩니다." : `현재 지갑에 ${formatCoins(wallet ?? 0)}만 있어 충전이 필요합니다.`}</p>
+            <p>{hasEnoughCoins ? "보유 코인에서 차감됩니다." : !isLoggedIn ? "로그인하면 보유 코인을 확인할 수 있어요." : "이 열람권을 구매하기에 보유 코인이 부족해요. 현재 신규 유료 충전은 중단되어 있어요."}</p>
           </div>
         )}
 
-        <div className="payment-grid">
+        {!isChargeMode && <div className="payment-grid">
           <div className="payment-method-card">
             <CreditCard size={20} />
             <div>
-              <strong>{isChargeMode ? "카드 결제" : "코인 결제"}</strong>
-              <p>{isChargeMode ? "결제창에서 상품과 금액을 확인해 주세요." : "보유 코인으로 작품 열람권을 구매합니다."}</p>
+              <strong>코인 결제</strong>
+              <p>보유 코인으로 작품 열람권을 구매합니다.</p>
             </div>
             <CheckCircle2 size={20} />
           </div>
           <div className="payment-method-card">
             <ShieldCheck size={20} />
             <div>
-              <strong>{isChargeMode ? "충전 내역" : "스마트 자동 정산"}</strong>
-              <p>{isChargeMode ? "승인된 실결제는 지갑 이용 내역에 기록됩니다." : `결제 후 수수료 ${Math.round(feeRate * 100)}%를 제외한 ${formatCoins(estimatedCreatorShare)}이 팀 지분율대로 분배됩니다.`}</p>
+              <strong>스마트 자동 정산</strong>
+              <p>{`결제 후 수수료 ${Math.round(feeRate * 100)}%를 제외한 ${formatCoins(estimatedCreatorShare)}이 팀 지분율대로 분배됩니다.`}</p>
             </div>
           </div>
-        </div>
+        </div>}
 
         <div className="payment-summary">
           <div><span>선택 상품</span><b>{isChargeMode ? selectedProduct.title : work?.title || project?.title}</b></div>
-          <div><span>내 지갑</span><b>{isLoggedIn ? formatCoins(currentWallet) : "로그인 필요"}</b></div>
-          <div><span>{isChargeMode ? "충전 코인" : "사용 코인"}</span><b>{isChargeMode ? formatCoins(selectedProduct.coins) : formatCoins(contentPrice)}</b></div>
-          <div><span>결제 금액</span><b>{isChargeMode ? formatWon(selectedProduct.priceKrw) : formatCoins(contentPrice)}</b></div>
-          <div className="total"><span>최종 결제</span><b>{finalPaymentLabel}</b></div>
+          {!isChargeMode && <div><span>내 지갑</span><b>{isLoggedIn ? formatCoins(currentWallet) : "로그인 필요"}</b></div>}
+          <div><span>{isChargeMode ? "체험 코인" : "사용 코인"}</span><b>{isChargeMode ? formatCoins(selectedProduct.coins) : formatCoins(contentPrice)}</b></div>
+          <div className="total"><span>{isChargeMode ? "실제 청구액" : "최종 결제"}</span><b>{finalPaymentLabel}</b></div>
         </div>
 
         {paymentMessage && <p className="payment-error-message">{paymentMessage}</p>}
 
-        {isLoggedIn && (!isChargeMode || (connection.status?.paymentReady && connection.status.mode === "live")) && (
+        {isLoggedIn && !isChargeMode && hasEnoughCoins && (
           <div className="payment-balance-preview">
             <div>
               <span>현재 보유</span>
               <strong>{formatCoins(currentWallet)}</strong>
             </div>
-            <i>{isChargeMode ? "+" : "-"}</i>
+            <i>-</i>
             <div>
-              <span>{isChargeMode ? "충전 후 보유" : "결제 후 보유"}</span>
+              <span>결제 후 보유</span>
               <strong>{formatCoins(expectedWalletAfterPayment)}</strong>
             </div>
           </div>
         )}
 
         {isChargeMode ? <>
-          {connection.failed && <p className="notice" role="status">결제 서비스 연결을 확인하지 못했습니다. <button type="button" onClick={connection.retry}>다시 확인</button></p>}
-          <CoinCheckout key={userId ?? "guest"} token={token} userId={userId} product={selectedProduct}
-            request={request} status={connection.status} returned={isPaymentReturn ? providerReturn : null}
+          {previewed && <p className="notice" role="status">{formatCoins(selectedProduct.coins)} 충전을 체험했어요. 청구액은 0원입니다.</p>}
+          <button type="button" className="primary-button payment-submit" onClick={() => previewed ? onClose() : setPreviewed(true)}>
+            {previewed ? <CheckCircle2 size={18} /> : <Coins size={18} />}{previewed ? "완료" : "충전 체험하기"}
+          </button>
+          <PreviousTopUp key={userId ?? "guest"} token={token} userId={userId}
+            request={request} returnId={isPaymentReturn ? providerReturn?.id ?? null : undefined}
             onLogin={onLogin} onBalance={onBalance} />
-        </> : <button className="primary-button payment-submit" onClick={submitPayment} disabled={isPaying || salePrice === undefined}>
+        </> : <button className="primary-button payment-submit" onClick={submitPayment} disabled={isPaying || salePrice === undefined || (isLoggedIn && !hasEnoughCoins)}>
           <Wallet size={18} />{salePrice === undefined ? "판매 준비 중" : !isLoggedIn ? "로그인하고 결제하기" : isPaying ? "결제 처리 중…" :
-            hasEnoughCoins ? `${formatCoins(contentPrice)}으로 열람하기` : "코인이 부족해요 · 충전하기"}
+            hasEnoughCoins ? `${formatCoins(contentPrice)}으로 열람하기` : "보유 코인 부족"}
         </button>}
       </div>
     </div>
@@ -3264,7 +3091,7 @@ const policySections: Array<{
     summary: "크리에이터 유니버스는 만 12세 이상 이용 가능한 웹앱 서비스로, 창작자 매칭과 콘텐츠 열람, 코인 결제, 자동 정산, 고객지원에 필요한 개인정보만 최소한으로 처리합니다.",
     items: [
       "수집 항목: 이메일, 아이디, 닉네임, 비밀번호 해시, 콘텐츠 구매/스크랩, 코인 거래, 창작자 프로필, 매칭/채팅, 문의/신고, 서비스 이용 로그",
-      "간편로그인을 선택하면 카카오·네이버의 앱별 회원 식별정보 또는 본인인증기관에서 확인한 CI의 키 기반 해시를 계정 연결에 사용합니다. 인증 수단별 보관 항목은 개인정보 처리방침 전문에서 확인할 수 있습니다.",
+      "아이디와 비밀번호로 가입합니다. 비밀번호는 해시값으로 보관하며 기존 패스키 회원은 등록한 기기로 로그인할 수 있습니다.",
       "이용 목적: 회원 인증, 콘텐츠 열람권 발급, 코인 충전/사용, 팀 정산, 매칭 제안 처리, 고객지원, 부정 이용 방지, 접근성 품질 개선",
       "이용 연령: 만 12세 이상 이용 가능하며, 만 12세 미만 이용자는 서비스를 이용할 수 없습니다.",
       "제공/위탁: 개인정보를 판매하지 않으며, 결제 처리, 클라우드 인프라, 이메일/알림 발송 등 운영에 필요한 범위에서만 처리 위탁합니다.",
@@ -3380,7 +3207,6 @@ function PolicyModal({ initialTab, onClose }: { initialTab: PolicyTabId; onClose
 
 function AccountModal({
   user,
-  onOpenLogins,
   wallet,
   purchasedWorkIds,
   scrappedWorkIds,
@@ -3400,7 +3226,6 @@ function AccountModal({
   onOpenLibrary,
 }: {
   user: User;
-  onOpenLogins: () => void;
   wallet: number | null;
   purchasedWorkIds: string[];
   scrappedWorkIds: string[];
@@ -3427,7 +3252,7 @@ function AccountModal({
   const walletBalance = wallet ?? 0;
   const walletUsageHint = walletBalance > 0
     ? `지금 바로 ${Math.min(walletBalance, 1000).toLocaleString("ko-KR")}코인 작품을 열람할 수 있어요.`
-    : "첫 충전 후 작품 열람, 창작자 후원, 프리미엄 구독을 시작할 수 있어요.";
+    : "무료 작품은 보유 코인 없이도 바로 읽을 수 있어요.";
   const latestWalletWork = purchasedWorks[0] ?? recentWorks[0] ?? scrappedWorks[0];
 
   return (
@@ -3449,15 +3274,14 @@ function AccountModal({
             <strong>{user.displayName}</strong>
             <span>@{user.username} · {user.email}</span>
           </div>
-          <button className="ghost-button compact" onClick={onOpenPayment}><Coins size={16} /> 코인 충전</button>
+          <button className="ghost-button compact" onClick={onOpenPayment}><Coins size={16} /> 충전 체험</button>
         </section>
 
-        <button className="account-login-methods" onClick={onOpenLogins}><ShieldCheck size={20} /> 로그인 방법 연결 <ArrowUpRight size={16} /></button>
         <section className="app-account-dashboard" aria-label="앱 내 계정 요약">
           <div className="app-account-balance">
             <span>My Universe</span>
             <strong>{formatCoins(walletBalance)}</strong>
-            <p>{premiumSubscription.isActive ? `프리미엄 미리보기 이용 중` : "코인 충전, 작품 보관함, 구독 관리를 여기서 바로 시작하세요."}</p>
+            <p>{premiumSubscription.isActive ? `프리미엄 미리보기 이용 중` : "코인 충전 체험, 작품 보관함, 구독 관리를 여기서 바로 시작하세요."}</p>
           </div>
 
           <div className="app-account-quick-grid">
@@ -3525,7 +3349,7 @@ function AccountModal({
                   <span>보유 코인</span>
                   <b>{wallet === null ? "로그인 필요" : formatCoins(walletBalance)}</b>
                 </div>
-                <button type="button" onClick={onOpenPayment}><Coins size={15} /> 충전</button>
+                <button type="button" onClick={onOpenPayment}><Coins size={15} /> 충전 체험</button>
               </div>
               <div className="wallet-balance-meter" aria-hidden="true">
                 <span style={{ width: `${Math.min(100, Math.max(8, walletBalance / 100))}%` }} />
@@ -3590,7 +3414,7 @@ function AccountModal({
             ) : (
               <button onClick={onStartPremium}>프리미엄 체험 시작</button>
             )}
-            <button className="premium-manage-button" onClick={onOpenPayment}>코인 충전/결제 관리</button>
+            <button className="premium-manage-button" onClick={onOpenPayment}>코인 충전 체험</button>
           </section>
 
           <section className="account-panel">
@@ -3902,9 +3726,7 @@ export function App() {
     return storedMode === "creator" ? "creator" : "reader";
   });
   const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
-  const [easyReturned, setEasyReturned] = useState(initialEasyReturn);
-  const [authMode, setAuthMode] = useState<AuthView | null>(() => initialEasyReturn?.mode ?? (providerReturn?.flow === "identity" || pendingEasy()?.signup ? "signup" : null));
-  useEffect(() => { if (!authMode) setEasyReturned(null); }, [authMode]);
+  const [authMode, setAuthMode] = useState<AuthView | null>(previousLoginReturn ? "login" : null);
   const resumeCheckoutAfterLogin = useRef(false);
   const [isPaymentReturn, setIsPaymentReturn] = useState(providerReturn?.flow === "payment");
   useEffect(() => { clearProviderReturn(); }, []);
@@ -3915,7 +3737,24 @@ export function App() {
   const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
   const [accessibilityPreferences, setAccessibilityPreferences] = useState<AccessibilityPreferences>(() => readAccessibilityPreferences());
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(initialEasyReturn?.mode === "link");
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const entryPanel = useRef(entryParams.get("open"));
+  useEffect(() => {
+    const panel = entryPanel.current;
+    if (panel !== "account" && panel !== "wallet-preview" && panel !== "help" && panel !== "chat") return;
+    if (panel === "account" && token && !user) return;
+    entryPanel.current = null;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("open");
+    window.history.replaceState(null, "", url);
+    if (panel === "wallet-preview") setIsPaymentOpen(true);
+    if (panel === "help") setIsSupportBotOpen(true);
+    if (panel === "chat") openCreatorMessenger();
+    if (panel === "account") {
+      if (user) setIsAccountModalOpen(true);
+      else setAuthMode("login");
+    }
+  }, [token, user]);
   const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
   const [isMobileQuickOpen, setIsMobileQuickOpen] = useState(false);
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
@@ -3973,7 +3812,7 @@ export function App() {
       if (event.key !== "Escape") return;
       event.preventDefault();
       switch (overlay) {
-        case "auth": clearEasy(); setAuthMode(null); break;
+        case "auth": setAuthMode(null); break;
         case "policy": setPolicyTab(null); break;
         case "payment": setIsPaymentOpen(false); break;
         case "match-proposal": setMatchProposalCreator(null); break;
@@ -5879,7 +5718,7 @@ export function App() {
           </form>}
         <div className="header-actions">
           <button className="ghost-button nav-pay-button" onClick={openPayment}>
-            <Coins size={16} /> 결제
+            <Coins size={16} /> 충전 체험
           </button>
           <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="테마 변경">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -6020,12 +5859,14 @@ export function App() {
               <button key={item.id} aria-current={activePage === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>
             ))}
           </nav>
+          {!studioWindow && <a className="cu-classic-shortcut" href="/classic/">첫 디자인 홈페이지</a>}
           {studioWindow ? <a className="cu-studio-link" href="/">작품으로 <BookOpen size={14} /></a>
             : <a className="cu-studio-link" href="/?studio=studio" target="_blank" rel="noopener noreferrer" aria-label="스튜디오 새 창에서 열기">스튜디오 <ArrowUpRight size={15} /></a>}
         </div>
         {isMobileMenuOpen && <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
           <div className="mobile-drawer-card">
             <strong>전체 메뉴</strong>
+            <a className="cu-drawer-classic" href="/classic/">첫 디자인 홈페이지 <ArrowRight size={15} aria-hidden="true" /></a>
             {visibleNavItems.map((item) => (
               <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => navigate(item.id)}>
                 <span>{item.label}</span>
@@ -6037,7 +5878,7 @@ export function App() {
             <button onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setIsMobileMenuOpen(false); }}>테마 변경</button>
             <button onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
             <button className="drawer-pay-button" onClick={() => { setIsMobileMenuOpen(false); openPayment(); }}>
-              <Coins size={17} /> 코인 결제창 열기
+              <Coins size={17} /> 코인 충전 체험
             </button>
           </div>
         </div>}
@@ -6272,7 +6113,7 @@ export function App() {
                 {isStudioMemberView ? (
                   <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span></button>
                 ) : (
-                  <button type="button" onClick={openPayment}><Coins size={18} /><span>코인 충전</span></button>
+                  <button type="button" onClick={openPayment}><Coins size={18} /><span>충전 체험</span></button>
                 )}
               </div>
 
@@ -6301,8 +6142,8 @@ export function App() {
                 <article>
                   <span>내 지갑</span>
                   <strong>{formatCoins(currentWalletDetail.balance)}</strong>
-                  <p>{currentWalletDetail.transactions[0]?.title ?? "충전하면 작품 열람과 후원에 바로 사용할 수 있어요."}</p>
-                  <button type="button" onClick={openPayment}>코인 충전</button>
+                  <p>{currentWalletDetail.transactions[0]?.title ?? "아직 코인 이용 내역이 없어요."}</p>
+                  <button type="button" onClick={openPayment}>충전 체험</button>
                 </article>
               </div>
 
@@ -6651,7 +6492,7 @@ export function App() {
                 <p className="kicker">Universe Premium</p>
                 <h2>월 7,900코인으로 광고 없이 보고, 매달 보너스 코인까지 받는 구독 서비스</h2>
                 <p>홈에서 바로 이해되는 독자용 멤버십 상품입니다. 작품 페이지 광고 제거, 팬덤형 콘텐츠 선공개, 보너스 코인을 묶어 유튜브 프리미엄처럼 명확한 구독 가치를 제공합니다.</p>
-                <button onClick={openPayment}><Sparkles size={17} /> 코인 충전 살펴보기</button>
+                <button onClick={openPayment}><Sparkles size={17} /> 코인 충전 체험</button>
               </div>
               <div>
                 <strong>7,900 Coin</strong>
@@ -6748,7 +6589,7 @@ export function App() {
                 ) : (
                   <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 추천 작품 보기</button>
                 )}
-                <button className="ghost-button" onClick={openPayment}><Coins size={18} /> 결제창 열기</button>
+                <button className="ghost-button" onClick={openPayment}><Coins size={18} /> 충전 체험</button>
               </div>
             </section>
           </div>
@@ -8458,7 +8299,7 @@ export function App() {
             <div className="app-wallet-balance">
               <span>My Coin Wallet</span>
               <strong>{formatCoins(currentWalletDetail.balance)}</strong>
-              <p>충전한 코인은 작품 열람, 창작자 후원, 구독에 사용할 수 있어요.</p>
+              <p>보유 코인으로 판매 중인 작품의 열람권을 구매할 수 있어요.</p>
               <div>
                 <button type="button" onClick={openPayment}>
                   <Coins size={16} /> 코인 충전
@@ -8508,7 +8349,7 @@ export function App() {
                   <i>0</i>
                   <div>
                     <strong>아직 내역이 없어요</strong>
-                    <p>첫 충전이나 작품 구매 후 여기에 기록됩니다.</p>
+                    <p>작품을 구매하면 여기에 기록됩니다.</p>
                   </div>
                 </article>
               )}
@@ -8521,7 +8362,7 @@ export function App() {
               <h2>독자 결제와 창작자 입금을 한눈에 보는 내 지갑</h2>
               <p>코인 충전, 작품 열람권 구매, 창작자 정산 입금 내역을 확인하세요.</p>
               <div className="wallet-hero-actions">
-                <button className="primary-button" onClick={openPayment}><Coins size={18} /> 코인 충전하기</button>
+                <button className="primary-button" onClick={openPayment}><Coins size={18} /> 충전 체험</button>
                 <button className="ghost-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보러가기</button>
               </div>
             </div>
@@ -8579,7 +8420,7 @@ export function App() {
                   <div className="empty-matching wallet-empty-state">
                     <Coins size={24} />
                     <strong>아직 코인 이용 내역이 없어요</strong>
-                    <p>코인을 충전하거나 작품을 구매하면 이곳에 내역이 쌓입니다.</p>
+                    <p>작품을 구매하면 이곳에서 사용 내역을 확인할 수 있어요.</p>
                   </div>
                 )}
               </div>
@@ -8590,7 +8431,7 @@ export function App() {
                 <CreditCard size={22} />
                 <strong>결제 수단</strong>
                 <p>{currentWalletDetail.paymentMethod}</p>
-                <button onClick={openPayment}>카드로 코인 충전</button>
+                <button onClick={openPayment}>코인 충전 체험</button>
               </article>
               <article>
                 <Wallet size={22} />
@@ -9108,7 +8949,8 @@ export function App() {
           <strong>Creator Universe</strong>
           <small className="footer-copy">© 2026 Creator Universe Inc.</small>
         </div>
-        <nav className="footer-links" aria-label="하단 정책 링크">
+        <nav className="footer-links" aria-label="하단 링크">
+          <a href="/classic/">첫 디자인 홈페이지</a>
           <button className="cu-footer-link" onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
           <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
           <a href="/terms.html" target="_blank" rel="noreferrer">약관</a>
@@ -9161,7 +9003,7 @@ export function App() {
       <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
         <div className="quick-sheet-head">
           <strong>빠른 시작</strong>
-          <span>{isStudioMemberView ? "작품을 만들고, 팀을 찾고, 제안을 바로 확인하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
+          <span>{isStudioMemberView ? "작품을 만들고, 팀을 찾고, 제안을 바로 확인하세요" : "작품을 찾고, 코인 충전을 체험하고, 내 보관함으로 이동하세요"}</span>
         </div>
         <div className="quick-sheet-primary-actions" aria-label="핵심 빠른 실행">
           {isStudioMemberView ? (
@@ -9187,7 +9029,7 @@ export function App() {
                   openPayment();
                 }}
               >
-                <Coins size={18} /><span>충전</span><small>{formatCoins(wallet ?? 0)}</small>
+                <Coins size={18} /><span>충전 체험</span><small>{formatCoins(wallet ?? 0)}</small>
               </button>
             </>
           )}
@@ -9470,7 +9312,7 @@ export function App() {
           {isSupportBotOpen ? <X size={24} /> : <Bot size={24} />}
         </button>
       </div>
-      {authMode && <AuthModal mode={authMode} token={token} returned={easyReturned} onClose={() => { clearEasy(); resumeCheckoutAfterLogin.current = false; setAuthMode(null); }} onAuth={completeAuth} />}
+      {authMode && <AuthModal mode={authMode} onClose={() => { resumeCheckoutAfterLogin.current = false; setAuthMode(null); }} onAuth={completeAuth} />}
       {matchProposalCreator && (
         <MatchProposalModal
           creator={matchProposalCreator}
@@ -9495,7 +9337,6 @@ export function App() {
           premiumSubscription={premiumSubscription}
           notificationPreferences={notificationPreferences}
           isStudioMemberView={isStudioMemberView}
-          onOpenLogins={() => setAuthMode("link")}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
           onDeleteAccount={() => void deleteAccount()}
@@ -9567,7 +9408,6 @@ export function App() {
           token={token} userId={user?.id} salePrice={salePrices[pendingPurchaseWorkId]}
           onBalance={balance => { setWallet(balance); if (token) void loadData(token).catch(() => {}); }}
           onConfirm={handlePaymentConfirm}
-          onSwitchToCharge={() => setPaymentMode("charge")}
           onLogin={() => {
             resumeCheckoutAfterLogin.current = true; setIsPaymentOpen(false);
             setAuthMode("login");

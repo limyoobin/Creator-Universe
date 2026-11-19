@@ -4,6 +4,7 @@
   "installCommand": "npm ci",
   "framework": "vite",
   "rewrites": [
+    { "source": "/classic", "destination": "/classic/index.html" },
     { "source": "/auth/return/:provider", "destination": "/index.html" }
   ],
   "headers": [

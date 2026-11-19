@@ -10,6 +10,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/classic", "destination": "/classic/index.html" },
     {
       "source": "/(.*)",
       "destination": "/index.html"
