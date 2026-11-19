@@ -1,4 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { WorksCatalog } from "./WorksCatalog";
+import { ArrowUpRight, Trophy } from "lucide-react";
 import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
 import {
   Bell,
@@ -12,7 +14,6 @@ import {
   Globe2,
   Heart,
   Headphones,
-  Home,
   LogIn,
   LogOut,
   Maximize2,
@@ -435,7 +436,7 @@ const readerWorks = [
   {
     id: "midnight-signal",
     title: "미드나잇 시그널",
-    coverImage: "/covers/midnight-signal.svg",
+    coverImage: "/covers/midnight-signal.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-haruka", "user-ion"],
     format: "오디오드라마",
     genre: "미스터리",
@@ -452,7 +453,7 @@ const readerWorks = [
   {
     id: "starlight-contract",
     title: "별빛 계약 연애",
-    coverImage: "/covers/starlight-contract.svg",
+    coverImage: "/covers/starlight-contract.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-haruka"],
     format: "웹소설",
     genre: "로맨스",
@@ -469,7 +470,7 @@ const readerWorks = [
   {
     id: "dragon-archive",
     title: "용의 기록 보관소",
-    coverImage: "/covers/dragon-archive.svg",
+    coverImage: "/covers/dragon-archive.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-ion"],
     format: "웹툰",
     genre: "판타지",
@@ -486,7 +487,7 @@ const readerWorks = [
   {
     id: "after-school-ghost",
     title: "방과 후 괴담부",
-    coverImage: "/covers/after-school-ghost.svg",
+    coverImage: "/covers/after-school-ghost.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-haruka", "user-ion"],
     format: "만화",
     genre: "스릴러",
@@ -503,7 +504,7 @@ const readerWorks = [
   {
     id: "cafe-orbit",
     title: "궤도 카페의 하루",
-    coverImage: "/covers/cafe-orbit.svg",
+    coverImage: "/covers/cafe-orbit.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-ion"],
     format: "믹스미디어",
     genre: "힐링",
@@ -520,7 +521,7 @@ const readerWorks = [
   {
     id: "blue-hour-roommate",
     title: "블루아워 룸메이트",
-    coverImage: "/covers/blue-hour-roommate.svg",
+    coverImage: "/covers/blue-hour-roommate.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-haruka"],
     format: "웹소설",
     genre: "BL",
@@ -537,7 +538,7 @@ const readerWorks = [
   {
     id: "painted-planet",
     title: "채색 행성의 아이들",
-    coverImage: "/covers/painted-planet.svg",
+    coverImage: "/covers/painted-planet.webp",
     participantUserIds: ["user-renka", "user-yurino"],
     format: "웹툰",
     genre: "일상",
@@ -554,7 +555,7 @@ const readerWorks = [
   {
     id: "paper-moon-diary",
     title: "종이달 관찰일지",
-    coverImage: "/covers/paper-moon-diary.svg",
+    coverImage: "/covers/paper-moon-diary.webp",
     participantUserIds: ["user-yurino", "user-renka", "user-ion"],
     format: "소설",
     genre: "미스터리",
@@ -571,7 +572,7 @@ const readerWorks = [
   {
     id: "neon-pulse-zero",
     title: "네온 펄스 제로",
-    coverImage: "/covers/neon-pulse-zero.svg",
+    coverImage: "/covers/neon-pulse-zero.webp",
     participantUserIds: ["user-renka", "user-haruka", "user-ion"],
     format: "애니메이션",
     genre: "판타지",
@@ -611,34 +612,6 @@ function getAudioExperienceLabel(work: ReaderWork) {
   }
   return "오디오 확장";
 }
-
-const contentFormatCards = [
-  {
-    title: "웹소설",
-    label: "Story First",
-    text: "작가가 원작을 연재하고 일러스트, 표지, 보이스 특전으로 확장합니다.",
-  },
-  {
-    title: "웹툰·만화",
-    label: "Visual IP",
-    text: "콘티, 펜선, 채색, 배경, 효과음 팀이 에피소드 단위로 협업합니다.",
-  },
-  {
-    title: "오디오드라마",
-    label: "Voice Expansion",
-    text: "성우, BGM, 사운드 디자이너가 기존 IP를 배리어프리 감상 경험으로 넓힙니다.",
-  },
-  {
-    title: "애니메이션",
-    label: "Motion IP",
-    text: "웹툰과 소설 IP를 숏폼 파일럿, 티저, 오프닝 영상으로 확장합니다.",
-  },
-  {
-    title: "믹스미디어",
-    label: "Fan Package",
-    text: "글, 이미지, 음성, ASMR, 비하인드 콘텐츠를 묶어 팬덤형 상품으로 판매합니다.",
-  },
-];
 
 const creatorFanPosts = [
   {
@@ -728,7 +701,7 @@ const universePremiumBenefits = [
   "오디오 백그라운드 재생과 오프라인 저장 데모",
 ];
 
-type PageId = "home" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support" | "admin";
+type PageId = "home" | "discover" | "ranking" | "library" | "creators" | "studio" | "matching" | "wallet" | "settlement" | "support" | "admin";
 type LibraryViewId = (typeof libraryViewItems)[number]["id"];
 type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
 type AppMode = "reader" | "creator";
@@ -811,9 +784,28 @@ type NotificationItem = {
   openAccount?: boolean;
 };
 
+const studioSections = ["studio", "matching", "settlement"] as const;
+const entryParams = new URLSearchParams(window.location.search);
+const studioWindow = studioSections.some(section => section === entryParams.get("studio"));
+const readerDestinations = ["discover", "ranking", "creators", "library", "support", "home"] as const;
+function locationPage(): PageId {
+  const params = new URLSearchParams(window.location.search);
+  return studioSections.find(section => section === params.get("studio"))
+    ?? readerDestinations.find(section => section === params.get("view")) ?? "discover";
+}
+
+const catalogueCredits: Record<string, { name: string; role: string }> = {
+  "user-yurino": { name: "유리노", role: "글" },
+  "user-renka": { name: "렌카", role: "그림" },
+  "user-haruka": { name: "하루카", role: "목소리" },
+  "user-ion": { name: "이온", role: "음악" },
+};
+
 const navItems: Array<{ id: PageId; label: string; helper: string }> = [
-  { id: "home", label: "홈", helper: "서비스 소개" },
-  { id: "discover", label: "작품", helper: "장르 탐색" },
+  { id: "discover", label: "작품", helper: "작품 탐색" },
+  { id: "ranking", label: "랭킹", helper: "인기 순위" },
+  { id: "library", label: "내 서재", helper: "최근 · 구매 · 스크랩" },
+  { id: "creators", label: "창작자", helper: "참여 작가 탐색" },
   { id: "studio", label: "스튜디오", helper: "작품 관리" },
   { id: "matching", label: "매칭", helper: "팀원 찾기" },
   { id: "wallet", label: "지갑", helper: "코인 관리" },
@@ -2971,6 +2963,8 @@ function WorkDetailModal({
   reviews,
   creators,
   isPurchased,
+  isScrapped,
+  onToggleScrap,
   progress,
   reviewRating,
   reviewBody,
@@ -2987,6 +2981,8 @@ function WorkDetailModal({
   reviews: ContentReview[];
   creators: Creator[];
   isPurchased: boolean;
+  isScrapped: boolean;
+  onToggleScrap: () => void;
   progress?: WorkProgressEntry;
   reviewRating: number;
   reviewBody: string;
@@ -3036,6 +3032,7 @@ function WorkDetailModal({
               <b>{work.episodes}화</b>
             </div>
             <div className="reader-actions">
+              <button className="ghost-button compact" aria-pressed={isScrapped} onClick={onToggleScrap}><Heart size={16} /> {isScrapped ? "스크랩 해제" : "스크랩"}</button>
               {isPurchased ? (
                 <button className="ghost-button compact purchased-badge"><CheckCircle2 size={16} /> 열람권 보유</button>
               ) : (
@@ -3189,9 +3186,12 @@ function WorkDetailModal({
             ))}
           </div>
           <div className="production-credit-strip">
-            <article><span>기획/원작</span><strong>{participants.find((creator) => creator.primaryRole === "WRITER")?.displayName ?? "창작팀"}</strong></article>
-            <article><span>비주얼</span><strong>{participants.find((creator) => creator.primaryRole === "ILLUSTRATOR")?.displayName ?? "아트팀"}</strong></article>
-            <article><span>보이스/BGM</span><strong>{participants.find((creator) => ["VOICE_ACTOR", "SOUND_DIRECTOR"].includes(creator.primaryRole))?.displayName ?? "사운드팀"}</strong></article>
+            {work.participantUserIds.map(id => {
+              const creator = participants.find(person => person.userId === id);
+              const credit = catalogueCredits[id];
+              return <article key={id}><span>{creator ? roleLabels[creator.primaryRole] : credit?.role}</span>
+                <strong>{creator?.displayName ?? credit?.name ?? "참여 창작자"}</strong></article>;
+            })}
           </div>
         </section>
 
@@ -3812,7 +3812,7 @@ export function App() {
   const [aiMatchMessage, setAiMatchMessage] = useState("");
   const [readerSearch, setReaderSearch] = useState("");
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
-  const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("all");
+  const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("recent");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
   const [scrappedWorkIds, setScrappedWorkIds] = useState<string[]>([]);
   const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>([]);
@@ -3914,37 +3914,77 @@ export function App() {
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(null);
-  const [activePage, setActivePage] = useState<PageId>("home");
+  const [activePage, setActivePage] = useState<PageId>(locationPage);
+  useEffect(() => {
+    const label = navItems.find(item => item.id === activePage)?.label ?? "서비스 소개";
+    document.title = `${label} | ${studioWindow ? "Creator Studio" : "크리에이터 유니버스"}`;
+  }, [activePage]);
   const [activeIntroSlide, setActiveIntroSlide] = useState(0);
   const [activeFlowStep, setActiveFlowStep] = useState(0);
   const [status, setStatus] = useState("백엔드 연결 중");
   const [isBootLoading, setIsBootLoading] = useState(true);
-  const librarySectionRef = useRef<HTMLElement | null>(null);
   const aiChatLogRef = useRef<HTMLDivElement | null>(null);
   const aiRequestRef = useRef<AbortController | null>(null);
+
+  const overlay = authMode ? "auth" : policyTab ? "policy" : isPaymentOpen ? "payment" :
+    matchProposalCreator ? "match-proposal" : selectedCreator ? "creator-detail" : selectedWork ? "work-detail" :
+    isAccountModalOpen ? "account" : isMobileQuickOpen ? "quick" : isMobileMenuOpen ? "menu" :
+    isNotificationOpen ? "notifications" : isAccountMenuOpen ? "account-menu" :
+    isMessengerOpen ? "messenger" : isSupportBotOpen ? "help" : isAiHistoryOpen ? "ai-history" : null;
+  useEffect(() => {
+    if (!overlay) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = document.querySelector<HTMLElement>(`.${overlay}-backdrop[role="dialog"]`);
+    const controls = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length > 0);
+    controls()[0]?.focus({ preventScroll: true });
+    function handleKey(event: KeyboardEvent) {
+      if (event.isComposing || event.keyCode === 229) return;
+      if (dialog && event.key === "Tab") {
+        const items = controls();
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      switch (overlay) {
+        case "auth": setAuthMode(null); break;
+        case "policy": setPolicyTab(null); break;
+        case "payment": setIsPaymentOpen(false); break;
+        case "match-proposal": setMatchProposalCreator(null); break;
+        case "creator-detail": setSelectedCreator(null); break;
+        case "work-detail": setSelectedWork(null); break;
+        case "account": setIsAccountModalOpen(false); break;
+        case "quick": setIsMobileQuickOpen(false); break;
+        case "menu": setIsMobileMenuOpen(false); break;
+        case "notifications": setIsNotificationOpen(false); break;
+        case "account-menu": setIsAccountMenuOpen(false); break;
+        case "messenger": setIsMessengerOpen(false); setIsMessengerFullscreen(false); break;
+        case "help": setIsSupportBotOpen(false); break;
+        case "ai-history": setIsAiHistoryOpen(false); break;
+      }
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
+    };
+  }, [overlay]);
 
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
   const isCreatorAccount = accountRole === "CREATOR" || accountRole === "ADMIN";
-  const isCreatorAppShell = Boolean(user && isCreatorAccount);
+  const isCreatorAppShell = Boolean(studioWindow && user && isCreatorAccount);
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
-        if (item.id === "admin") {
-          return isAdminAccount;
-        }
-
-        if (!user) {
-          return ["home", "discover", "support"].includes(item.id);
-        }
-
-        if (isCreatorAccount) {
-          return true;
-        }
-
-        return !creatorOnlyPages.has(item.id);
+        if (item.id === "admin") return isAdminAccount && studioWindow;
+        if (item.id === "wallet") return Boolean(user);
+        if (creatorOnlyPages.has(item.id)) return studioWindow;
+        if (studioWindow) return item.id === "support";
+        return true;
       }),
-    [isAdminAccount, isCreatorAccount, user],
+    [isAdminAccount, user],
   );
   const visibleOnboardingGuides = useMemo(
     () =>
@@ -4082,6 +4122,16 @@ export function App() {
     });
   }, [matchInboxFilter, matchProposalInboxItems]);
 
+  const creditNames = useMemo(() => {
+    const names = Object.fromEntries(Object.entries(catalogueCredits).map(([id, credit]) => [id, credit.name]));
+    creators.forEach(creator => { names[creator.userId] = creator.displayName; });
+    return names;
+  }, [creators]);
+
+  function getCreditNames(work: ReaderWork) {
+    return work.participantUserIds.map(id => creditNames[id]).filter(Boolean);
+  }
+
   const filteredReaderWorks = useMemo(() => {
     const searchTokens = readerSearch
       .trim()
@@ -4090,7 +4140,7 @@ export function App() {
       .filter(Boolean);
 
     return readerWorks.filter((work) => {
-      const searchableText = [work.title, work.format, work.genre, work.subGenre, work.tagline, ...work.tags].join(" ").toLowerCase();
+      const searchableText = [work.title, work.format, work.genre, work.subGenre, work.tagline, ...work.participantUserIds.map(id => creditNames[id]), ...work.tags].join(" ").toLowerCase();
       const matchesFilters = readerFilters.length === 0 || readerFilters.every((filter) => searchableText.includes(filter.toLowerCase()));
       const matchesSearch = searchTokens.length === 0 || searchTokens.every((token) => searchableText.includes(token));
       const matchesLibrary =
@@ -4101,24 +4151,10 @@ export function App() {
 
       return matchesFilters && matchesSearch && matchesLibrary;
     });
-  }, [purchasedWorkIds, readerFilters, readerLibraryView, readerSearch, recentWorkIds, scrappedWorkIds]);
+  }, [creditNames, purchasedWorkIds, readerFilters, readerLibraryView, readerSearch, recentWorkIds, scrappedWorkIds]);
 
   const rankedReaderWorks = useMemo(
     () => [...readerWorks].sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left)),
-    [],
-  );
-
-  const genreRankings = useMemo(
-    () =>
-      readerGenreFilters
-        .map((genre) => ({
-          genre,
-          works: readerWorks
-            .filter((work) => work.genre === genre || work.tags.includes(genre))
-            .sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left))
-            .slice(0, 3),
-        }))
-        .filter((ranking) => ranking.works.length > 0),
     [],
   );
 
@@ -4614,15 +4650,15 @@ export function App() {
   }, [isCreatorAccount, user]);
 
   useEffect(() => {
-    if (user && creatorOnlyPages.has(activePage) && !isCreatorAccount) {
-      setActivePage("home");
+    if (!studioWindow && user && creatorOnlyPages.has(activePage) && !isCreatorAccount) {
+      setActivePage(studioWindow ? "studio" : "discover");
       setCommunityMessage("독자 계정에서는 작품과 지갑 중심으로 이용할 수 있어요. 창작자 기능은 창작자 계정에서 열립니다.");
     }
   }, [activePage, isCreatorAccount, user]);
 
   useEffect(() => {
     if (user && adminOnlyPages.has(activePage) && !isAdminAccount) {
-      setActivePage("home");
+      setActivePage(studioWindow ? "studio" : "discover");
       setCommunityMessage("운영 콘솔은 관리자 계정에서만 열 수 있어요.");
     }
   }, [activePage, isAdminAccount, user]);
@@ -4981,16 +5017,55 @@ export function App() {
       return;
     }
 
-    setReaderLibraryView(view);
+    setReaderLibraryView(view === "all" ? "recent" : view);
     setReaderSearch("");
     setReaderFilters([]);
-    navigate("discover");
-    window.setTimeout(() => {
-      librarySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 120);
+    navigate(view === "all" ? "discover" : "library");
+  }
+
+  useEffect(() => {
+    function restorePage() {
+      setActivePage(locationPage());
+      setReaderSearch("");
+      setIsMobileMenuOpen(false);
+      setIsMobileQuickOpen(false);
+      setSelectedWork(null);
+      setSelectedCreator(null);
+    }
+    window.addEventListener("popstate", restorePage);
+    return () => window.removeEventListener("popstate", restorePage);
+  }, []);
+
+  function selectPage(page: PageId) {
+    const url = new URL(window.location.href);
+    if (studioWindow && studioSections.some(section => section === page)) {
+      url.searchParams.set("studio", page);
+    } else if (!studioWindow && readerDestinations.some(section => section === page)) {
+      if (page === "discover") url.searchParams.delete("view");
+      else url.searchParams.set("view", page);
+    }
+    if (url.href !== window.location.href) window.history.pushState(null, "", url);
+    setActivePage(page);
   }
 
   function navigate(page: PageId) {
+    setIsMobileMenuOpen(false);
+    setIsMobileQuickOpen(false);
+    setIsAccountMenuOpen(false);
+    setIsNotificationOpen(false);
+    if (!studioWindow && creatorOnlyPages.has(page)) {
+      window.open(`/?studio=${page}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (studioWindow && (page === "discover" || page === "ranking")) {
+      window.location.assign(page === "ranking" ? "/?view=ranking" : "/");
+      return;
+    }
+    if (studioWindow && creatorOnlyPages.has(page) && !isCreatorAccount) {
+      selectPage(page);
+      return;
+    }
+    if (page === "discover" || page === "ranking") setReaderSearch("");
     if (protectedPages.has(page) && (!token || !user)) {
       setAuthMode("login");
       setIsMobileMenuOpen(false);
@@ -5000,7 +5075,7 @@ export function App() {
 
     if (creatorOnlyPages.has(page) && !isCreatorAccount) {
       setCommunityMessage("스튜디오, 매칭, 정산은 창작자 계정으로 가입하거나 로그인해야 이용할 수 있어요.");
-      setActivePage("home");
+      selectPage(studioWindow ? "studio" : "discover");
       setIsMobileMenuOpen(false);
       setIsAccountMenuOpen(false);
       setIsMobileQuickOpen(false);
@@ -5009,18 +5084,18 @@ export function App() {
 
     if (adminOnlyPages.has(page) && !isAdminAccount) {
       setCommunityMessage("운영 콘솔은 관리자 계정에서만 열 수 있어요.");
-      setActivePage("home");
+      selectPage(studioWindow ? "studio" : "discover");
       setIsMobileMenuOpen(false);
       setIsAccountMenuOpen(false);
       setIsMobileQuickOpen(false);
       return;
     }
 
-    setActivePage(page);
+    selectPage(page);
     setIsMobileMenuOpen(false);
     setIsMobileQuickOpen(false);
     setIsAccountModalOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
 
   function openMyAccount() {
@@ -5669,7 +5744,7 @@ export function App() {
     setUser(null);
     setToken(null);
     if (protectedPages.has(activePage)) {
-      setActivePage("home");
+      setActivePage(studioWindow ? "studio" : "discover");
     }
     setIsAccountMenuOpen(false);
     setIsAccountModalOpen(false);
@@ -5695,7 +5770,7 @@ export function App() {
     setCreatorChatThreads({});
     setIsAccountMenuOpen(false);
     setIsAccountModalOpen(false);
-    setActivePage("home");
+    setActivePage(studioWindow ? "studio" : "discover");
     localStorage.removeItem("creator-universe-token");
     setStatus("계정 탈퇴가 완료되었습니다.");
   }
@@ -5713,7 +5788,7 @@ export function App() {
     setIsAccountModalOpen(false);
     setCommunityMessage("창작자 계정으로 전환되었습니다. 스튜디오에서 내 프로필과 대표작을 먼저 등록해보세요.");
     await loadData(token);
-    setActivePage("studio");
+    setActivePage(studioWindow ? "studio" : "discover");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -5763,8 +5838,8 @@ export function App() {
   }
 
   return (
-    <div className={`app page-${activePage}`}>
-      {isBootLoading && (
+    <div className={`app ${studioWindow ? "studio-shell" : "reader-shell"} page-${activePage}`}>
+      {isBootLoading && studioWindow && (
         <div className="boot-loader" role="status" aria-live="polite">
           <div className="boot-loader-card">
             <div className="loader-cat" aria-hidden="true">
@@ -5799,20 +5874,21 @@ export function App() {
           </div>
         </div>
       )}
-      <header className="topbar">
-        <button className="brand" onClick={() => navigate("home")}>
-          <span className="brand-logo"><img src="/logo.png" alt="" /></span>
-          <strong>크리에이터 유니버스</strong>
-          <em>Audio Studio</em>
-        </button>
-        <nav className="desktop-nav">
-          {visibleNavItems.map((item) => (
-            <button className={activePage === item.id ? "active" : ""} onClick={() => navigate(item.id)} key={item.id}>
-              <span>{item.label}</span>
-              <small>{item.helper}</small>
-            </button>
-          ))}
-        </nav>
+      <header className="cu-masthead">
+        <div className="cu-header-row">
+          <a className="cu-wordmark" href={studioWindow ? "/?studio=studio" : "/"}>
+            <img src="/logo.png" width="34" height="34" alt="" />
+            <strong>{studioWindow ? "Creator Studio" : "Creator Universe"}</strong>
+          </a>
+          {!studioWindow && <form className="cu-search" role="search" onSubmit={event => {
+            event.preventDefault();
+            selectPage("discover");
+            window.scrollTo(0, 0);
+          }}>
+            <Search size={18} aria-hidden="true" />
+            <input type="search" aria-label="작품명 또는 작가명 검색" placeholder="작품명, 작가명 검색"
+              value={readerSearch} onChange={event => { setReaderSearch(event.target.value); selectPage("discover"); window.scrollTo(0, 0); }} />
+          </form>}
         <div className="header-actions">
           <button className="ghost-button nav-pay-button" onClick={openPayment}>
             <Coins size={16} /> 결제
@@ -5943,26 +6019,40 @@ export function App() {
           <button
             className="icon-button mobile-menu-button"
             onClick={() => setIsMobileMenuOpen((value) => !value)}
-            aria-label="모바일 메뉴 열기"
+            aria-label="전체 메뉴"
             aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-        <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
+        </div>
+        <div className="cu-nav-row">
+          <nav className="cu-sections" aria-label={studioWindow ? "스튜디오 메뉴" : "작품 메뉴"}>
+            {visibleNavItems.filter(item => studioWindow || ["discover", "ranking", "library", "creators"].includes(item.id)).map(item => (
+              <button key={item.id} aria-current={activePage === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>
+            ))}
+          </nav>
+          {studioWindow ? <a className="cu-studio-link" href="/">작품으로 <BookOpen size={14} /></a>
+            : <a className="cu-studio-link" href="/?studio=studio" target="_blank" rel="noopener noreferrer" aria-label="스튜디오 새 창에서 열기">스튜디오 <ArrowUpRight size={15} /></a>}
+        </div>
+        {isMobileMenuOpen && <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
           <div className="mobile-drawer-card">
-            <p><Sparkles size={16} /> Creator Universe Menu</p>
+            <strong>전체 메뉴</strong>
             {visibleNavItems.map((item) => (
               <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => navigate(item.id)}>
                 <span>{item.label}</span>
                 <small>{item.helper}</small>
               </button>
             ))}
+            <button onClick={() => { setIsMobileMenuOpen(false); setIsSupportBotOpen(true); setIsMessengerOpen(false); }}>도움봇</button>
+            <button onClick={() => { setIsMobileMenuOpen(false); openCreatorMessenger(); }}>창작자 채팅</button>
+            <button onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setIsMobileMenuOpen(false); }}>테마 변경</button>
+            <button onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
             <button className="drawer-pay-button" onClick={() => { setIsMobileMenuOpen(false); openPayment(); }}>
               <Coins size={17} /> 코인 결제창 열기
             </button>
           </div>
-        </div>
+        </div>}
       </header>
 
       <main>
@@ -6676,260 +6766,23 @@ export function App() {
           </div>
         )}
 
-        {activePage === "discover" && <section className="section discover-page page-panel">
-          <section className="app-discover-dashboard" aria-label="앱 작품 탐색 요약">
-            <div className="app-discover-head">
-              <span>Library</span>
-              <h2>오늘 볼 작품을 빠르게 찾기</h2>
-              <p>앱에서는 검색, 이어보기, 스크랩을 먼저 보여줘서 복잡하게 내려가지 않아도 바로 감상할 수 있게 했어요.</p>
-            </div>
+        {(activePage === "discover" || activePage === "ranking") && (
+          <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
+            onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
+            onClearSearch={() => setReaderSearch("")} getRankScore={getWorkRankScore} getCreatorNames={getCreditNames}
+            onOpenWork={work => { setSelectedWork(work); setReviewWorkId(work.id); }} />
+        )}
 
-            <label className="app-discover-search">
-              <Search size={17} />
-              <input
-                value={readerSearch}
-                onChange={(event) => setReaderSearch(event.target.value)}
-                placeholder="웹툰 로맨스, 소설 판타지처럼 검색"
-                type="search"
-              />
-            </label>
-
-            <div className="app-discover-library-tabs" aria-label="앱 작품 보관함 바로가기">
-              {libraryViewItems.map((item) => {
-                const count =
-                  item.id === "recent"
-                    ? recentWorkIds.length
-                    : item.id === "purchased"
-                      ? purchasedWorkIds.length
-                      : item.id === "scrapped"
-                        ? scrappedWorkIds.length
-                        : readerWorks.length;
-
-                return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={readerLibraryView === item.id ? "active" : ""}
-                    onClick={() => {
-                      if ((item.id === "purchased" || item.id === "scrapped") && !token) {
-                        setAuthMode("login");
-                        return;
-                      }
-                      setReaderLibraryView(item.id);
-                      window.setTimeout(() => {
-                        librarySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }, 80);
-                    }}
-                  >
-                    <strong>{item.label}</strong>
-                    <span>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <article className="app-continue-card">
-              {(() => {
-                const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
-                const progress = workProgress[continueWork.id];
-
-                return (
-                  <>
-                    <img src={continueWork.coverImage} alt="" />
-                    <div>
-                      <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : "추천 이어보기"}</span>
-                      <strong>{continueWork.title}</strong>
-                      <p>{continueWork.format} · {continueWork.genre}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedWork(continueWork);
-                        setReviewWorkId(continueWork.id);
-                      }}
-                    >
-                      <Play size={15} /> 보기
-                    </button>
-                  </>
-                );
-              })()}
-            </article>
-
-            <div className="app-filter-strip" aria-label="앱 장르 빠른 선택">
-              {[...readerFormatFilters.slice(0, 5), ...readerGenreFilters.slice(0, 6)].map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  className={(filter === "전체" ? readerFilters.length === 0 : readerFilters.includes(filter)) ? "active" : ""}
-                  onClick={() => toggleReaderFilter(filter)}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <div className="discover-hero">
-            <div>
-              <p className="kicker">Multi Content Library</p>
-              <h2>소설, 웹툰, 만화, 애니메이션, 오디오드라마를 장르별로 골라보세요</h2>
-              <p>독자는 웹툰 플랫폼처럼 원하는 장르와 콘텐츠 형식을 고르고, 창작팀은 하나의 IP를 글·그림·소리·영상으로 확장해 유통할 수 있습니다.</p>
-            </div>
-            <div className="featured-work">
-              <span><Flame size={15} /> 실시간 인기</span>
-              <strong>{readerWorks[0].title}</strong>
-              <p>{readerWorks[0].tagline}</p>
-              <button onClick={() => openWorkPayment(readerWorks[0].id)}><Coins size={17} /> {formatCoins(readerWorks[0].priceCoins)} 열람</button>
-            </div>
-          </div>
-
-          <section className="content-format-grid" aria-label="콘텐츠 형식별 협업 모델">
-            {contentFormatCards.map((item, index) => (
-              <article className="content-format-card" key={item.title}>
-                <div className={`content-3d-stack stack-${index + 1}`} aria-hidden="true">
-                  <i />
-                  <b />
-                  <em />
-                </div>
-                <span>{item.label}</span>
-                <strong>{item.title}</strong>
-                <p>{item.text}</p>
-              </article>
-            ))}
-          </section>
-
-          <section className="ranking-section">
+        {activePage === "library" && <section className="section reader-subpage page-panel">
+          <section className="recommend-strip" id="reader-library">
             <div className="section-head">
               <div>
-                <p className="kicker">Ranking</p>
-                <h2>지금 가장 많이 보는 작품과 장르별 TOP 차트</h2>
+                <h1>내 서재</h1>
               </div>
-              <p className="section-description">
-                <span>감상 수, 평점, 회차 활동성을 합산해 만든 데모 랭킹입니다.</span>
-                <span>카드 클릭 시 작품 상세와 댓글/리뷰로 바로 연결됩니다.</span>
-              </p>
-            </div>
-            <div className="ranking-layout">
-              <article className="overall-ranking-card">
-                <div className="ranking-card-head">
-                  <span>전체 차트</span>
-                  <small>오늘의 인기 순위</small>
-                </div>
-                {rankedReaderWorks.slice(0, 8).map((work, index) => (
-                  <button
-                    className={index < 3 ? "podium" : ""}
-                    key={work.id}
-                    onClick={() => {
-                      setSelectedWork(work);
-                      setReviewWorkId(work.id);
-                    }}
-                  >
-                    <b>{index + 1}</b>
-                    <img src={work.coverImage} alt="" />
-                    <div>
-                      <strong>{work.title}</strong>
-                      <small>{work.format} · {work.genre} · ★ {work.rating}</small>
-                    </div>
-                    <em>{index === 0 ? "HOT" : index % 3 === 0 ? "NEW" : `▲ ${index + 1}`}</em>
-                  </button>
-                ))}
-              </article>
-
-              <div className="genre-ranking-grid">
-                {genreRankings.map((ranking) => (
-                  <article key={ranking.genre}>
-                    <span>{ranking.genre}</span>
-                    {ranking.works.map((work, index) => (
-                      <button
-                        key={work.id}
-                        onClick={() => {
-                          setSelectedWork(work);
-                          setReviewWorkId(work.id);
-                        }}
-                      >
-                        <b>{index + 1}</b>
-                        <div>
-                          <strong>{work.title}</strong>
-                          <small>{work.format} · {work.listeners} · ★ {work.rating}</small>
-                        </div>
-                      </button>
-                    ))}
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="recommend-strip" ref={librarySectionRef} id="reader-library">
-            <div className="section-head">
-              <div>
-                <p className="kicker">Recommended</p>
-                <h2>{readerFilters.length === 0 ? "전체 추천작" : `${readerFilters.join(" · ")} 추천작`}</h2>
-              </div>
-              <p>선택한 장르와 검색어에 맞춰 독자용 작품 카드가 바뀝니다.</p>
-            </div>
-            <div className="library-shelf">
-              <article>
-                <div>
-                  <span>Continue</span>
-                  <strong>최근 본 작품</strong>
-                  <p>{recentWorks.length > 0 ? `${recentWorks.length}개 작품 이어보기 가능` : "작품 상세를 열면 자동 저장돼요"}</p>
-                </div>
-                <div className="library-cover-stack recent-stack">
-                  {(recentWorks.length > 0 ? recentWorks : readerWorks.slice(1, 4)).slice(0, 3).map((work) => (
-                    <img src={work.coverImage} alt="" key={work.id} />
-                  ))}
-                </div>
-                <button onClick={() => openReaderLibrary("recent")}>
-                  최근 본 작품 보기
-                </button>
-              </article>
-              <article>
-                <div>
-                  <span>Purchased</span>
-                  <strong>결제한 작품</strong>
-                  <p>{purchasedWorks.length > 0 ? `${purchasedWorks.length}개 열람권 보유` : "아직 결제한 작품이 없어요"}</p>
-                </div>
-                <div className="library-cover-stack">
-                  {(purchasedWorks.length > 0 ? purchasedWorks : readerWorks.slice(0, 3)).slice(0, 3).map((work) => (
-                    <img src={work.coverImage} alt="" key={work.id} />
-                  ))}
-                </div>
-                <button onClick={() => {
-                  if (!token) {
-                    setAuthMode("login");
-                    return;
-                  }
-                  openReaderLibrary("purchased");
-                }}>
-                  결제한 작품만 보기
-                </button>
-              </article>
-              <article>
-                <div>
-                  <span>Scrap</span>
-                  <strong>스크랩 보관함</strong>
-                  <p>{scrappedWorks.length > 0 ? `${scrappedWorks.length}개 작품 저장됨` : "하트를 누르면 여기에 저장돼요"}</p>
-                </div>
-                <div className="library-cover-stack heart-stack">
-                  {(scrappedWorks.length > 0 ? scrappedWorks : readerWorks.slice(3, 6)).slice(0, 3).map((work) => (
-                    <img src={work.coverImage} alt="" key={work.id} />
-                  ))}
-                </div>
-                <button onClick={() => {
-                  if (!token) {
-                    setAuthMode("login");
-                    return;
-                  }
-                  openReaderLibrary("scrapped");
-                }}>
-                  스크랩만 보기
-                </button>
-              </article>
             </div>
             <div className="reader-toolbar recommend-toolbar">
               <div className="library-tabs" aria-label="내 작품 보관함 필터">
-                {libraryViewItems.map((item) => {
+                {libraryViewItems.filter(item => item.id !== "all").map((item) => {
                   const count =
                     item.id === "recent"
                       ? recentWorkIds.length
@@ -7082,18 +6935,21 @@ export function App() {
               <div className="empty-matching">
                 <BookOpen size={24} />
                 <strong>조건에 맞는 작품이 없어요</strong>
-                <p>다른 장르를 누르거나 검색어를 바꿔보세요.</p>
+                <button type="button" onClick={() => navigate("discover")}>작품 둘러보기</button>
               </div>
             )}
           </section>
 
+        </section>}
+
+        {activePage === "creators" && <section className="section reader-subpage page-panel">
           <section className="creator-discovery-strip">
             <div className="section-head">
               <div>
-                <p className="kicker">Creator Search</p>
-                <h2>작품에 참여한 작가, 성우, 그림 작가를 찾아보세요</h2>
+
+                <h1>창작자 찾기</h1>
               </div>
-              <p>이름, 직군, 작품명, 장르를 검색해서 창작자 프로필을 열고 후원이나 구독으로 연결할 수 있습니다.</p>
+              <p>이름, 직군, 작품명으로 참여 창작자를 검색하세요.</p>
             </div>
             <div className="creator-search-toolbar">
               <label className="matching-search">
@@ -7135,7 +6991,17 @@ export function App() {
 
         </section>}
 
-        {activePage === "studio" && <section className="section studio-page page-panel">
+        {studioWindow && creatorOnlyPages.has(activePage) && !isCreatorAccount && (
+          <section className="cu-studio-entry">
+            <img src="/logo.png" alt="" width="72" height="72" />
+            <h1>창작자 스튜디오</h1>
+            <p>작품을 등록하고, 함께할 팀원을 찾고, 주 단위 정산 내역을 확인하세요.</p>
+            {user
+              ? <button className="primary-button" onClick={openMyAccount}>내 계정에서 창작자로 전환</button>
+              : <button className="primary-button" onClick={() => setAuthMode("login")}>로그인하고 시작하기</button>}
+          </section>
+        )}
+        {activePage === "studio" && isCreatorAccount && <section className="section studio-page page-panel">
           <section className="app-studio-dashboard" aria-label="앱 창작자 스튜디오 요약">
             <div className="app-studio-head">
               <span>Creator Studio</span>
@@ -7917,7 +7783,7 @@ export function App() {
           {communityMessage && <p className="community-message studio-message">{communityMessage}</p>}
         </section>}
 
-        {activePage === "matching" && <section className="section matching-page page-panel">
+        {activePage === "matching" && isCreatorAccount && <section className="section matching-page page-panel">
           <section className="app-matching-dashboard" aria-label="앱 팀원 찾기 요약">
             <div className="app-matching-head">
               <span>Team Matching</span>
@@ -8771,7 +8637,7 @@ export function App() {
           </div>
         </section>}
 
-        {activePage === "settlement" && <section className="section settlement-console page-panel">
+        {activePage === "settlement" && isCreatorAccount && <section className="section settlement-console page-panel">
           <section className="app-settlement-dashboard" aria-label="앱 정산 요약">
             <div className="app-settlement-head">
               <span>Smart Settlement</span>
@@ -9276,6 +9142,7 @@ export function App() {
         </div>
         <p className="footer-copy">Copyright © 2026 Creator Universe Inc. 모든 권리 보유.</p>
         <nav className="footer-links" aria-label="하단 정책 링크">
+          <button className="cu-footer-link" onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
           <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
           <a href="/terms.html" target="_blank" rel="noreferrer">약관</a>
           <a href="/refund-policy.html" target="_blank" rel="noreferrer">판매 및 환불</a>
@@ -9286,12 +9153,8 @@ export function App() {
       </footer>
 
       <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
-        <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
-        {isCreatorAppShell ? (
-          <button className={activePage === "studio" ? "active" : ""} onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
-        ) : (
-          <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>
-        )}
+        <button className={activePage === (studioWindow ? "studio" : "discover") ? "active" : ""} onClick={() => navigate(studioWindow ? "studio" : "discover")}><BookOpen size={18} />{studioWindow ? "스튜디오" : "작품"}</button>
+        <button className={activePage === (studioWindow ? "matching" : "ranking") ? "active" : ""} onClick={() => navigate(studioWindow ? "matching" : "ranking")}><Trophy size={18} />{studioWindow ? "매칭" : "랭킹"}</button>
         <button
           className="mobile-plus-tab"
           type="button"
@@ -9698,6 +9561,8 @@ export function App() {
           reviews={contentReviews.filter((review) => review.workId === selectedWork.id)}
           creators={creators}
           isPurchased={purchasedWorkIds.includes(selectedWork.id)}
+          isScrapped={scrappedWorkIds.includes(selectedWork.id)}
+          onToggleScrap={() => toggleScrap(selectedWork.id)}
           progress={workProgress[selectedWork.id]}
           reviewRating={reviewRating}
           reviewBody={reviewBody}

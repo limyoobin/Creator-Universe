@@ -8,6 +8,7 @@
 | --- | --- |
 | [../README.md](../README.md) | 프로젝트 소개, 실행 방법, 주요 기능 |
 | [../DEPLOYMENT.md](../DEPLOYMENT.md) | Vercel, Render, Neon 배포 가이드 |
+| [논문 보강 원고](./research/creator-universe-study.md) | 접근성·IP 계약·음악 이용허락과 가상 데이터 매칭 실험, 참고문헌 |
 | [prototypes](./prototypes) | 초기 HTML/TSX 프로토타입 보관 |
 
 ## 현재 운영 코드 위치

@@ -1,0 +1,109 @@
+.reader-shell {
+  background: var(--surface);
+}
+.cu-masthead {
+  position: relative;
+  z-index: 32;
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+}
+.cu-header-row, .cu-nav-row {
+  margin-inline: auto;
+  width: min(1240px, calc(100% - 64px));
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2.25vw, 36px);
+}
+.cu-header-row { min-height: 78px; }
+.cu-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.cu-wordmark img { object-fit: cover; border-radius: 10px; }
+.cu-wordmark strong { font: 730 clamp(17px, 1.6vw, 23px)/1.1 system-ui, sans-serif; letter-spacing: -.055em; }
+.cu-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 540px;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding-inline: 15px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.cu-search:focus-within { border-color: var(--violet); }
+.cu-search input {
+  min-width: 0;
+  width: 100%;
+  height: 42px;
+  border: 0;
+  outline: none;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: .93rem;
+}
+.cu-search input::placeholder { color: var(--muted); }
+.cu-masthead .cu-search input:focus-visible { outline: none; }
+.reader-shell .floating-messenger:not(.open), .reader-shell .floating-help:not(.open) { display: none; }
+.cu-masthead .header-actions { margin-left: auto; display: flex; flex-wrap: nowrap; gap: 8px; }
+.cu-masthead .header-actions > .primary-button { background: var(--text); color: var(--surface); box-shadow: none; border-color: transparent; }
+.cu-masthead .mobile-menu-button { display: inline-flex; align-items: center; justify-content: center; }
+.cu-masthead .header-actions .icon-button { background: transparent; box-shadow: none; border-color: transparent; }
+.cu-nav-row { min-height: 48px; justify-content: space-between; }
+.cu-sections { display: flex; align-self: stretch; align-items: stretch; gap: clamp(16px, 2vw, 34px); min-width: 0; overflow-x: auto; }
+.cu-sections button, .cu-studio-link {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--muted);
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font-weight: 650;
+  font-size: .96rem;
+}
+.cu-sections button[aria-current], .cu-sections button:hover { color: var(--text); }
+.cu-sections button[aria-current] { border-color: currentColor; }
+.cu-studio-link { min-height: 40px; gap: 4px; font-size: .86rem; }
+.cu-studio-link:hover { color: var(--text); }
+.cu-masthead .mobile-drawer.open { display: block; position: absolute; inset: 100% max(16px, calc((100% - 1240px) / 2)) auto auto; width: min(310px, calc(100% - 32px)); max-height: 70vh; overflow: auto; z-index: 4; padding: 0; border-radius: 16px; box-shadow: var(--shadow); }
+.cu-masthead .mobile-drawer-card { display: grid; gap: 6px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+.reader-shell main { width: min(1240px, calc(100% - 64px)); padding-top: 26px; }
+.cu-footer-link { background: transparent; padding: 0; border: 0; font: inherit; color: inherit; }
+.cu-studio-entry { max-width: 580px; margin: clamp(36px, 10vh, 110px) auto; padding: clamp(25px, 5vw, 56px); background: var(--surface); border: 1px solid var(--line); border-radius: 24px; }
+.cu-studio-entry img { border-radius: 18px; }
+.cu-studio-entry h1 { margin-bottom: .4em; letter-spacing: -.04em; }
+.cu-studio-entry p { line-height: 1.65; color: var(--muted); }
+.cu-studio-entry button { margin-top: 12px; }
+.reader-shell .reader-subpage { padding-block: 16px; }
+body .app .auth-backdrop { z-index: 150; }
+body .app .payment-backdrop, body .app .policy-backdrop { z-index: 140; }
+body .app .match-proposal-backdrop { z-index: 135; }
+.cu-masthead :focus-visible, .cu-footer-link:focus-visible { outline: 2px solid var(--violet); outline-offset: -2px; }
+@media (max-width: 730px) {
+  .cu-header-row, .cu-nav-row, .reader-shell main { width: calc(100% - 32px); }
+  .cu-header-row { min-height: auto; padding: 12px 0 4px; gap: 10px; flex-wrap: wrap; }
+  .cu-search { flex: 1 0 100%; max-width: none; order: 3; }
+  .cu-header-row .header-actions { gap: 3px; }
+  .cu-masthead .header-actions .nav-pay-button { display: none; }
+  .cu-masthead .account-trigger b { display: none; }
+  .cu-wordmark { gap: 7px; }
+  .cu-wordmark img { width: 28px; height: 28px; }
+  .cu-nav-row { gap: 10px; }
+  .cu-sections { gap: clamp(12px, 3vw, 20px); }
+  .cu-sections button { font-size: .89rem; }
+  .cu-studio-link { font-size: .79rem; }
+  .reader-shell main { padding-top: 16px; }
+}
+@media (max-width: 420px) {
+  .cu-header-row .header-actions > button[aria-label="테마 변경"] { display: none; }
+}
