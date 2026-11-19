@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Eye, Grid2X2, List, Pause, Play, Search, Star, TrendingUp } from "lucide-react";
 import "./works-catalog.css";
+import { FeatureAtmosphere } from "./FeatureAtmosphere";
 import { tideChapters, tideWork } from "./tide-letter";
 
 type CatalogWork = {
@@ -80,17 +81,37 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
     return work ? [{ work, image: feature.image, ranking: false }] : [];
   });
   if (popularWork) slides.push({ work: popularWork, image: popularWork.coverImage, ranking: true });
-  const [index, setIndex] = useState(0);
+  const [requested, setRequested] = useState(0);
+  const [displayed, setDisplayed] = useState(0);
+  const [readyImages, setReadyImages] = useState<ReadonlySet<string>>(() => new Set());
   const [paused, setPaused] = useState(false);
-  const [interacting, setInteracting] = useState(false);
-  const [hasFocus, setHasFocus] = useState(false);
+  const [hoveringControl, setHoveringControl] = useState(false);
+  const [focusingControl, setFocusingControl] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const feature = useRef<HTMLElement>(null);
-  const imageLayer = useRef<HTMLDivElement>(null);
   const copy = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const count = slides.length;
-  const selected = count ? index % count : 0;
+  const selected = count ? displayed % count : 0;
+  const target = count ? requested % count : 0;
+  const targetReady = readyImages.has(slides[target]?.image);
+  const scenePlaying = visible && pageVisible && !paused && !reducedMotion;
+  const autoAdvance = scenePlaying && !hoveringControl && !focusingControl;
+
+  function markReady(image: string) {
+    setReadyImages(current => current.has(image) ? current : new Set(current).add(image));
+  }
+
+  useEffect(() => {
+    if (targetReady) setDisplayed(target);
+  }, [target, targetReady]);
+
+  useEffect(() => {
+    const sync = () => setPageVisible(!document.hidden);
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
 
   useEffect(() => {
     if (!feature.current || !("IntersectionObserver" in window)) return;
@@ -100,33 +121,26 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   }, [count]);
 
   useEffect(() => {
-    if (!visible || paused || interacting || hasFocus || reducedMotion || count < 2) return;
-    const timer = window.setInterval(() => {
-      if (!document.hidden) setIndex((current) => (current + 1) % count);
-    }, 7500);
-    return () => window.clearInterval(timer);
-  }, [visible, count, hasFocus, interacting, paused, reducedMotion]);
+    if (!autoAdvance || !targetReady || selected !== target || count < 2) return;
+    const timer = window.setTimeout(() => setRequested((selected + 1) % count), 7000);
+    return () => window.clearTimeout(timer);
+  }, [autoAdvance, targetReady, selected, target, count]);
 
   useEffect(() => {
-    if (reducedMotion || !imageLayer.current?.animate) return;
-    const artTransition = imageLayer.current.animate([
-      { opacity: .55, transform: "scale(1.027)" },
-      { opacity: 1, transform: "scale(1)" },
-    ], { duration: 680, easing: "cubic-bezier(.16,.7,.25,1)" });
-    const textTransition = copy.current?.animate([
-      { opacity: .45, transform: "translateY(8px)" },
-      { opacity: 1, transform: "translateY(0)" },
-    ], { duration: 420, easing: "ease-out" });
-    return () => { artTransition.cancel(); textTransition?.cancel(); };
+    if (reducedMotion || !copy.current?.animate) return;
+    const titleEntrance = copy.current.animate([
+      { opacity: .18, transform: "translateY(7px)" },
+      { opacity: 1, transform: "none" },
+    ], { duration: 560, easing: "cubic-bezier(.22,.68,.2,1)" });
+    return () => titleEntrance.cancel();
   }, [selected, reducedMotion]);
 
   if (!count) return null;
-  const { work, image, ranking } = slides[selected];
+  const { work, ranking } = slides[selected];
   const original = work.id === tideWork.id && !ranking;
   const action = ranking ? "랭킹 보기" : !original ? "작품 보기" : lastReadEpisode ? `${lastReadEpisode}화 이어 읽기` : "웹툰 읽기";
   function move(amount: number) {
-    setIndex((selected + amount + count) % count);
-    setPaused(true);
+    setRequested(current => (current + amount + count) % count);
   }
   function handleSwipe(event: TouchEvent) {
     const start = touchStart.current;
@@ -139,30 +153,61 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
 
   return (
     <section ref={feature} className={"cu-feature" + (original ? " cu-feature-original" : "")} aria-label="추천 작품" aria-roledescription="캐러셀"
-      onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)}
-      onFocus={() => setHasFocus(true)} onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setHasFocus(false);
+      data-motion={scenePlaying ? "playing" : "paused"}
+      onPointerOver={event => {
+        if (event.pointerType !== "touch") setHoveringControl(Boolean((event.target as Element).closest("button:not([data-playback])")));
+      }}
+      onPointerLeave={() => setHoveringControl(false)}
+      onFocus={event => setFocusingControl(event.target.matches(":focus-visible") && !event.target.closest("[data-playback]"))}
+      onBlur={event => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocusingControl(false);
       }}
       onKeyDown={(event) => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
         event.preventDefault();
+        if (!(event.target as Element).closest("[data-playback]")) setFocusingControl(true);
         const step = event.key === "ArrowLeft" ? -1 : 1;
         if ((event.target as HTMLElement).closest(".cu-feature-jumps")) {
-          feature.current?.querySelectorAll<HTMLButtonElement>(".cu-feature-jumps button")[(selected + step + count) % count]?.focus({ preventScroll: true });
+          feature.current?.querySelectorAll<HTMLButtonElement>(".cu-feature-jumps button")[(target + step + count) % count]?.focus({ preventScroll: true });
         }
         move(step);
       }}>
       <div className="cu-feature-stage"
-        onTouchStart={(event) => { touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }; }}
+        onTouchStart={(event) => { touchStart.current = event.touches.length === 1 && !(event.target as Element).closest("button")
+          ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null; }}
         onTouchEnd={handleSwipe} onTouchCancel={() => { touchStart.current = null; }}>
-        <div className={"cu-feature-image" + (ranking ? " cu-feature-ranking-art" : "")} ref={imageLayer}>
-          <img key={image} src={image} alt="" fetchPriority="high" style={{ objectPosition: work.id === "neon-pulse-zero" ? "79% 42%" : "70% 37%" }} onError={(event) => {
-            if (event.currentTarget.getAttribute("src") !== work.coverImage) event.currentTarget.src = work.coverImage;
-          }} />
-          {ranking && <img className="cu-feature-poster" src={image} alt="" />}
+        <div className="cu-feature-art" aria-hidden="true">
+          {slides.map((slide, n) => {
+            // Warm only the next illustration; keep the current scene up until the requested one decodes.
+            const warmNext = n === (selected + 1) % count && readyImages.has(slides[selected].image);
+            const loadArt = n === selected || n === target || warmNext || readyImages.has(slide.image);
+            return <div key={slide.ranking ? "ranking" : slide.work.id} className={"cu-feature-image" + (slide.ranking ? " cu-feature-ranking-art" : "")} data-active={n === selected}>
+              {loadArt && <>
+                <img className="cu-feature-illustration" src={slide.image} alt="" decoding="async"
+                  fetchPriority={n === selected || n === target ? "high" : "low"}
+                  style={{ objectPosition: slide.work.id === "neon-pulse-zero" ? "79% 42%" : "70% 37%" }}
+                  onLoad={event => {
+                    const img = event.currentTarget;
+                    if (img.decode) void img.decode().catch(() => {}).then(() => markReady(slide.image));
+                    else markReady(slide.image);
+                  }}
+                  onError={event => {
+                    const img = event.currentTarget;
+                    if (img.getAttribute("src") !== slide.work.coverImage) {
+                      img.src = slide.work.coverImage;
+                    } else {
+                      img.style.visibility = "hidden";
+                      markReady(slide.image);
+                    }
+                  }} />
+                {slide.ranking ? <img className="cu-feature-poster" src={slide.image} alt="" />
+                  : <FeatureAtmosphere workId={slide.work.id} />}
+              </>}
+            </div>;
+          })}
         </div>
         <div className="cu-feature-shade" />
-        <div className="cu-feature-copy" ref={copy} aria-live={paused || reducedMotion ? "polite" : "off"} aria-atomic="true">
+        <div className="cu-feature-copy" ref={copy} aria-live={autoAdvance ? "off" : "polite"} aria-atomic="true">
           <span className="cu-feature-meta"><b>{original ? "오리지널 웹툰" : ranking ? "인기 랭킹 1위" : work.format}</b>{work.genre}</span>
           <h2>{work.title}</h2>
           <p className="cu-feature-deck">{work.tagline}</p>
@@ -179,7 +224,7 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
             <b>{String(selected + 1).padStart(2, "0")}</b><span>/</span>{String(count).padStart(2, "0")}
           </span>
           <button type="button" aria-label="이전 추천 작품" onClick={() => move(-1)}><ChevronLeft size={17} /></button>
-          {!reducedMotion && <button type="button" aria-label={paused ? "슬라이드 자동 재생" : "슬라이드 일시 정지"}
+          {!reducedMotion && <button type="button" data-playback aria-label={paused ? "슬라이드 자동 재생" : "슬라이드 일시 정지"}
             onClick={() => setPaused((value) => !value)}>{paused ? <Play size={12} fill="currentColor" /> : <Pause size={12} fill="currentColor" />}</button>}
           <button type="button" aria-label="다음 추천 작품" onClick={() => move(1)}><ChevronRight size={17} /></button>
         </div>}
@@ -187,7 +232,7 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
       {count > 1 && <div className="cu-feature-jumps" role="group" aria-label="추천 작품 선택">
         {slides.map((slide, n) => <button key={slide.ranking ? "ranking" : slide.work.id} type="button"
           aria-pressed={n === selected} aria-label={slide.ranking ? "인기 랭킹 슬라이드" : slide.work.title + " 슬라이드"}
-          onClick={() => { setIndex(n); setPaused(true); }}>
+          onClick={() => setRequested(n)}>
           <img src={slide.work.coverImage} alt="" />
           <span><small>{slide.ranking ? "인기 랭킹" : slide.work.format}</small><strong>{slide.work.title}</strong></span>
         </button>)}
