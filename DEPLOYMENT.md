@@ -6,6 +6,8 @@ Creator Universe는 다음 조합으로 배포합니다.
 - **Backend API**: Render
 - **Database**: Neon PostgreSQL
 
+회원가입 간편인증과 카드 결제 채널 설정, 웹훅 등록, 테스트·실가맹 전환은 [포트원 운영 가이드](docs/portone-operations.md)를 참고하세요.
+
 ## 1. Neon PostgreSQL 준비
 
 1. Neon에서 새 PostgreSQL 프로젝트를 만듭니다.

@@ -1,55 +1,27 @@
-import { MemberRole, PartnerTier, UserRole } from "@prisma/client";
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { z } from "zod";
-import { chargeWallet, createUser, getWalletDetail, getWalletSnapshot } from "../services/user.service.js";
+import { AppError } from "../errors/app-error.js";
+import { getWalletDetail, getWalletSnapshot } from "../services/user.service.js";
+import { createTopUp, reconcileTopUp } from "../services/wallet-topup.service.js";
+import { getUserIdBySessionToken } from "../services/auth.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
+import { getBearerToken } from "../utils/token.js";
 
-const creatorProfileSchema = z.object({
-  primaryRole: z.nativeEnum(MemberRole),
-  headline: z.string().min(1),
-  bio: z.string().min(1),
-  skills: z.array(z.string()).optional(),
-  availabilityNote: z.string().optional(),
-  responseRate: z.number().int().min(0).max(100).optional(),
-  followerCount: z.number().int().min(0).optional(),
-  completedProjects: z.number().int().min(0).optional(),
-  featured: z.boolean().optional(),
-  voiceDemoTitle: z.string().optional(),
-  voiceDemoDurationSeconds: z.number().int().positive().optional(),
-  voiceWaveform: z.array(z.number().int().positive()).optional(),
-});
-
-const createUserSchema = z.object({
-  email: z.string().email(),
-  username: z.string().min(2),
-  displayName: z.string().min(1),
-  role: z.nativeEnum(UserRole),
-  isPartner: z.boolean().optional(),
-  partnerTier: z.nativeEnum(PartnerTier).optional(),
-  creatorProfile: creatorProfileSchema.optional(),
-});
-
-const chargeWalletSchema = z.object({
-  coinAmount: z.number().int().positive(),
-  paymentAmountKrw: z.number().int().positive(),
-  externalPaymentId: z.string().optional(),
-});
-
+const productSchema = z.object({ productId: z.enum(["coin-1000", "coin-3000", "coin-5000"]) }).strict();
+const paymentIdSchema = z.string().regex(/^cu-[a-f0-9]{32}$/);
 export const userRouter = Router();
 
-userRouter.post(
-  "/",
-  asyncHandler(async (req, res) => {
-    const payload = createUserSchema.parse(req.body);
-    const user = await createUser(payload);
+async function walletSession(req: Request) {
+  const token = getBearerToken(req);
+  const userId = token ? await getUserIdBySessionToken(token) : null;
+  if (!userId) throw new AppError("코인을 충전하려면 로그인해 주세요.", 401);
+  return userId;
+}
 
-    res.status(201).json({
-      success: true,
-      data: user,
-    });
-  }),
-);
+userRouter.post("/", (_req, res) => {
+  res.status(410).json({ success: false, message: "회원가입 화면에서 계정을 만들어 주세요." });
+});
 
 userRouter.get(
   "/me/wallet",
@@ -77,19 +49,18 @@ userRouter.get(
   }),
 );
 
-userRouter.post(
-  "/me/wallet/charge",
-  asyncHandler(async (req, res) => {
-    const userId = await getCurrentUserId(req);
-    const payload = chargeWalletSchema.parse(req.body);
-    const result = await chargeWallet({
-      userId,
-      ...payload,
-    });
+userRouter.post("/me/wallet/charge", (_req, res) => {
+  res.status(410).json({ success: false, message: "새 결제창에서 코인을 충전해 주세요." });
+});
 
-    res.status(201).json({
-      success: true,
-      data: result,
-    });
-  }),
-);
+userRouter.post("/me/wallet/orders", asyncHandler(async (req, res) => {
+  const userId = await walletSession(req);
+  const { productId } = productSchema.parse(req.body);
+  res.status(201).json({ success: true, data: await createTopUp(userId, productId) });
+}));
+
+userRouter.post("/me/wallet/orders/:paymentId/confirm", asyncHandler(async (req, res) => {
+  const userId = await walletSession(req);
+  const paymentId = paymentIdSchema.parse(req.params.paymentId);
+  res.json({ success: true, data: await reconcileTopUp(paymentId, userId) });
+}));

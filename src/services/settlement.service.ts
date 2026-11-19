@@ -1,14 +1,14 @@
 import { AccessGrantType, MemberRole, Prisma, ProjectStatus, TransactionStatus, TransactionType } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
-import { PARTNER_PLATFORM_FEE_DECIMAL, STANDARD_PLATFORM_FEE_DECIMAL, getPlatformFeeRate } from "../constants/fees.js";
+import { getPlatformFeeRate } from "../constants/fees.js";
 import { ONE_HUNDRED, decimalToNumber, roundToTwo, toDecimal } from "../utils/decimal.js";
 
 type SettleContentPurchaseInput = {
   buyerId: string;
-  projectId: string;
+  projectId?: string;
+  workId?: string;
   coinAmount: number;
-  externalPaymentId?: string;
 };
 
 type MemberSettlement = {
@@ -18,7 +18,53 @@ type MemberSettlement = {
   settledAmount: Prisma.Decimal;
 };
 
-const DEFAULT_PROJECT_ID = "project-midnight-signal";
+// Only release a storefront SKU when its project and beneficiaries have been provisioned.
+const catalogProjects = new Map([["midnight-signal", "project-midnight-signal"]]);
+// The first episode is a free preview. Seed data has only a placeholder recording.
+const releasedPaidEpisode = {
+  isPublished: true,
+  sequenceNumber: { gt: 1 },
+  audioUrl: { not: "" },
+  NOT: { audioUrl: { startsWith: "https://cdn.example.com/" } },
+} satisfies Prisma.ProjectEpisodeWhereInput;
+
+export async function saleCatalog() {
+  const projects = await prisma.project.findMany({
+    where: {
+      id: { in: Array.from(catalogProjects.values()) }, status: ProjectStatus.PUBLISHED, storefrontSalesEnabled: true, priceCoins: { gt: 0 },
+      members: { some: { isActive: true } }, episodes: { some: releasedPaidEpisode },
+    },
+    select: { id: true, priceCoins: true },
+  });
+  return { works: Array.from(catalogProjects).flatMap(([workId, id]) => {
+    const project = projects.find(item => item.id === id);
+    return project ? [{ workId, priceCoins: project.priceCoins }] : [];
+  }) };
+}
+
+export async function purchasedLibrary(userId: string) {
+  const access = await prisma.contentAccess.findMany({ where: { userId }, select: { projectId: true } });
+  const ids = new Set(access.map(row => row.projectId));
+  return { workIds: Array.from(catalogProjects).filter(([, id]) => ids.has(id)).map(([workId]) => workId) };
+}
+
+export async function purchasedAudio(userId: string, workId: string) {
+  const projectId = catalogProjects.get(workId);
+  if (!projectId) throw new AppError("작품을 찾을 수 없습니다.", 404);
+  const access = await prisma.contentAccess.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: { project: { select: { episodes: {
+      where: releasedPaidEpisode,
+      orderBy: { sequenceNumber: "asc" },
+      select: {
+        id: true, title: true, sequenceNumber: true, audioUrl: true,
+        transcriptCues: { orderBy: { startMs: "asc" }, select: { text: true, startMs: true, endMs: true } },
+      },
+    } } } },
+  });
+  if (!access) throw new AppError("구매한 회원만 유료 회차를 재생할 수 있습니다.", 403);
+  return access.project;
+}
 
 function ensureValidCoinAmount(coinAmount: number) {
   if (!Number.isInteger(coinAmount) || coinAmount <= 0) {
@@ -55,121 +101,45 @@ function calculateMemberSettlements(
 export async function settleContentPurchase(input: SettleContentPurchaseInput) {
   ensureValidCoinAmount(input.coinAmount);
 
+  const projectId = input.workId ? catalogProjects.get(input.workId) : input.projectId;
+  if (!projectId || (input.projectId && input.projectId !== projectId)) {
+    throw new AppError("판매 준비 중인 작품입니다.", 409);
+  }
   return prisma.$transaction(async (tx) => {
-    const buyer = await tx.user.findUnique({
-      where: { id: input.buyerId },
-      select: { id: true, role: true },
+    const storefrontProject = Array.from(catalogProjects.values()).includes(projectId);
+    const project = await tx.project.findFirst({
+      where: { id: projectId, ...(storefrontProject && { storefrontSalesEnabled: true, episodes: { some: releasedPaidEpisode } }) },
+      include: { members: { where: { isActive: true }, orderBy: [{ sharePercentage: "asc" }, { joinedAt: "asc" }] } },
     });
-
-    if (!buyer) {
-      throw new AppError("Buyer not found.", 404);
+    if (!project || project.status !== ProjectStatus.PUBLISHED || !project.members.length) {
+      throw new AppError("판매 준비 중인 작품입니다.", 409);
     }
-
-    if (input.projectId === DEFAULT_PROJECT_ID) {
-      const existingProject = await tx.project.findUnique({
-        where: { id: input.projectId },
-        select: { id: true },
-      });
-
-      if (!existingProject) {
-        await tx.project.create({
-          data: {
-            id: DEFAULT_PROJECT_ID,
-            ownerId: buyer.id,
-            title: "너의 이름을 부르는 목소리",
-            slug: "midnight-signal",
-            description: "크리에이터 유니버스 데모 콘텐츠",
-            synopsis: "작가, 일러스트레이터, 성우가 함께 만든 협업형 콘텐츠입니다.",
-            status: ProjectStatus.PUBLISHED,
-            priceCoins: input.coinAmount,
-            platformFeeRate: STANDARD_PLATFORM_FEE_DECIMAL,
-            partnerFeeRate: PARTNER_PLATFORM_FEE_DECIMAL,
-            settlementCurrency: "COIN",
-            members: {
-              create: {
-                userId: buyer.id,
-                memberRole: MemberRole.WRITER,
-                sharePercentage: toDecimal(100),
-              },
-            },
-          },
-        });
-      }
-    }
-
-    let project = await tx.project.findUnique({
-      where: { id: input.projectId },
-      include: {
-        members: {
-          where: { isActive: true },
-          orderBy: [{ sharePercentage: "asc" }, { joinedAt: "asc" }],
-        },
-      },
-    });
-
-    if (!project) {
-      throw new AppError("Project not found.", 404);
-    }
-
-    if (project.members.length === 0) {
-      if (input.projectId !== DEFAULT_PROJECT_ID) {
-        throw new AppError("No active project members found for settlement.", 409);
-      }
-
-      await tx.projectMember.upsert({
-        where: {
-          projectId_userId_memberRole: {
-            projectId: project.id,
-            userId: buyer.id,
-            memberRole: MemberRole.WRITER,
-          },
-        },
-        create: {
-          projectId: project.id,
-          userId: buyer.id,
-          memberRole: MemberRole.WRITER,
-          sharePercentage: toDecimal(100),
-        },
-        update: {
-          isActive: true,
-          sharePercentage: toDecimal(100),
-        },
-      });
-
-      project = await tx.project.findUniqueOrThrow({
-        where: { id: input.projectId },
-        include: {
-          members: {
-            where: { isActive: true },
-            orderBy: [{ sharePercentage: "asc" }, { joinedAt: "asc" }],
-          },
-        },
-      });
-    }
+    // Serialize even duplicate callbacks from the same buyer before inspecting their grant.
+    await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${input.buyerId} FOR UPDATE`;
+    const access = await tx.contentAccess.findUnique({ where: { userId_projectId: { userId: input.buyerId, projectId } } });
+    if (access) return { transactionId: access.transactionId, projectId, workId: input.workId, alreadyPurchased: true };
+    if (project.priceCoins !== input.coinAmount) throw new AppError("작품 가격이 변경되었습니다. 결제창을 다시 열어 주세요.", 409);
 
     const shareTotal = project.members.reduce((sum, member) => sum.plus(member.sharePercentage), new Prisma.Decimal(0));
     if (!shareTotal.equals(ONE_HUNDRED)) {
       throw new AppError("Project member share percentages must add up to 100.", 409);
     }
 
-    const grossAmount = toDecimal(input.coinAmount);
+    const grossAmount = toDecimal(project.priceCoins);
     const appliedFeeRate = getPlatformFeeRate(project.isOfficialPartner);
     const platformFeeAmount = roundToTwo(grossAmount.mul(appliedFeeRate));
     const netAmount = grossAmount.minus(platformFeeAmount);
 
-    const buyerWallet = await tx.wallet.findUnique({
-      where: { userId: input.buyerId },
-      select: { balance: true },
+    const debit = await tx.wallet.updateMany({
+      where: { userId: input.buyerId, balance: { gte: grossAmount } },
+      data: { balance: { decrement: grossAmount } },
     });
-
-    if (!buyerWallet || buyerWallet.balance.lt(grossAmount)) {
-      throw new AppError("보유 코인이 부족합니다. 코인을 충전해 주세요.", 402);
-    }
+    if (!debit.count) throw new AppError("보유 코인이 부족합니다. 코인을 충전해 주세요.", 402);
 
     const transaction = await tx.transaction.create({
       data: {
         buyerId: input.buyerId,
-        projectId: input.projectId,
+        projectId,
         transactionType: TransactionType.CONTENT_PURCHASE,
         status: TransactionStatus.PAID,
         currency: "COIN",
@@ -178,17 +148,7 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
         platformFeeAmount,
         netAmount,
         coinAmount: input.coinAmount,
-        externalPaymentId: input.externalPaymentId,
         purchasedAt: new Date(),
-      },
-    });
-
-    await tx.wallet.update({
-      where: { userId: input.buyerId },
-      data: {
-        balance: {
-          decrement: grossAmount,
-        },
       },
     });
 
@@ -213,7 +173,7 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
     await tx.settlementDistribution.createMany({
       data: settlements.map((settlement) => ({
         transactionId: transaction.id,
-        projectId: input.projectId,
+        projectId,
         userId: settlement.userId,
         memberRole: settlement.memberRole,
         sharePercentage: settlement.sharePercentage,
@@ -221,28 +181,12 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
       })),
     });
 
-    await tx.contentAccess.upsert({
-      where: {
-        userId_projectId: {
-          userId: input.buyerId,
-          projectId: input.projectId,
-        },
-      },
-      create: {
-        userId: input.buyerId,
-        projectId: input.projectId,
-        transactionId: transaction.id,
-        grantType: AccessGrantType.PURCHASE,
-      },
-      update: {
-        transactionId: transaction.id,
-        grantType: AccessGrantType.PURCHASE,
-        grantedAt: new Date(),
-      },
+    await tx.contentAccess.create({
+      data: { userId: input.buyerId, projectId: project.id, transactionId: transaction.id, grantType: AccessGrantType.PURCHASE },
     });
 
     await tx.project.update({
-      where: { id: input.projectId },
+      where: { id: projectId },
       data: {
         totalRevenueAmount: { increment: grossAmount },
         totalNetRevenueAmount: { increment: netAmount },
@@ -252,6 +196,8 @@ export async function settleContentPurchase(input: SettleContentPurchaseInput) {
     return {
       transactionId: transaction.id,
       projectId: project.id,
+      workId: input.workId,
+      alreadyPurchased: false,
       grossAmount: decimalToNumber(grossAmount),
       appliedFeeRate: decimalToNumber(appliedFeeRate),
       platformFeeAmount: decimalToNumber(platformFeeAmount),

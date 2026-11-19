@@ -1,7 +1,9 @@
-import { PartnerTier, UserRole } from "@prisma/client";
+import { PartnerTier, UserRole, type Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 import { createSessionToken, hashPassword, hashToken, verifyPassword } from "../utils/auth.js";
+import { checkSignupIdentityRequirement, consumeSignupIdentity, type IdentityProof } from "./signup-identity.service.js";
+import { identityReady, identityRequired, paymentReady } from "../lib/portone.js";
 
 const SESSION_DAYS = 7;
 
@@ -11,6 +13,7 @@ type SignupInput = {
   displayName: string;
   password: string;
   role?: UserRole;
+  identityVerification?: IdentityProof;
 };
 
 export const PASSWORD_RULE_MESSAGE = "Password must be at least 8 characters and include a special character.";
@@ -39,11 +42,11 @@ function publicUser(user: {
   };
 }
 
-async function issueSession(userId: string) {
+async function issueSession(userId: string, db: Prisma.TransactionClient = prisma) {
   const token = createSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
-  await prisma.authSession.create({
+  await db.authSession.create({
     data: {
       userId,
       tokenHash: hashToken(token),
@@ -55,6 +58,7 @@ async function issueSession(userId: string) {
 }
 
 export async function signup(input: SignupInput) {
+  checkSignupIdentityRequirement(input.identityVerification);
   const [emailExists, usernameExists, displayNameExists] = await Promise.all([
     prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
     prisma.user.findUnique({ where: { username: input.username }, select: { id: true } }),
@@ -79,27 +83,22 @@ export async function signup(input: SignupInput) {
 
   const passwordHash = await hashPassword(input.password);
 
-  const user = await prisma.user.create({
-    data: {
-      email: input.email,
-      username: input.username,
-      displayName: input.displayName,
-      passwordHash,
-      role: input.role ?? UserRole.READER,
-      wallet: {
-        create: {
-          currency: "COIN",
-        },
+  return prisma.$transaction(async (tx) => {
+    const identity = input.identityVerification ? await consumeSignupIdentity(tx, input.identityVerification) : {};
+    const user = await tx.user.create({
+      data: {
+        email: input.email,
+        username: input.username,
+        displayName: input.displayName,
+        passwordHash,
+        role: input.role ?? UserRole.READER,
+        wallet: { create: { currency: "COIN" } },
+        ...identity,
       },
-    },
+    });
+    const session = await issueSession(user.id, tx);
+    return { user: publicUser(user), ...session };
   });
-
-  const session = await issueSession(user.id);
-
-  return {
-    user: publicUser(user),
-    ...session,
-  };
 }
 
 export async function login(username: string, password: string) {
@@ -198,18 +197,23 @@ export async function findUsernameByEmail(email: string) {
 }
 
 export async function resetPassword(username: string, email: string, newPassword: string) {
+  const protectedReset = () => new AppError("계정 보호를 위해 비밀번호 재설정은 고객센터에 문의해 주세요.", 403);
+  if (paymentReady() || identityReady() || identityRequired() || process.env.NODE_ENV === "production") {
+    throw protectedReset();
+  }
   if (!isValidPassword(newPassword)) {
     throw new AppError(PASSWORD_RULE_MESSAGE, 422);
   }
 
   const user = await prisma.user.findFirst({
     where: { username, email },
-    select: { id: true },
+    select: { id: true, identityVerifiedAt: true },
   });
 
   if (!user) {
     throw new AppError("No matching account was found.", 404);
   }
+  if (user.identityVerifiedAt) throw protectedReset();
 
   await prisma.user.update({
     where: { id: user.id },
@@ -256,6 +260,8 @@ export async function deactivateAccount(token: string) {
         username: `deleted_${deletedSuffix}`,
         displayName: `Deleted user ${deletedSuffix}`,
         passwordHash: null,
+        identityVerifiedAt: null,
+        identityVerificationLive: null,
         isPartner: false,
         partnerTier: PartnerTier.NONE,
       },

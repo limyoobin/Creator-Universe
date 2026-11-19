@@ -12,6 +12,8 @@ import { uploadRouter } from "./routes/upload.routes.js";
 import { userRouter } from "./routes/user.routes.js";
 import { viewerRouter } from "./routes/viewer.routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import { identityReady, identityRequired, paymentReady, portOneConfig } from "./lib/portone.js";
+import { portOneWebhook } from "./routes/payment-webhook.js";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -68,11 +70,20 @@ app.options("*", (_req, res) => {
   res.sendStatus(204);
 });
 
+app.post("/api/payments/portone/webhook", express.raw({ type: "application/json", limit: "64kb" }), portOneWebhook);
 app.use(express.json({ limit: process.env.JSON_BODY_LIMIT ?? "40mb" }));
 app.use(PUBLIC_UPLOAD_PATH, express.static(UPLOAD_ROOT, { maxAge: "1h" }));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/api/integrations/portone", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ success: true, data: {
+    paymentReady: paymentReady(), identityReady: identityReady(), identityRequired: identityRequired(),
+    mode: portOneConfig().live ? "live" : "test",
+  } });
 });
 
 app.use("/api/home", homeRouter);

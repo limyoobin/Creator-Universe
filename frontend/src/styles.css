@@ -8988,6 +8988,12 @@ body[data-theme="dark"] .studio-portfolio-grid button:hover {
   font-weight: 900;
 }
 
+.purchased-audio label { display: grid; gap: 0.4rem; font-weight: 700; }
+.purchased-audio select { width: 100%; max-width: 32rem; min-height: 44px; padding: 0.5rem; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px; }
+.purchased-audio audio { display: block; width: 100%; }
+.purchased-audio summary { cursor: pointer; padding-block: 0.5rem; font-weight: 700; }
+.purchased-audio ol { display: grid; gap: 0.5rem; padding-inline-start: 1.5rem; }
+.purchased-audio li span { font-variant-numeric: tabular-nums; }
 .audio-player-card {
   display: grid;
   gap: 14px;

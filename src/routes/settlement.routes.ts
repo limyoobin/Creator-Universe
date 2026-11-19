@@ -1,16 +1,31 @@
 import { Router } from "express";
 import { z } from "zod";
-import { settleContentPurchase } from "../services/settlement.service.js";
+import { purchasedAudio, purchasedLibrary, saleCatalog, settleContentPurchase } from "../services/settlement.service.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 
 const purchaseSchema = z.object({
-  projectId: z.string().min(1),
+  workId: z.string().min(1).max(128).optional(),
+  projectId: z.string().min(1).max(128).optional(),
   coinAmount: z.number().int().positive(),
-  externalPaymentId: z.string().min(1).optional(),
 });
 
 export const settlementRouter = Router();
+
+settlementRouter.get("/catalog", asyncHandler(async (_req, res) => {
+  res.json({ success: true, data: await saleCatalog() });
+}));
+
+settlementRouter.get("/me/library", asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ success: true, data: await purchasedLibrary(await getCurrentUserId(req)) });
+}));
+
+settlementRouter.get("/me/library/:workId/episodes", asyncHandler(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  const userId = await getCurrentUserId(req);
+  res.json({ success: true, data: await purchasedAudio(userId, String(req.params.workId)) });
+}));
 
 settlementRouter.post(
   "/content-purchase",
@@ -22,7 +37,7 @@ settlementRouter.post(
       buyerId,
       projectId: payload.projectId,
       coinAmount: payload.coinAmount,
-      externalPaymentId: payload.externalPaymentId,
+      workId: payload.workId,
     });
 
     res.status(201).json({

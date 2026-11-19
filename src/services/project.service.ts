@@ -110,6 +110,8 @@ function getMonthRange(baseDate?: string) {
 }
 
 async function ensureDefaultProject(ownerId?: string) {
+  // Public project reads must never create an owner or beneficiaries for a live storefront.
+  if (process.env.NODE_ENV === "production" || process.env.PORTONE_MODE === "live") return;
   if (ownerId) {
     const owner = await prisma.user.findUnique({
       where: { id: ownerId },

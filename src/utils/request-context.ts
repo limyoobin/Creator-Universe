@@ -4,7 +4,7 @@ import { getUserIdBySessionToken } from "../services/auth.service.js";
 import { getBearerToken } from "./token.js";
 
 const allowInsecureUserContext =
-  process.env.NODE_ENV !== "production" || process.env.ALLOW_INSECURE_USER_CONTEXT === "true";
+  process.env.NODE_ENV !== "production" && process.env.PORTONE_MODE !== "live" && process.env.ALLOW_INSECURE_USER_CONTEXT === "true";
 
 export async function getCurrentUserId(req: Request) {
   const bearerToken = getBearerToken(req);

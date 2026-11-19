@@ -1,3 +1,6 @@
+import { CoinCheckout } from "./CoinCheckout";
+import { IdentityCheck } from "./IdentityCheck";
+import { useIntegrationStatus, readProviderReturn, clearProviderReturn, saveChallenge, type IdentityProof } from "./portone";
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { WorksCatalog } from "./WorksCatalog";
 import { ArrowUpRight, Trophy } from "lucide-react";
@@ -262,7 +265,7 @@ type WalletTransaction = {
   title: string;
   description: string;
   amount: number;
-  status: "완료" | "대기" | "환불 가능" | "실패";
+  status: "완료" | "대기" | "실패";
   createdAt: string;
   projectTitle?: string;
 };
@@ -589,8 +592,6 @@ const readerWorks = [
 ];
 
 type ReaderWork = (typeof readerWorks)[number];
-
-const audioWaveBars = [18, 30, 44, 26, 52, 34, 62, 28, 48, 38, 58, 24, 46, 32, 54, 22, 40, 30];
 
 function hasAudioExperience(work: ReaderWork) {
   return (
@@ -1899,12 +1900,13 @@ function buildLocalAiMatchingResponse(
   };
 }
 
+const providerReturn = readProviderReturn();
 const apiConnectionErrorMessage = "백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.";
 const apiResponseParseErrorMessage = "API 응답을 읽을 수 없습니다. 프론트가 백엔드가 아닌 페이지 응답을 받았습니다.";
 async function request<T>(path: string, token: string | null, options: RequestInit = {}) {
   const apiBases = [
     API_URL,
-    import.meta.env.PROD && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
+    import.meta.env.PROD && !token && (!options.method || options.method === "GET") && !path.startsWith("/api/integrations/") && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
   ].filter((baseUrl, index, list) => baseUrl && list.indexOf(baseUrl) === index);
   let lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
 
@@ -1992,6 +1994,10 @@ function AuthModal({
   onAuth: (user: User, token: string) => void;
 }) {
   const [view, setView] = useState(mode);
+  const enrollment = useIntegrationStatus(request, view === "signup");
+  const [identity, setIdentity] = useState<IdentityProof | null>(null);
+  const signingUp = useRef(false);
+  const [signupBusy, setSignupBusy] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState<"find-id" | "reset-password">("find-id");
   const [message, setMessage] = useState("");
   const [signupRole, setSignupRole] = useState<"READER" | "CREATOR">("READER");
@@ -2027,6 +2033,8 @@ function AuthModal({
 
   async function submitSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (signingUp.current) return;
+    if (enrollment.status?.identityRequired && !identity) { setMessage("가입 전 본인인증을 완료해 주세요."); return; }
     const data = new FormData(event.currentTarget);
     const displayName = String(data.get("displayName") || "").trim();
     const username = String(data.get("username") || "").trim();
@@ -2054,6 +2062,7 @@ function AuthModal({
     }
 
     setMessage("");
+    signingUp.current = true; setSignupBusy(true);
     try {
       const result = await request<{ user: User; token: string }>("/api/auth/signup", null, {
         method: "POST",
@@ -2063,13 +2072,15 @@ function AuthModal({
           username,
           password,
           role: signupRole,
+          ...(identity ? {identityVerification: identity} : {}),
         }),
       });
+      saveChallenge(null);
       onAuth(result.user, result.token);
       onClose();
     } catch (error) {
       setMessage(`회원가입 실패: ${getFriendlyError(error)}`);
-    }
+    } finally { signingUp.current = false; setSignupBusy(false); }
   }
 
   async function submitFindId(event: React.FormEvent<HTMLFormElement>) {
@@ -2206,6 +2217,8 @@ function AuthModal({
 
         {view === "signup" && (
           <form className="auth-form" onSubmit={submitSignup}>
+            <IdentityCheck request={request} status={enrollment.status} onVerified={setIdentity} returned={providerReturn?.flow === "identity" ? providerReturn : null} />
+            {enrollment.failed && <p className="auth-help" role="status">간편인증 연결 상태를 확인하지 못했습니다. <button type="button" onClick={enrollment.retry}>다시 확인</button></p>}
             <fieldset className="auth-role-selector">
               <legend>가입 유형</legend>
               <div>
@@ -2267,7 +2280,7 @@ function AuthModal({
               <small className="auth-help">예: universe!2026 처럼 특수문자를 포함해 주세요.</small>
             </label>
             <label>비밀번호 확인<input name="passwordConfirm" type="password" minLength={8} required /></label>
-            <button className="primary-button" type="submit"><UserPlus size={18} /> 회원가입</button>
+            <button className="primary-button" type="submit" disabled={signupBusy || Boolean(enrollment.status?.identityRequired && !identity)}><UserPlus size={18} /> {signupBusy ? "가입 처리 중…" : "회원가입"}</button>
           </form>
         )}
 
@@ -2314,14 +2327,18 @@ function PaymentModal({
   onConfirm,
   onLogin,
   onSwitchToCharge,
-  isLoggedIn,
+  isLoggedIn, token, userId, onBalance, salePrice, isPaymentReturn,
 }: {
   mode: "charge" | "content";
   project: Project | null;
   work: ReaderWork | null;
   wallet: number | null;
   onClose: () => void;
-  onConfirm: (payload: { mode: "charge" | "content"; coinAmount: number; paymentAmountKrw?: number }) => Promise<void>;
+  onConfirm: (coinAmount: number) => Promise<void>;
+  token: string | null; userId?: string;
+  onBalance: (balance: number) => void;
+  salePrice: number | undefined;
+  isPaymentReturn: boolean;
   onLogin: () => void;
   onSwitchToCharge: () => void;
   isLoggedIn: boolean;
@@ -2331,7 +2348,9 @@ function PaymentModal({
   const [paymentMessage, setPaymentMessage] = useState("");
   const selectedProduct = coinProducts.find((item) => item.id === selectedProductId) || coinProducts[0];
   const isChargeMode = mode === "charge";
-  const contentPrice = work?.priceCoins || project?.priceCoins || 1000;
+  const connection = useIntegrationStatus(request, isChargeMode);
+  const contentPrice = salePrice ?? 0;
+  const purchasing = useRef(false);
   const feeRate = project?.appliedFeeRate ?? STANDARD_PLATFORM_FEE_RATE;
   const estimatedCreatorShare = Math.floor(contentPrice * (1 - feeRate));
   const hasEnoughCoins = wallet !== null && wallet >= contentPrice;
@@ -2353,18 +2372,15 @@ function PaymentModal({
       return;
     }
 
-    setIsPaying(true);
+    if (purchasing.current || salePrice === undefined) return;
+    purchasing.current = true; setIsPaying(true);
     try {
-      await onConfirm({
-        mode,
-        coinAmount: isChargeMode ? selectedProduct.coins : contentPrice,
-        paymentAmountKrw: isChargeMode ? selectedProduct.priceKrw : undefined,
-      });
+      await onConfirm(contentPrice);
       onClose();
     } catch (error) {
       setPaymentMessage(getFriendlyError(error));
     } finally {
-      setIsPaying(false);
+      purchasing.current = false; setIsPaying(false);
     }
   }
 
@@ -2385,7 +2401,7 @@ function PaymentModal({
           <div>
             <span className="payment-label">{isChargeMode ? "Wallet Top-up" : "콘텐츠 열람권"}</span>
             <strong>{isChargeMode ? "필요한 만큼 코인을 충전하세요" : work?.title || project?.title || "미드나잇 시그널"}</strong>
-            <p>{isChargeMode ? "충전한 코인은 작품 열람, 후원, 창작자 구독에 사용할 수 있습니다." : work?.tagline || project?.synopsis || "작품 정보를 불러오는 중입니다."}</p>
+            <p>{isChargeMode ? "충전한 코인으로 판매 중인 작품의 열람권을 구매할 수 있습니다." : work?.tagline || project?.synopsis || "작품 정보를 불러오는 중입니다."}</p>
           </div>
           <div className="coin-orb">
             <Coins size={34} />
@@ -2421,16 +2437,16 @@ function PaymentModal({
           <div className="payment-method-card">
             <CreditCard size={20} />
             <div>
-              <strong>간편 코인 결제</strong>
-              <p>{isChargeMode ? "선택한 금액만큼 코인이 지갑에 충전됩니다." : "보유 코인으로 작품 열람권을 구매합니다."}</p>
+              <strong>{isChargeMode ? "카드 결제" : "코인 결제"}</strong>
+              <p>{isChargeMode ? "결제창에서 상품과 금액을 확인해 주세요." : "보유 코인으로 작품 열람권을 구매합니다."}</p>
             </div>
             <CheckCircle2 size={20} />
           </div>
           <div className="payment-method-card">
             <ShieldCheck size={20} />
             <div>
-              <strong>{isChargeMode ? "충전 후 바로 사용" : "스마트 자동 정산"}</strong>
-              <p>{isChargeMode ? "충전 내역은 지갑 원장에 +금액으로 기록됩니다." : `결제 후 수수료 ${Math.round(feeRate * 100)}%를 제외한 ${formatCoins(estimatedCreatorShare)}이 팀 지분율대로 분배됩니다.`}</p>
+              <strong>{isChargeMode ? "충전 내역" : "스마트 자동 정산"}</strong>
+              <p>{isChargeMode ? "승인된 실결제는 지갑 이용 내역에 기록됩니다." : `결제 후 수수료 ${Math.round(feeRate * 100)}%를 제외한 ${formatCoins(estimatedCreatorShare)}이 팀 지분율대로 분배됩니다.`}</p>
             </div>
           </div>
         </div>
@@ -2445,7 +2461,7 @@ function PaymentModal({
 
         {paymentMessage && <p className="payment-error-message">{paymentMessage}</p>}
 
-        {isLoggedIn && (
+        {isLoggedIn && (!isChargeMode || (connection.status?.paymentReady && connection.status.mode === "live")) && (
           <div className="payment-balance-preview">
             <div>
               <span>현재 보유</span>
@@ -2459,18 +2475,15 @@ function PaymentModal({
           </div>
         )}
 
-        <button className="primary-button payment-submit" onClick={submitPayment} disabled={isPaying}>
-          {isLoggedIn ? <Wallet size={18} /> : <LogIn size={18} />}
-          {isLoggedIn
-            ? isPaying
-              ? "결제 처리 중"
-              : isChargeMode
-                ? `${formatWon(selectedProduct.priceKrw)} 결제하기`
-                : hasEnoughCoins
-                  ? `${formatCoins(contentPrice)}으로 열람하기`
-                  : "코인이 부족해요 · 충전하기"
-            : "로그인하고 결제하기"}
-        </button>
+        {isChargeMode ? <>
+          {connection.failed && <p className="notice" role="status">결제 서비스 연결을 확인하지 못했습니다. <button type="button" onClick={connection.retry}>다시 확인</button></p>}
+          <CoinCheckout key={userId ?? "guest"} token={token} userId={userId} product={selectedProduct}
+            request={request} status={connection.status} returned={isPaymentReturn ? providerReturn : null}
+            onLogin={onLogin} onBalance={onBalance} />
+        </> : <button className="primary-button payment-submit" onClick={submitPayment} disabled={isPaying || salePrice === undefined}>
+          <Wallet size={18} />{salePrice === undefined ? "판매 준비 중" : !isLoggedIn ? "로그인하고 결제하기" : isPaying ? "결제 처리 중…" :
+            hasEnoughCoins ? `${formatCoins(contentPrice)}으로 열람하기` : "코인이 부족해요 · 충전하기"}
+        </button>}
       </div>
     </div>
   );
@@ -2957,12 +2970,63 @@ function CreatorDetailModal({
   );
 }
 
+type LibraryEpisode = {
+  id: string;
+  title: string;
+  sequenceNumber: number;
+  audioUrl: string;
+  transcriptCues: { text: string; startMs: number; endMs: number }[];
+};
+
+function PurchasedAudio({ workId, token }: { workId: string; token: string }) {
+  const [episodes, setEpisodes] = useState<LibraryEpisode[] | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState("");
+  const [playbackError, setPlaybackError] = useState(false);
+  const selected = episodes?.find(item => item.id === selectedId) ?? episodes?.[0];
+  useEffect(() => {
+    const controller = new AbortController();
+    setEpisodes(null);
+    setError("");
+    setPlaybackError(false);
+    request<{ episodes: LibraryEpisode[] }>(
+      `/api/settlements/me/library/${encodeURIComponent(workId)}/episodes`, token, { signal: controller.signal },
+    ).then(result => {
+      if (!controller.signal.aborted) setEpisodes(result.episodes);
+    }).catch(reason => {
+      if (!controller.signal.aborted) setError(getFriendlyError(reason));
+    });
+    return () => controller.abort();
+  }, [workId, token, attempt]);
+
+  return <section className="work-detail-section purchased-audio" aria-label="구매한 오디오 회차">
+    <h3>구매한 오디오 회차</h3>
+    {error ? <div role="status"><p>{error}</p><button type="button" className="ghost-button" onClick={() => setAttempt(value => value + 1)}>회차 다시 불러오기</button></div>
+      : !episodes ? <p role="status">회차를 불러오는 중입니다.</p>
+      : !selected ? <p role="status">현재 재생할 수 있는 유료 회차가 없습니다.</p>
+      : <>
+        <label>감상할 회차
+          <select value={selected.id} onChange={event => { setSelectedId(event.target.value); setPlaybackError(false); }}>
+            {episodes.map(item => <option key={item.id} value={item.id}>{item.sequenceNumber}화 · {item.title}</option>)}
+          </select>
+        </label>
+        <audio key={selected.id} controls preload="none" src={selected.audioUrl}
+          aria-label={`${selected.sequenceNumber}화 ${selected.title} 재생`} onError={() => setPlaybackError(true)} />
+        {playbackError && <div role="status"><p>오디오를 재생할 수 없습니다.</p><button className="ghost-button" type="button" onClick={() => setAttempt(value => value + 1)}>오디오 다시 불러오기</button></div>}
+        {selected.transcriptCues.length > 0 ? <details key={selected.id}><summary>회차 대본 읽기</summary>
+          <ol>{selected.transcriptCues.map((cue, index) => <li key={index}><span>{formatDuration(cue.startMs / 1000)}</span> {cue.text}</li>)}</ol>
+        </details> : <p>이 회차에 등록된 대본이 없습니다.</p>}
+      </>}
+  </section>;
+}
+
 function WorkDetailModal({
-  work,
+  work, token,
   rank,
   reviews,
   creators,
-  isPurchased,
+  isPurchased, salePrice,
   isScrapped,
   onToggleScrap,
   progress,
@@ -2976,11 +3040,11 @@ function WorkDetailModal({
   onReviewBodyChange,
   onSubmitReview,
 }: {
-  work: ReaderWork;
+  work: ReaderWork; token: string | null;
   rank: number;
   reviews: ContentReview[];
   creators: Creator[];
-  isPurchased: boolean;
+  isPurchased: boolean; salePrice?: number;
   isScrapped: boolean;
   onToggleScrap: () => void;
   progress?: WorkProgressEntry;
@@ -2997,8 +3061,7 @@ function WorkDetailModal({
   const participants = work.participantUserIds
     .map((userId) => creators.find((creator) => creator.userId === userId))
     .filter(Boolean) as Creator[];
-  const audioAvailable = hasAudioExperience(work);
-  const audioLabel = getAudioExperienceLabel(work);
+  const audioWork = work.format === "오디오드라마" || (isPurchased && hasAudioExperience(work));
   const episodes = getWorkEpisodes(work);
   const currentEpisodeNumber = Math.min(progress?.episodeNumber ?? 1, episodes.length);
   const progressPercent = progress?.percent ?? (isPurchased ? 12 : 0);
@@ -3029,19 +3092,24 @@ function WorkDetailModal({
               <b>{work.subGenre}</b>
               <b><Star size={15} /> {work.rating}</b>
               <b>{work.listeners} 감상</b>
-              <b>{work.episodes}화</b>
+              {!audioWork && <b>{work.episodes}화</b>}
             </div>
             <div className="reader-actions">
               <button className="ghost-button compact" aria-pressed={isScrapped} onClick={onToggleScrap}><Heart size={16} /> {isScrapped ? "스크랩 해제" : "스크랩"}</button>
               {isPurchased ? (
                 <button className="ghost-button compact purchased-badge"><CheckCircle2 size={16} /> 열람권 보유</button>
               ) : (
-                <button className="primary-button compact" onClick={onOpenPayment}><Coins size={16} /> {formatCoins(work.priceCoins)} 구매</button>
+                <button className="primary-button compact" disabled={salePrice === undefined} onClick={onOpenPayment}><Coins size={16} /> {salePrice === undefined ? "판매 준비 중" : formatCoins(salePrice) + " 구매"}</button>
               )}
             </div>
           </div>
         </div>
 
+        {audioWork ? (isPurchased && token ? <PurchasedAudio key={work.id} workId={work.id} token={token} />
+          : <section className="work-detail-section">
+              <h3>오디오 회차</h3>
+              <p>{salePrice === undefined ? "현재 판매 중인 오디오 회차가 없습니다." : "열람권을 구매하면 이곳에서 공개된 유료 회차를 선택해 들을 수 있습니다."}</p>
+            </section>) : <>
         <section className="work-progress-panel">
           <div>
             <p className="kicker">Continue Watching</p>
@@ -3081,40 +3149,6 @@ function WorkDetailModal({
           </div>
         </section>
 
-        {audioAvailable && (
-          <section className="work-audio-panel">
-            <div className="work-audio-copy">
-              <p className="kicker">Audio Experience</p>
-              <h3>{audioLabel}으로 작품을 먼저 체험하세요</h3>
-              <p>
-                구매 전에는 30초 샘플을 제공하고, 구매 후에는 에피소드 전체 감상과 고대비 대본 미리보기를 같은 상세 화면에서 이어볼 수 있게 설계했습니다.
-              </p>
-              <div className="audio-feature-tags">
-                <span><Headphones size={14} /> 30초 샘플</span>
-                <span><CheckCircle2 size={14} /> 대본 동기화</span>
-                <span><Globe2 size={14} /> 접근성 모드</span>
-              </div>
-            </div>
-            <div className="audio-player-card">
-              <div className="audio-player-head">
-                <button aria-label="오디오 샘플 재생"><Play size={18} /></button>
-                <div>
-                  <strong>{isPurchased ? "전체 에피소드 감상 가능" : "무료 샘플 00:30"}</strong>
-                  <span>{work.title} · {audioLabel}</span>
-                </div>
-              </div>
-              <div className="audio-waveform" aria-hidden="true">
-                {audioWaveBars.map((height, index) => <i key={index} style={{ height }} />)}
-              </div>
-              <div className="audio-progress-line"><span style={{ width: isPurchased ? "64%" : "28%" }} /></div>
-              <div className="audio-transcript-card">
-                <span>대본 미리보기</span>
-                <p>“이 장면의 목소리는 낮게 시작해, 도시의 소음 위로 천천히 떠오릅니다.”</p>
-              </div>
-            </div>
-          </section>
-        )}
-
         <section className="work-detail-section episode-section">
           <div className="section-head compact-head">
             <div>
@@ -3131,7 +3165,7 @@ function WorkDetailModal({
             </article>
             <article>
               <span>열람권</span>
-              <strong>{isPurchased ? "구매 완료" : `${formatCoins(work.priceCoins)} 전체 열람`}</strong>
+              <strong>{isPurchased ? "구매 완료" : salePrice === undefined ? "판매 준비 중" : `${formatCoins(salePrice)} 전체 열람`}</strong>
               <p>{isPurchased ? "모든 유료 회차가 열려 있습니다." : "구매하면 잠긴 회차를 이어서 볼 수 있습니다."}</p>
             </article>
             <article>
@@ -3158,15 +3192,17 @@ function WorkDetailModal({
                       <span>{episode.isFree ? "무료" : formatCoins(episode.priceCoins)}</span>
                     </div>
                   </div>
-                  <button type="button" onClick={() => (unlocked ? onOpenEpisode(episode.episodeNumber) : onOpenPayment())}>
+                  <button type="button" disabled={!unlocked && salePrice === undefined} onClick={() => (unlocked ? onOpenEpisode(episode.episodeNumber) : onOpenPayment())}>
                     {unlocked ? <Play size={16} /> : <Coins size={16} />}
-                    {unlocked ? (episode.episodeNumber === currentEpisodeNumber ? "이어보기" : "감상하기") : "구매 필요"}
+                    {unlocked ? (episode.episodeNumber === currentEpisodeNumber ? "이어보기" : "감상하기") : salePrice === undefined ? "판매 준비 중" : "구매 필요"}
                   </button>
                 </article>
               );
             })}
           </div>
         </section>
+
+        </>}
 
         <section className="work-detail-section">
           <div className="section-head compact-head">
@@ -3466,7 +3502,7 @@ function AccountModal({
           <div className="app-account-balance">
             <span>My Universe</span>
             <strong>{formatCoins(walletBalance)}</strong>
-            <p>{premiumSubscription.isActive ? `프리미엄 구독중 · 다음 결제 ${formatDateOnly(premiumSubscription.nextBillingDate)}` : "코인 충전, 작품 보관함, 구독 관리를 여기서 바로 시작하세요."}</p>
+            <p>{premiumSubscription.isActive ? `프리미엄 미리보기 이용 중` : "코인 충전, 작품 보관함, 구독 관리를 여기서 바로 시작하세요."}</p>
           </div>
 
           <div className="app-account-quick-grid">
@@ -3495,11 +3531,11 @@ function AccountModal({
           <div className="app-account-premium">
             <div>
               <span>Premium</span>
-              <strong>{premiumSubscription.isActive ? "구독중" : "광고 없는 감상 시작"}</strong>
-              <p>{premiumSubscription.isActive ? "해지 전까지 보너스 코인과 광고 제거 혜택이 유지됩니다." : "월 7,900코인으로 광고 제거와 보너스 코인을 받을 수 있어요."}</p>
+              <strong>{premiumSubscription.isActive ? "체험 중" : "프리미엄 미리보기"}</strong>
+              <p>{premiumSubscription.isActive ? "이 기기에서 체험 상태를 관리합니다." : "체험을 시작해도 정기결제나 코인 차감은 발생하지 않습니다."}</p>
             </div>
             <button type="button" onClick={premiumSubscription.isActive ? onCancelPremium : onStartPremium}>
-              {premiumSubscription.isActive ? "해지" : "구독"}
+              {premiumSubscription.isActive ? "체험 종료" : "체험"}
             </button>
           </div>
 
@@ -3576,16 +3612,15 @@ function AccountModal({
               <strong>크리에이터 유니버스 프리미엄</strong>
             </div>
             <div className={`premium-status-pill ${premiumSubscription.isActive ? "active" : ""}`}>
-              {premiumSubscription.isActive ? "구독중" : "미구독"}
+              {premiumSubscription.isActive ? "체험 중" : "체험 가능"}
             </div>
             <div className="premium-mini-price">
               <span>월 구독</span>
               <b>7,900 코인</b>
             </div>
             <div className="premium-billing-card">
-              <span>{premiumSubscription.isActive ? "다음 재결제일" : "구독 시작 시"}</span>
-              <strong>{premiumSubscription.isActive ? formatDateOnly(premiumSubscription.nextBillingDate) : "즉시 활성화"}</strong>
-              <small>{premiumSubscription.isActive ? "재결제 전 언제든 해지할 수 있어요." : "광고 제거와 보너스 코인이 계정에 적용됩니다."}</small>
+              <strong>구독 미리보기</strong>
+              <small>프리미엄은 체험 화면입니다. 이용료와 정기결제가 발생하지 않습니다.</small>
             </div>
             <div className="premium-benefit-strip" aria-label="프리미엄 핵심 혜택">
               <span><Coins size={14} /> 매월 1,000 보너스</span>
@@ -3596,9 +3631,9 @@ function AccountModal({
               <p key={benefit}><CheckCircle2 size={15} /> {benefit}</p>
             ))}
             {premiumSubscription.isActive ? (
-              <button className="premium-cancel-button" onClick={onCancelPremium}>프리미엄 해지</button>
+              <button className="premium-cancel-button" onClick={onCancelPremium}>체험 종료</button>
             ) : (
-              <button onClick={onStartPremium}>프리미엄 구독 시작</button>
+              <button onClick={onStartPremium}>프리미엄 체험 시작</button>
             )}
             <button className="premium-manage-button" onClick={onOpenPayment}>코인 충전/결제 관리</button>
           </section>
@@ -3622,7 +3657,7 @@ function AccountModal({
             <div className="account-summary-grid">
               <div><span>보관함</span><b>{purchasedWorks.length + scrappedWorks.length + recentWorks.length}</b></div>
               <div><span>알림</span><b>{notificationPreferences.newEpisode ? "ON" : "OFF"}</b></div>
-              <div><span>프리미엄</span><b>{premiumSubscription.isActive ? "구독중" : "미구독"}</b></div>
+              <div><span>프리미엄</span><b>{premiumSubscription.isActive ? "체험 중" : "체험 가능"}</b></div>
             </div>
             <div className="account-summary-actions">
               <button onClick={() => { onClose(); onOpenLibrary("recent"); }}><RefreshCw size={15} /> 이어보기</button>
@@ -3814,6 +3849,14 @@ export function App() {
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("recent");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
+  const [salePrices, setSalePrices] = useState<Record<string,number>>({});
+  useEffect(() => {
+    const controller = new AbortController();
+    request<{works: {workId: string; priceCoins: number}[]}>("/api/settlements/catalog", null, {signal: controller.signal})
+      .then(data => { if (!controller.signal.aborted) setSalePrices(Object.fromEntries(data.works.map(work => [work.workId, work.priceCoins]))); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
   const [scrappedWorkIds, setScrappedWorkIds] = useState<string[]>([]);
   const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>([]);
   const [recentWorkIds, setRecentWorkIds] = useState(() => readStoredIds("creator-universe-recent-works"));
@@ -3900,9 +3943,12 @@ export function App() {
     return storedMode === "creator" ? "creator" : "reader";
   });
   const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery" | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery" | null>(providerReturn?.flow === "identity" ? "signup" : null);
+  const resumeCheckoutAfterLogin = useRef(false);
+  const [isPaymentReturn, setIsPaymentReturn] = useState(providerReturn?.flow === "payment");
+  useEffect(() => { clearProviderReturn(); }, []);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(providerReturn?.flow === "payment");
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
@@ -4347,8 +4393,8 @@ export function App() {
     if (premiumSubscription.isActive) {
       items.push({
         id: `premium-${premiumSubscription.nextBillingDate}`,
-        title: "프리미엄 구독이 활성화되어 있어요",
-        body: `다음 재결제일은 ${formatDateOnly(premiumSubscription.nextBillingDate)}입니다.`,
+        title: "프리미엄 체험이 활성화되어 있어요",
+        body: `현재 미리보기를 이용하고 있습니다.`,
         time: "구독",
         page: "home",
         tone: "premium",
@@ -4711,11 +4757,12 @@ export function App() {
   }, [aiMatchMessages]);
 
   useEffect(() => {
-    if (!user?.id || libraryStorageOwner !== user.id) {
-      return;
-    }
-    localStorage.setItem(getUserLibraryStorageKey(user.id, "purchased-works"), JSON.stringify(purchasedWorkIds));
-  }, [libraryStorageOwner, purchasedWorkIds, user?.id]);
+    const controller = new AbortController();
+    setPurchasedWorkIds([]);
+    if (token && user?.id) request<{workIds: string[]}>("/api/settlements/me/library", token, {signal: controller.signal})
+      .then(data => { if (!controller.signal.aborted) setPurchasedWorkIds(data.workIds); }).catch(() => {});
+    return () => controller.abort();
+  }, [token, user?.id]);
 
   useEffect(() => {
     if (!user?.id || libraryStorageOwner !== user.id) {
@@ -4773,7 +4820,6 @@ export function App() {
   useEffect(() => {
     if (user?.id) {
       setPremiumSubscription(readUserPremiumSubscription(user.id));
-      setPurchasedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "purchased-works")));
       setScrappedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "scrapped-works")));
       setFollowedCreatorIds(readStoredIds(getUserLibraryStorageKey(user.id, "followed-creators")));
       setRecentWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "recent-works")));
@@ -4899,6 +4945,7 @@ export function App() {
   }, [token, role]);
 
   function openPayment() {
+    setIsPaymentReturn(false);
     setPaymentMode("charge");
     setIsPaymentOpen(true);
   }
@@ -4936,39 +4983,13 @@ export function App() {
     setCommunityMessage(`${work.title} ${selectedEpisode.episodeNumber}화를 이어보기로 저장했습니다.`);
   }
 
-  async function handlePaymentConfirm(payload: { mode: "charge" | "content"; coinAmount: number; paymentAmountKrw?: number }) {
-    const authToken = getActiveAuthToken(token);
-    if (!authToken) {
-      setAuthMode("login");
-      throw new Error("로그인이 필요합니다. 다시 로그인한 뒤 결제를 진행해 주세요.");
-    }
-
-    if (payload.mode === "charge") {
-      const chargeResult = await request<{ walletBalance: string | number }>("/api/users/me/wallet/charge", authToken, {
-        method: "POST",
-        body: JSON.stringify({
-          coinAmount: payload.coinAmount,
-          paymentAmountKrw: payload.paymentAmountKrw,
-          externalPaymentId: `charge_${Date.now()}`,
-        }),
-      });
-      setWallet(Number(chargeResult.walletBalance));
-    } else {
-      await request("/api/settlements/content-purchase", authToken, {
-        method: "POST",
-        body: JSON.stringify({
-          projectId: PROJECT_ID,
-          workId: pendingPurchaseWorkId,
-          coinAmount: payload.coinAmount,
-          externalPaymentId: `web_${Date.now()}`,
-        }),
-      });
-      setPurchasedWorkIds((current) =>
-        current.includes(pendingPurchaseWorkId) ? current : [pendingPurchaseWorkId, ...current],
-      );
-      setActivePage("discover");
-    }
-    await loadData(authToken);
+  async function handlePaymentConfirm(coinAmount: number) {
+    if (!token || !user) throw new Error("로그인 후 다시 결제해 주세요.");
+    const receipt = await request<{ workId: string }>("/api/settlements/content-purchase", token, {
+      method: "POST", body: JSON.stringify({ workId: pendingPurchaseWorkId, coinAmount }),
+    });
+    setPurchasedWorkIds(current => current.includes(receipt.workId) ? current : [receipt.workId, ...current]);
+    void loadData(token).catch(() => {});
   }
 
   function toggleScrap(workId: string) {
@@ -5731,6 +5752,10 @@ export function App() {
   }
 
   function completeAuth(nextUser: User, nextToken: string) {
+    if (resumeCheckoutAfterLogin.current) {
+      resumeCheckoutAfterLogin.current = false;
+      setIsPaymentOpen(true);
+    }
     setUser(nextUser);
     setToken(nextToken);
     setAppMode(nextUser.role === "CREATOR" || nextUser.role === "ADMIN" ? "creator" : "reader");
@@ -5812,7 +5837,7 @@ export function App() {
         nextBillingDate,
       });
     }
-    setCommunityMessage(`프리미엄 구독이 시작되었습니다. 다음 재결제일은 ${formatDateOnly(nextBillingDate)}입니다.`);
+    setCommunityMessage(`프리미엄 체험을 시작했습니다.`);
   }
 
   function cancelPremiumSubscription() {
@@ -5820,7 +5845,7 @@ export function App() {
       return;
     }
 
-    const confirmed = window.confirm("프리미엄 구독을 해지할까요? 다음 재결제는 중단되고 현재 혜택은 표시상 해지 상태로 전환됩니다.");
+    const confirmed = window.confirm("프리미엄 체험을 종료할까요?");
     if (!confirmed) {
       return;
     }
@@ -5834,7 +5859,7 @@ export function App() {
     if (user?.id) {
       writeUserPremiumSubscription(user.id, nextSubscription);
     }
-    setCommunityMessage("프리미엄 구독이 해지되었습니다. 언제든 다시 시작할 수 있어요.");
+    setCommunityMessage("프리미엄 체험을 종료했습니다.");
   }
 
   return (
@@ -6663,7 +6688,7 @@ export function App() {
                 <p className="kicker">Universe Premium</p>
                 <h2>월 7,900코인으로 광고 없이 보고, 매달 보너스 코인까지 받는 구독 서비스</h2>
                 <p>홈에서 바로 이해되는 독자용 멤버십 상품입니다. 작품 페이지 광고 제거, 팬덤형 콘텐츠 선공개, 보너스 코인을 묶어 유튜브 프리미엄처럼 명확한 구독 가치를 제공합니다.</p>
-                <button onClick={openPayment}><Sparkles size={17} /> 프리미엄 구독 살펴보기</button>
+                <button onClick={openPayment}><Sparkles size={17} /> 코인 충전 살펴보기</button>
               </div>
               <div>
                 <strong>7,900 Coin</strong>
@@ -6915,7 +6940,7 @@ export function App() {
                       {purchasedWorkIds.includes(work.id) ? (
                         <button className="ghost-button compact purchased-badge"><CheckCircle2 size={16} /> 결제 완료</button>
                       ) : (
-                        <button className="primary-button compact" onClick={() => openWorkPayment(work.id)}><Coins size={16} /> {formatCoins(work.priceCoins)}</button>
+                        <button className="primary-button compact" disabled={salePrices[work.id] === undefined} onClick={() => openWorkPayment(work.id)}><Coins size={16} /> {salePrices[work.id] === undefined ? "판매 준비 중" : formatCoins(salePrices[work.id])}</button>
                       )}
                       <button
                         className="ghost-button compact"
@@ -8513,7 +8538,7 @@ export function App() {
               </article>
               <article>
                 <span>구독 상태</span>
-                <strong>{premiumSubscription.isActive ? "구독중" : "미구독"}</strong>
+                <strong>{premiumSubscription.isActive ? "체험 중" : "체험 가능"}</strong>
               </article>
             </div>
 
@@ -8548,7 +8573,7 @@ export function App() {
             <div>
               <p className="kicker">Coin Wallet</p>
               <h2>독자 결제와 창작자 입금을 한눈에 보는 내 지갑</h2>
-              <p>웹툰식 코인 충전, 작품 열람권 구매, 환불 가능 금액, 창작자 정산 입금까지 하나의 원장으로 관리합니다.</p>
+              <p>코인 충전, 작품 열람권 구매, 창작자 정산 입금 내역을 확인하세요.</p>
               <div className="wallet-hero-actions">
                 <button className="primary-button" onClick={openPayment}><Coins size={18} /> 코인 충전하기</button>
                 <button className="ghost-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보러가기</button>
@@ -8557,14 +8582,14 @@ export function App() {
             <div className="wallet-balance-card">
               <span>현재 보유 코인</span>
               <strong>{formatCoins(currentWalletDetail.balance)}</strong>
-              <p>{currentWalletDetail.autoChargeEnabled ? `자동 충전 ON · 다음 예정 ${currentWalletDetail.nextChargeDate}` : "자동 충전 OFF"}</p>
+              <p>작품 열람권 구매에 사용할 수 있어요.</p>
             </div>
           </div>
 
           <div className="wallet-kpis">
             <article><span>이번 달 사용</span><strong>{formatCoins(currentWalletDetail.monthlySpend)}</strong><p>작품 열람권과 후원 결제</p></article>
             <article><span>이번 달 정산입금</span><strong>{formatCoins(currentWalletDetail.monthlyEarned)}</strong><p>참여 프로젝트 자동 분배</p></article>
-            <article><span>환불 가능</span><strong>{formatCoins(currentWalletDetail.refundableCoins)}</strong><p>미사용 결제분 기준</p></article>
+            <article><span>최근 열람권 구매</span><strong>{formatCoins(currentWalletDetail.refundableCoins)}</strong><p>최근 거래 20건 중 지난 7일 구매액</p></article>
             <article><span>보너스 코인</span><strong>{formatCoins(currentWalletDetail.bonusCoins)}</strong><p>이벤트/멤버십 혜택</p></article>
           </div>
 
@@ -8619,7 +8644,7 @@ export function App() {
                 <CreditCard size={22} />
                 <strong>결제 수단</strong>
                 <p>{currentWalletDetail.paymentMethod}</p>
-                <button>결제 수단 변경</button>
+                <button onClick={openPayment}>카드로 코인 충전</button>
               </article>
               <article>
                 <Wallet size={22} />
@@ -8629,9 +8654,9 @@ export function App() {
               </article>
               <article>
                 <ShieldCheck size={22} />
-                <strong>안전 장치</strong>
-                <p>미사용 코인 환불, 자동 충전 해지, 이상 결제 알림을 지갑에서 바로 처리할 수 있게 확장했습니다.</p>
-                <button>환불/문의 열기</button>
+                <strong>결제 문의</strong>
+                <p>결제 시각과 금액을 알려주시면 중복 결제 또는 환불 요청을 확인할 수 있어요.</p>
+                <button onClick={() => navigate("support")}>환불/문의 열기</button>
               </article>
             </aside>
           </div>
@@ -9503,7 +9528,7 @@ export function App() {
           {isSupportBotOpen ? <X size={24} /> : <Bot size={24} />}
         </button>
       </div>
-      {authMode && <AuthModal mode={authMode} onClose={() => setAuthMode(null)} onAuth={completeAuth} />}
+      {authMode && <AuthModal mode={authMode} onClose={() => { resumeCheckoutAfterLogin.current = false; setAuthMode(null); }} onAuth={completeAuth} />}
       {matchProposalCreator && (
         <MatchProposalModal
           creator={matchProposalCreator}
@@ -9556,10 +9581,12 @@ export function App() {
       )}
       {selectedWork && (
         <WorkDetailModal
+          token={token}
           work={selectedWork}
           rank={rankedReaderWorks.findIndex((work) => work.id === selectedWork.id) + 1}
           reviews={contentReviews.filter((review) => review.workId === selectedWork.id)}
           creators={creators}
+          salePrice={salePrices[selectedWork.id]}
           isPurchased={purchasedWorkIds.includes(selectedWork.id)}
           isScrapped={scrappedWorkIds.includes(selectedWork.id)}
           onToggleScrap={() => toggleScrap(selectedWork.id)}
@@ -9585,11 +9612,14 @@ export function App() {
           work={paymentMode === "content" ? pendingPurchaseWork : null}
           wallet={wallet}
           isLoggedIn={Boolean(token && user)}
-          onClose={() => setIsPaymentOpen(false)}
+          isPaymentReturn={isPaymentReturn}
+          onClose={() => { setIsPaymentOpen(false); setIsPaymentReturn(false); }}
+          token={token} userId={user?.id} salePrice={salePrices[pendingPurchaseWorkId]}
+          onBalance={balance => { setWallet(balance); if (token) void loadData(token).catch(() => {}); }}
           onConfirm={handlePaymentConfirm}
           onSwitchToCharge={() => setPaymentMode("charge")}
           onLogin={() => {
-            setIsPaymentOpen(false);
+            resumeCheckoutAfterLogin.current = true; setIsPaymentOpen(false);
             setAuthMode("login");
           }}
         />

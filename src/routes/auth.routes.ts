@@ -18,6 +18,12 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { getCurrentUserId } from "../utils/request-context.js";
 import { getBearerToken } from "../utils/token.js";
 import { AppError } from "../errors/app-error.js";
+import { confirmSignupIdentity, startSignupIdentity } from "../services/signup-identity.service.js";
+
+const identityProofSchema = z.object({
+  identityVerificationId: z.string().uuid(),
+  proof: z.string().regex(/^[0-9a-f]{64}$/),
+});
 
 const signupSchema = z.object({
   email: z.string().email(),
@@ -25,6 +31,7 @@ const signupSchema = z.object({
   displayName: z.string().trim().min(1).max(20),
   password: z.string().min(8).regex(/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/, PASSWORD_RULE_MESSAGE),
   role: z.enum([UserRole.READER, UserRole.CREATOR]).default(UserRole.READER),
+  identityVerification: identityProofSchema.optional(),
 });
 
 const loginSchema = z.object({
@@ -51,6 +58,16 @@ const checkNicknameSchema = z.object({
 });
 
 export const authRouter = Router();
+
+authRouter.post("/identity/start", asyncHandler(async (_req, res) => {
+  const data = await startSignupIdentity();
+  res.set("Cache-Control", "no-store").status(201).json({ success: true, data });
+}));
+
+authRouter.post("/identity/confirm", asyncHandler(async (req, res) => {
+  const data = await confirmSignupIdentity(identityProofSchema.parse(req.body));
+  res.set("Cache-Control", "no-store").json({ success: true, data });
+}));
 
 authRouter.post(
   "/signup",

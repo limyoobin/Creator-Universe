@@ -175,17 +175,18 @@ async function createCreatorCommerceTransaction(input: {
     };
   }
 
-  const [payerWallet, creator] = await Promise.all([
-    input.tx.wallet.findUnique({ where: { userId: input.payerId }, select: { balance: true } }),
-    input.tx.user.findUnique({ where: { id: input.creatorUserId }, select: { id: true, isPartner: true } }),
-  ]);
+  const creator = await input.tx.user.findUnique({ where: { id: input.creatorUserId }, select: { id: true, isPartner: true } });
 
   if (!creator) {
     throw new AppError("Creator not found.", 404);
   }
 
   const grossAmount = toDecimal(input.amountCoins);
-  if (!payerWallet || payerWallet.balance.lt(grossAmount)) {
+  const debit = await input.tx.wallet.updateMany({
+    where: { userId: input.payerId, balance: { gte: grossAmount } },
+    data: { balance: { decrement: grossAmount } },
+  });
+  if (!debit.count) {
     throw new AppError("보유 코인이 부족합니다. 코인을 충전해 주세요.", 402);
   }
 
@@ -210,10 +211,6 @@ async function createCreatorCommerceTransaction(input: {
     },
   });
 
-  await input.tx.wallet.update({
-    where: { userId: input.payerId },
-    data: { balance: { decrement: grossAmount } },
-  });
   await input.tx.wallet.upsert({
     where: { userId: input.creatorUserId },
     create: {

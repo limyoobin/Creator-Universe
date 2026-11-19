@@ -63,12 +63,26 @@ enum MatchRequestStatus {
   DECLINED
 }
 
+model SignupIdentityChallenge {
+  id          String   @id
+  proofHash   String
+  storeId     String
+  channelKey  String
+  live        Boolean
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+
+  @@index([expiresAt])
+}
+
 model User {
   id                String          @id @default(cuid())
   email             String          @unique
   username          String          @unique
   displayName       String
   passwordHash      String?
+  identityVerifiedAt DateTime?
+  identityVerificationLive Boolean?
   role              UserRole
   isPartner         Boolean         @default(false)
   partnerTier       PartnerTier     @default(NONE)
@@ -79,6 +93,7 @@ model User {
   projectMemberships ProjectMember[]
   transactions      Transaction[]   @relation("BuyerTransactions")
   wallet            Wallet?
+  topUpOrders       WalletTopUpOrder[]
   settlementDistributions SettlementDistribution[]
   creatorProfile    CreatorProfile?
   contentAccesses   ContentAccess[]
@@ -111,6 +126,7 @@ model Project {
   status                ProjectStatus    @default(DRAFT)
   isOfficialPartner     Boolean          @default(false)
   priceCoins            Int              @default(1000)
+  storefrontSalesEnabled Boolean         @default(false)
   totalRevenueAmount    Decimal          @db.Decimal(14, 2) @default(0)
   totalNetRevenueAmount Decimal          @db.Decimal(14, 2) @default(0)
   platformFeeRate       Decimal          @db.Decimal(5, 4)
@@ -441,4 +457,24 @@ model UserReport {
   @@index([status, createdAt])
   @@index([reporterId, createdAt])
   @@index([targetUserId, createdAt])
+}
+
+model WalletTopUpOrder {
+  id           String    @id
+  userId       String
+  productId    String
+  amountKrw    Int
+  coins        Int
+  storeId      String
+  channelKey   String
+  live         Boolean
+  status       String    @default("PENDING")
+  cancelledKrw Int       @default(0)
+  creditedCoins Int      @default(0)
+  paidAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
 }
