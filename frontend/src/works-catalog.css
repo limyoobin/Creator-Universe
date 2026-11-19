@@ -22,6 +22,7 @@
 }
 
 .cu-feature {
+  scroll-margin-top: 115px;
   overflow: hidden;
   isolation: isolate;
   border-radius: 24px;
@@ -50,11 +51,23 @@
 }
 .cu-feature-image[data-active="true"] { opacity: 1; }
 .cu-feature-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cu-feature-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 70% 37%;
+  opacity: 0;
+  transition: opacity 250ms ease-out;
+}
+.cu-feature-image[data-film-visible="true"] .cu-feature-video { opacity: 1; }
+.cu-feature-image[data-film-visible="true"] .cu-feature-atmosphere { display: none; }
 .cu-feature-image:not(.cu-feature-ranking-art) .cu-feature-illustration {
   transform-origin: 68% 41%;
   animation: cu-feature-camera 13s ease-in-out infinite alternate paused;
 }
-.cu-feature[data-motion="playing"] .cu-feature-image[data-active="true"]:not(.cu-feature-ranking-art) .cu-feature-illustration {
+.cu-feature[data-motion="playing"] .cu-feature-image[data-active="true"][data-film-visible="false"]:not(.cu-feature-ranking-art) .cu-feature-illustration {
   animation-play-state: running;
 }
 @keyframes cu-feature-camera {
@@ -142,6 +155,17 @@ body[data-reduced-motion="true"] .cu-feature-image .cu-feature-illustration { an
   border-radius: 50%;
   color: inherit;
   background: transparent;
+}
+.cu-feature-controls button[data-playback] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  padding-inline: 9px;
+  font-weight: 650;
+  font-size: .8rem;
+  white-space: nowrap;
 }
 .cu-slide-count { display: flex; align-items: center; gap: 5px; padding: 0 5px 0 12px; font-variant-numeric: tabular-nums; font-size: .76rem; letter-spacing: .025em; color: #e7e8ed; }
 .cu-slide-count b { color: white; }
@@ -329,3 +353,7 @@ body[data-reduced-motion="true"] .cu-feature-image .cu-feature-illustration { an
   .cu-catalog *, .cu-catalog *::after { transition: none !important; }
 }
 body[data-reduced-motion=true] .cu-catalog *, body[data-reduced-motion=true] .cu-catalog *::after { transition: none !important; }
+/* An explicit press on Play enables just this carousel's dissolve. */
+.cu-catalog .cu-feature[data-requested-play="true"] .cu-feature-image {
+  transition: opacity 920ms cubic-bezier(.42, 0, .26, 1) !important;
+}

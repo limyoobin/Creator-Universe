@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type TouchEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type TouchEvent } from "react";
 import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Eye, Grid2X2, List, Pause, Play, Search, Star, TrendingUp } from "lucide-react";
 import "./works-catalog.css";
 import { FeatureAtmosphere } from "./FeatureAtmosphere";
@@ -24,6 +24,7 @@ type CatalogProps<W extends CatalogWork> = {
   works: readonly W[];
   query: string;
   mode: CatalogMode;
+  reducedMotion: boolean;
   lastReadEpisode?: number;
   onModeChange: (mode: CatalogMode) => void;
   onClearSearch: () => void;
@@ -52,22 +53,7 @@ function normalize(value: string) {
   return value.normalize("NFKC").toLocaleLowerCase("ko").replace(/\s+/g, "");
 }
 
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.body.dataset.reducedMotion === "true");
-  useEffect(() => {
-    const system = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => {
-      const setting = document.body.dataset.reducedMotion;
-      setReduced(system.matches || setting === "true");
-    };
-    const observer = new MutationObserver(update);
-    observer.observe(document.body, { attributes: true, attributeFilter: ["data-reduced-motion"] });
-    system.addEventListener("change", update);
-    update();
-    return () => { observer.disconnect(); system.removeEventListener("change", update); };
-  }, []);
-  return reduced;
-}
+const tideFilmUrl = "/originals/tide-letter/feature-motion.mp4";
 
 type FeaturedProps<W extends CatalogWork> = Pick<CatalogProps<W>, "works" | "onOpenWork" | "lastReadEpisode"> & {
   popularWork?: W;
@@ -84,10 +70,14 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   const [requested, setRequested] = useState(0);
   const [displayed, setDisplayed] = useState(0);
   const [readyImages, setReadyImages] = useState<ReadonlySet<string>>(() => new Set());
-  const [paused, setPaused] = useState(false);
+  const [playback, setPlayback] = useState<"default" | "play" | "pause">("default");
+  const [filmPresented, setFilmPresented] = useState(false);
+  const [filmFailed, setFilmFailed] = useState(false);
+  const player = useRef<HTMLVideoElement>(null);
+  const playAttempt = useRef(0);
   const [hoveringControl, setHoveringControl] = useState(false);
   const [focusingControl, setFocusingControl] = useState(false);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => !("IntersectionObserver" in window));
   const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const feature = useRef<HTMLElement>(null);
   const copy = useRef<HTMLDivElement>(null);
@@ -96,8 +86,49 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   const selected = count ? displayed % count : 0;
   const target = count ? requested % count : 0;
   const targetReady = readyImages.has(slides[target]?.image);
-  const scenePlaying = visible && pageVisible && !paused && !reducedMotion;
+  const playbackEnabled = playback === "play" || (playback === "default" && !reducedMotion);
+  const scenePlaying = visible && pageVisible && playbackEnabled;
   const autoAdvance = scenePlaying && !hoveringControl && !focusingControl;
+  const active = slides[selected];
+  const hasActiveFilm = active?.work.id === tideWork.id && !active.ranking && !filmFailed;
+  const canPlayFilm = hasActiveFilm && scenePlaying && readyImages.has(active.image);
+
+  const startFilm = useCallback((video: HTMLVideoElement, fromButton = false) => {
+    if (!video.paused) return;
+    const attempt = ++playAttempt.current;
+    // Leave src unset until playback is allowed, including on the first visit with reduced motion.
+    if (!video.hasAttribute("src")) video.src = tideFilmUrl;
+    video.muted = true;
+    void video.play().catch((error: DOMException) => {
+      if (attempt !== playAttempt.current || player.current !== video || error.name === "AbortError") return;
+      if (error.name === "NotAllowedError" && !fromButton) setPlayback("pause");
+      else setFilmFailed(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) setPlayback(current => current === "play" ? "default" : current);
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    const video = player.current;
+    if (!video) return;
+    if (canPlayFilm) startFilm(video);
+    else {
+      playAttempt.current++;
+      video.pause();
+    }
+  }, [canPlayFilm, startFilm]);
+
+  function togglePlayback() {
+    if (playbackEnabled) {
+      setPlayback("pause");
+    } else {
+      setPlayback("play");
+      // A touch-initiated play must reach the media element during the gesture on mobile browsers.
+      if (hasActiveFilm && visible && pageVisible && player.current) startFilm(player.current, true);
+    }
+  }
 
   function markReady(image: string) {
     setReadyImages(current => current.has(image) ? current : new Set(current).add(image));
@@ -152,8 +183,9 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   }
 
   return (
-    <section ref={feature} className={"cu-feature" + (original ? " cu-feature-original" : "")} aria-label="추천 작품" aria-roledescription="캐러셀"
+    <section id="featured-works" ref={feature} className={"cu-feature" + (original ? " cu-feature-original" : "")} aria-label="추천 작품" aria-roledescription="캐러셀"
       data-motion={scenePlaying ? "playing" : "paused"}
+      data-requested-play={playback === "play"}
       onPointerOver={event => {
         if (event.pointerType !== "touch") setHoveringControl(Boolean((event.target as Element).closest("button:not([data-playback])")));
       }}
@@ -181,7 +213,9 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
             // Warm only the next illustration; keep the current scene up until the requested one decodes.
             const warmNext = n === (selected + 1) % count && readyImages.has(slides[selected].image);
             const loadArt = n === selected || n === target || warmNext || readyImages.has(slide.image);
-            return <div key={slide.ranking ? "ranking" : slide.work.id} className={"cu-feature-image" + (slide.ranking ? " cu-feature-ranking-art" : "")} data-active={n === selected}>
+            const hasFilm = slide.work.id === tideWork.id && !slide.ranking && !filmFailed;
+            const showFilm = hasFilm && filmPresented && (!reducedMotion || playback === "play");
+            return <div key={slide.ranking ? "ranking" : slide.work.id} className={"cu-feature-image" + (slide.ranking ? " cu-feature-ranking-art" : "")} data-active={n === selected} data-film-visible={showFilm}>
               {loadArt && <>
                 <img className="cu-feature-illustration" src={slide.image} alt="" decoding="async"
                   fetchPriority={n === selected || n === target ? "high" : "low"}
@@ -202,6 +236,9 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
                   }} />
                 {slide.ranking ? <img className="cu-feature-poster" src={slide.image} alt="" />
                   : <FeatureAtmosphere workId={slide.work.id} />}
+                {hasFilm && <video ref={player} className="cu-feature-video" muted playsInline loop
+                  preload="none" tabIndex={-1} disablePictureInPicture aria-hidden="true"
+                  onPlaying={() => setFilmPresented(true)} onError={() => setFilmFailed(true)} />}
               </>}
             </div>;
           })}
@@ -219,15 +256,17 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
             {original && <button type="button" className="cu-motion-open" onClick={() => onOpenWork(work, "motion")}><Play size={14} fill="currentColor"/>모션툰 보기</button>}
           </div>
         </div>
-        {count > 1 && <div className="cu-feature-controls">
-          <span className="cu-slide-count" aria-label={count + "개 중 " + (selected + 1) + "번째"}>
+        <div className="cu-feature-controls">
+          {count > 1 && <><span className="cu-slide-count" aria-label={count + "개 중 " + (selected + 1) + "번째"}>
             <b>{String(selected + 1).padStart(2, "0")}</b><span>/</span>{String(count).padStart(2, "0")}
           </span>
-          <button type="button" aria-label="이전 추천 작품" onClick={() => move(-1)}><ChevronLeft size={17} /></button>
-          {!reducedMotion && <button type="button" data-playback aria-label={paused ? "슬라이드 자동 재생" : "슬라이드 일시 정지"}
-            onClick={() => setPaused((value) => !value)}>{paused ? <Play size={12} fill="currentColor" /> : <Pause size={12} fill="currentColor" />}</button>}
-          <button type="button" aria-label="다음 추천 작품" onClick={() => move(1)}><ChevronRight size={17} /></button>
-        </div>}
+          <button type="button" aria-label="이전 추천 작품" onClick={() => move(-1)}><ChevronLeft size={17} /></button></>}
+          <button type="button" data-playback aria-label={playbackEnabled ? "슬라이드 일시 정지" : "슬라이드 자동 재생"} onClick={togglePlayback}>
+            {playbackEnabled ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
+            <span>{playbackEnabled ? "일시 정지" : "재생"}</span>
+          </button>
+          {count > 1 && <button type="button" aria-label="다음 추천 작품" onClick={() => move(1)}><ChevronRight size={17} /></button>}
+        </div>
       </div>
       {count > 1 && <div className="cu-feature-jumps" role="group" aria-label="추천 작품 선택">
         {slides.map((slide, n) => <button key={slide.ranking ? "ranking" : slide.work.id} type="button"
@@ -297,7 +336,7 @@ export function WorksCatalog<W extends CatalogWork>(props: CatalogProps<W>) {
   const browseHeading = search ? "검색 결과" : rankedView ? "작품 랭킹" : "작품 둘러보기";
   const showPicks = !search && !rankedView;
   const gridRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = props.reducedMotion;
   useEffect(() => {
     const root = gridRef.current;
     if (!root || reducedMotion || !("IntersectionObserver" in window) || !root.animate) return;

@@ -1234,21 +1234,18 @@ function readNotificationPreferences(): NotificationPreferences {
   }
 }
 
-function readAccessibilityPreferences(): AccessibilityPreferences {
-  const defaults = {
-    ...defaultAccessibilityPreferences,
-    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  };
-
+const accessibilityStorageKey = "creator-universe-accessibility-preferences";
+const systemMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+function readAccessibilityOverrides(): Partial<AccessibilityPreferences> {
   try {
-    const parsed = JSON.parse(localStorage.getItem("creator-universe-accessibility-preferences") || "null");
-    return {
-      highContrast: typeof parsed?.highContrast === "boolean" ? parsed.highContrast : defaults.highContrast,
-      largeText: typeof parsed?.largeText === "boolean" ? parsed.largeText : defaults.largeText,
-      reducedMotion: typeof parsed?.reducedMotion === "boolean" ? parsed.reducedMotion : defaults.reducedMotion,
-    };
+    const parsed = JSON.parse(localStorage.getItem(accessibilityStorageKey) || "null");
+    const overrides: Partial<AccessibilityPreferences> = {};
+    for (const { key } of accessibilityControls) {
+      if (typeof parsed?.[key] === "boolean") overrides[key] = parsed[key];
+    }
+    return overrides;
   } catch {
-    return defaults;
+    return {};
   }
 }
 
@@ -3265,7 +3262,13 @@ export function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
-  const [accessibilityPreferences, setAccessibilityPreferences] = useState<AccessibilityPreferences>(() => readAccessibilityPreferences());
+  const [accessibilityOverrides, setAccessibilityOverrides] = useState(readAccessibilityOverrides);
+  const [systemReducedMotion, setSystemReducedMotion] = useState(() => systemMotionQuery.matches);
+  const accessibilityPreferences = useMemo(() => ({
+    ...defaultAccessibilityPreferences,
+    reducedMotion: systemReducedMotion,
+    ...accessibilityOverrides,
+  }), [systemReducedMotion, accessibilityOverrides]);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const entryPanel = useRef(entryParams.get("open"));
   useEffect(() => {
@@ -4027,10 +4030,23 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
+    const syncMotion = () => setSystemReducedMotion(systemMotionQuery.matches);
+    const syncStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === accessibilityStorageKey) setAccessibilityOverrides(readAccessibilityOverrides());
+    };
+    systemMotionQuery.addEventListener("change", syncMotion);
+    window.addEventListener("storage", syncStorage);
+    syncMotion();
+    return () => {
+      systemMotionQuery.removeEventListener("change", syncMotion);
+      window.removeEventListener("storage", syncStorage);
+    };
+  }, []);
+
+  useEffect(() => {
     document.body.dataset.highContrast = accessibilityPreferences.highContrast ? "true" : "false";
     document.body.dataset.largeText = accessibilityPreferences.largeText ? "true" : "false";
     document.body.dataset.reducedMotion = accessibilityPreferences.reducedMotion ? "true" : "false";
-    localStorage.setItem("creator-universe-accessibility-preferences", JSON.stringify(accessibilityPreferences));
   }, [accessibilityPreferences]);
 
   useEffect(() => {
@@ -4550,10 +4566,13 @@ export function App() {
   }
 
   function toggleAccessibilityPreference(key: AccessibilityPreferenceKey) {
-    setAccessibilityPreferences((current) => ({
-      ...current,
-      [key]: !current[key],
-    }));
+    const next = { ...accessibilityOverrides, [key]: !accessibilityPreferences[key] };
+    setAccessibilityOverrides(next);
+    try {
+      localStorage.setItem(accessibilityStorageKey, JSON.stringify(next));
+    } catch {
+      // The selection still applies for this visit if browser storage is unavailable.
+    }
   }
 
   function toggleReaderFilter(filter: string) {
@@ -6094,6 +6113,7 @@ export function App() {
 
         {(activePage === "discover" || activePage === "ranking") && (
           <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
+            reducedMotion={accessibilityPreferences.reducedMotion || systemReducedMotion}
             lastReadEpisode={workProgress[tideWork.id]?.episodeNumber}
             onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
             onClearSearch={() => updateCatalogQuery("")} getRankScore={getWorkRankScore} getCreatorNames={getCreditNames}

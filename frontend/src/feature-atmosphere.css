@@ -9,6 +9,7 @@
   position: absolute;
   top: var(--height-in-scene);
   animation-iteration-count: infinite;
+  animation-duration: var(--particle-duration);
 }
 
 /* Long, backlit streaks follow the direction of the rain in the harbor painting. */
@@ -17,7 +18,7 @@
   width: 1px;
   height: 100%;
   animation-name: cu-harbor-rain;
-  animation-duration: 1.62s;
+  --particle-duration: 1.62s;
   animation-timing-function: linear;
 }
 .cu-feature-atmosphere[data-scene="rain"] > span::before {
@@ -29,9 +30,9 @@
   background: linear-gradient(transparent, #fff0d699 65%, #fff4dfdc);
   transform: rotate(9deg);
 }
-.cu-feature-atmosphere[data-scene="rain"] > span:nth-child(3n) { animation-duration: 1.19s; }
+.cu-feature-atmosphere[data-scene="rain"] > span:nth-child(3n) { --particle-duration: 1.19s; }
 .cu-feature-atmosphere[data-scene="rain"] > span:nth-child(3n)::before { height: 37px; width: 1.6px; }
-.cu-feature-atmosphere[data-scene="rain"] > span:nth-child(3n + 1) { animation-duration: 1.92s; }
+.cu-feature-atmosphere[data-scene="rain"] > span:nth-child(3n + 1) { --particle-duration: 1.92s; }
 .cu-feature-atmosphere[data-scene="rain"] > span:nth-child(3n + 1)::before { height: 19px; opacity: .68; }
 
 @keyframes cu-harbor-rain {
@@ -41,12 +42,12 @@
 
 /* Wisteria petals and flecks of gold follow the breezes painted into these scenes. */
 .cu-feature-atmosphere:is([data-scene="wisteria"], [data-scene="leaves"]) > span {
-  width: 8px;
-  height: 4px;
+  width: clamp(9px, 1.1vw, 14px);
+  height: clamp(5px, .6vw, 8px);
   border-radius: 90% 12% 85% 24%;
   background: linear-gradient(155deg, #fae0f5, #c99fda 70%, #a77ac1);
   animation-name: cu-atlas-drift;
-  animation-duration: 7.4s;
+  --particle-duration: 6.5s;
   animation-timing-function: ease-in-out;
 }
 .cu-feature-atmosphere[data-scene="leaves"] > span {
@@ -58,7 +59,7 @@
 .cu-feature-atmosphere:is([data-scene="wisteria"], [data-scene="leaves"]) > span:nth-child(even) {
   width: 5px;
   height: 3px;
-  animation-duration: 5.8s;
+  --particle-duration: 5.6s;
 }
 .cu-feature-atmosphere[data-scene="wisteria"] > span:nth-child(3n) {
   width: 8px;
@@ -66,15 +67,16 @@
   border-radius: 0;
   background: #ffedcf;
   clip-path: polygon(50% 0, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 40%);
-  animation: cu-observatory-glint 4.8s ease-in-out infinite;
+  animation-name: cu-observatory-glint;
+  --particle-duration: 4.8s;
 }
 
 @keyframes cu-atlas-drift {
-  0% { opacity: 0; transform: translate(-20px, -18px) rotate(-22deg); }
+  0% { opacity: 0; transform: translate(-32px, -28px) rotate(-22deg); }
   20% { opacity: .82; }
   55% { transform: translate(6px, 9px) rotate(28deg) scaleX(.58); }
   75% { opacity: .67; }
-  100% { opacity: 0; transform: translate(26px, 39px) rotate(84deg); }
+  100% { opacity: 0; transform: translate(38px, 54px) rotate(84deg); }
 }
 @keyframes cu-observatory-glint {
   0%, 100% { opacity: 0; transform: scale(.55); }
@@ -88,13 +90,13 @@
   border-radius: 50%;
   background: linear-gradient(90deg, transparent, #97e6ff 80%, #dcfcff);
   animation-name: cu-city-signal;
-  animation-duration: 3.6s;
+  --particle-duration: 3.6s;
   animation-timing-function: linear;
 }
 .cu-feature-atmosphere[data-scene="signals"] > span:nth-child(even) {
   width: 11px;
   background: linear-gradient(90deg, transparent, #ff9de8);
-  animation-duration: 5.1s;
+  --particle-duration: 5.1s;
   animation-direction: reverse;
 }
 @keyframes cu-city-signal {
@@ -109,6 +111,10 @@
   animation-play-state: paused;
 }
 @media (prefers-reduced-motion: reduce) {
-  .cu-feature-atmosphere { display: none; }
+  .cu-feature:not([data-requested-play="true"]) .cu-feature-atmosphere { display: none; }
 }
-body[data-reduced-motion="true"] .cu-feature-atmosphere { display: none; }
+body[data-reduced-motion="true"] .cu-feature:not([data-requested-play="true"]) .cu-feature-atmosphere { display: none; }
+.cu-feature[data-requested-play="true"] .cu-feature-atmosphere > span {
+  animation-duration: var(--particle-duration) !important;
+  animation-iteration-count: infinite !important;
+}
