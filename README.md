@@ -40,7 +40,7 @@
 
 새 회원은 이메일, 아이디, 닉네임, 비밀번호로 가입합니다. 같은 계정으로 작품을 감상하거나 창작자 모드를 활성화할 수 있습니다. 이미 패스키를 등록한 회원은 기존 기기로 로그인할 수 있습니다.
 
-[현재 작품 홈](https://project-limyoobins-projects.vercel.app/)과 [첫 디자인 홈페이지](https://project-limyoobins-projects.vercel.app/classic/)를 각각 열 수 있습니다.
+[현재 작품 홈](https://project-limyoobins-projects.vercel.app/)과 [개편 전 홈페이지](https://project-limyoobins-projects.vercel.app/classic/)를 각각 열 수 있습니다. 개편 전 홈페이지의 기준은 작품·랭킹을 메인으로 바꾸기 직전의 [28613ad](https://github.com/limyoobin/Creator-Universe/commit/28613ada281fa4030f7512ce88a574c1bc3bee03)입니다.
 
 독자에게는 작품, 지갑, 스크랩, 이어보기, 알림 같은 감상 중심 기능을 먼저 보여줍니다.
 

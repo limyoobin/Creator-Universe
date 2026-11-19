@@ -2,13 +2,13 @@ import { PreviousTopUp } from "./PreviousTopUp";
 import "./easy-login.css";
 import { cancelPasskeyPrompt, passkeyError, passkeySupported, verifyAccountPasskey } from "./passkeys";
 import { readProviderReturn, clearProviderReturn } from "./portone";
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { WorksCatalog } from "./WorksCatalog";
 import { MatchingProviders, matchProviderNames } from "./MatchingProviders";
 import type { MatchingProviderIssues } from "../../shared/matching-providers";
 import { TideReader, type TideMode } from "./TideReader";
 import { tideWork } from "./tide-letter";
-import { ArrowRight, ArrowUpRight, Trophy } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Home, Trophy } from "lucide-react";
 import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
 import {
   Bell,
@@ -458,7 +458,8 @@ const libraryViewItems = [
   { id: "scrapped", label: "스크랩" },
 ] as const;
 
-const readerWorks = [
+const classicWindow = /^\/classic(?:\/(?:index\.html)?)?$/.test(window.location.pathname);
+const originalReaderWorks = [
   {
     id: "midnight-signal",
     title: "미드나잇 시그널",
@@ -612,8 +613,10 @@ const readerWorks = [
     badge: "애니 파일럿",
     tone: "animation",
   },
-  tideWork,
 ];
+const readerWorks = classicWindow
+  ? originalReaderWorks.map(work => ({...work, coverImage: `/covers/${work.id}.svg`}))
+  : [...originalReaderWorks, tideWork];
 
 type ReaderWork = (typeof readerWorks)[number];
 
@@ -637,6 +640,34 @@ function getAudioExperienceLabel(work: ReaderWork) {
   }
   return "오디오 확장";
 }
+
+const contentFormatCards = [
+  {
+    title: "웹소설",
+    label: "Story First",
+    text: "작가가 원작을 연재하고 일러스트, 표지, 보이스 특전으로 확장합니다.",
+  },
+  {
+    title: "웹툰·만화",
+    label: "Visual IP",
+    text: "콘티, 펜선, 채색, 배경, 효과음 팀이 에피소드 단위로 협업합니다.",
+  },
+  {
+    title: "오디오드라마",
+    label: "Voice Expansion",
+    text: "성우, BGM, 사운드 디자이너가 기존 IP를 배리어프리 감상 경험으로 넓힙니다.",
+  },
+  {
+    title: "애니메이션",
+    label: "Motion IP",
+    text: "웹툰과 소설 IP를 숏폼 파일럿, 티저, 오프닝 영상으로 확장합니다.",
+  },
+  {
+    title: "믹스미디어",
+    label: "Fan Package",
+    text: "글, 이미지, 음성, ASMR, 비하인드 콘텐츠를 묶어 팬덤형 상품으로 판매합니다.",
+  },
+];
 
 const creatorFanPosts = [
   {
@@ -813,12 +844,19 @@ const studioSections = ["studio", "matching", "settlement"] as const;
 const previousLoginReturn = /^\/auth\/return\/(kakao|naver|pass)\/?$/.test(window.location.pathname);
 if (previousLoginReturn) window.history.replaceState(null, "", "/");
 const entryParams = new URLSearchParams(window.location.search);
-const studioWindow = studioSections.some(section => section === entryParams.get("studio"));
+const HeaderRow = classicWindow ? Fragment : "div";
+const studioWindow = !classicWindow && studioSections.some(section => section === entryParams.get("studio"));
 const readerDestinations = ["discover", "ranking", "creators", "library", "support", "home"] as const;
 function locationPage(): PageId {
   const params = new URLSearchParams(window.location.search);
+  if (classicWindow) return params.get("view") === "discover" ? "discover" : "home";
   return studioSections.find(section => section === params.get("studio"))
     ?? readerDestinations.find(section => section === params.get("view")) ?? "discover";
+}
+function locationLibraryView(): LibraryViewId {
+  if (!classicWindow) return "recent";
+  const collection = new URLSearchParams(window.location.search).get("collection");
+  return libraryViewItems.find(item => item.id === collection)?.id ?? "all";
 }
 
 const catalogueCredits: Record<string, { name: string; role: string }> = {
@@ -3630,7 +3668,7 @@ export function App() {
   const [readerSearch, setReaderSearch] = useState("");
   const catalogSearch = useRef<HTMLInputElement>(null);
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
-  const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("recent");
+  const [readerLibraryView, setReaderLibraryView] = useState<LibraryViewId>(locationLibraryView);
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
   const [salePrices, setSalePrices] = useState<Record<string,number>>({});
   useEffect(() => {
@@ -3741,13 +3779,14 @@ export function App() {
   const entryPanel = useRef(entryParams.get("open"));
   useEffect(() => {
     const panel = entryPanel.current;
-    if (panel !== "account" && panel !== "wallet-preview" && panel !== "help" && panel !== "chat") return;
-    if (panel === "account" && token && !user) return;
+    if (!panel || !["account", "wallet-preview", "wallet", "admin", "help", "chat"].includes(panel)) return;
+    if (["account", "wallet", "admin"].includes(panel) && token && !user) return;
     entryPanel.current = null;
     const url = new URL(window.location.href);
     url.searchParams.delete("open");
     window.history.replaceState(null, "", url);
     if (panel === "wallet-preview") setIsPaymentOpen(true);
+    if (panel === "wallet" || panel === "admin") navigate(panel);
     if (panel === "help") setIsSupportBotOpen(true);
     if (panel === "chat") openCreatorMessenger();
     if (panel === "account") {
@@ -3767,6 +3806,7 @@ export function App() {
     return [1,2,3].includes(ep) ? ep : null;
   });
   const [activePage, setActivePage] = useState<PageId>(locationPage);
+  const classicDiscover = classicWindow && activePage === "discover";
   useEffect(() => {
     const label = navItems.find(item => item.id === activePage)?.label ?? "서비스 소개";
     document.title = `${label} | ${studioWindow ? "Creator Studio" : "크리에이터 유니버스"}`;
@@ -3784,7 +3824,7 @@ export function App() {
     isNotificationOpen ? "notifications" : isAccountMenuOpen ? "account-menu" :
     isMessengerOpen ? "messenger" : isSupportBotOpen ? "help" : isAiHistoryOpen ? "ai-history" : null;
   useEffect(() => {
-    if (studioWindow || overlay) return;
+    if (classicWindow || studioWindow || overlay) return;
     function focusSearch(event: KeyboardEvent) {
       if (event.key !== "/" || event.defaultPrevented || event.isComposing || event.altKey || event.metaKey || event.ctrlKey) return;
       const target = event.target;
@@ -3837,18 +3877,30 @@ export function App() {
 
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
-  const isStudioMemberView = Boolean(studioWindow && user);
+  const isStudioMemberView = Boolean(studioWindow && user) || (classicWindow && (accountRole === "CREATOR" || isAdminAccount));
 
   const visibleNavItems = useMemo(
-    () =>
-      navItems.filter((item) => {
+    () => {
+      if (classicWindow) {
+        // The home before the works/ranking redesign used a single role-aware menu.
+        const home: (typeof navItems)[number] = { id: "home", label: "홈", helper: "서비스 소개" };
+        const works: (typeof navItems)[number] = { id: "discover", label: "작품", helper: "장르 탐색" };
+        return [home, works, ...navItems.filter(item => {
+          if (item.id === "support") return true;
+          if (item.id === "wallet") return Boolean(user);
+          if (item.id === "admin") return isAdminAccount;
+          return isStudioMemberView && creatorOnlyPages.has(item.id);
+        })];
+      }
+      return navItems.filter((item) => {
         if (item.id === "admin") return isAdminAccount && studioWindow;
         if (item.id === "wallet") return Boolean(user);
         if (creatorOnlyPages.has(item.id)) return studioWindow;
         if (studioWindow) return item.id === "support";
         return true;
-      }),
-    [isAdminAccount, user],
+      });
+    },
+    [isAdminAccount, isStudioMemberView, user],
   );
   const visibleOnboardingGuides = useMemo(
     () =>
@@ -4022,6 +4074,10 @@ export function App() {
     () => [...readerWorks].sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left)),
     [],
   );
+
+  const genreRankings = useMemo(() => classicWindow ? readerGenreFilters.map(genre => ({
+    genre, works: rankedReaderWorks.filter(work => work.genre === genre || work.tags.includes(genre)).slice(0, 3),
+  })).filter(chart => chart.works.length > 0) : [], [rankedReaderWorks]);
 
   const purchasedWorks = useMemo(
     () => readerWorks.filter((work) => purchasedWorkIds.includes(work.id)),
@@ -4762,6 +4818,7 @@ export function App() {
   }, [token, role]);
 
   function openPayment() {
+    if (classicWindow) { window.location.assign("/?open=wallet-preview"); return; }
     setIsPaymentReturn(false);
     setPaymentMode("charge");
     setIsPaymentOpen(true);
@@ -4857,15 +4914,26 @@ export function App() {
       return;
     }
 
-    setReaderLibraryView(view === "all" ? "recent" : view);
+    setReaderLibraryView(view === "all" && !classicWindow ? "recent" : view);
     setReaderSearch("");
     setReaderFilters([]);
+    if (classicWindow) {
+      setIsMobileQuickOpen(false);
+      setIsAccountModalOpen(false);
+      setIsMobileMenuOpen(false);
+      selectPage("discover", view);
+      window.requestAnimationFrame(() => document.getElementById("reader-library")?.scrollIntoView({
+        behavior: accessibilityPreferences.reducedMotion ? "instant" : "smooth", block: "start",
+      }));
+      return;
+    }
     navigate(view === "all" ? "discover" : "library");
   }
 
   useEffect(() => {
     function restorePage() {
       setActivePage(locationPage());
+      if (classicWindow) setReaderLibraryView(locationLibraryView());
       setReaderSearch("");
       setIsMobileMenuOpen(false);
       setIsMobileQuickOpen(false);
@@ -4876,9 +4944,14 @@ export function App() {
     return () => window.removeEventListener("popstate", restorePage);
   }, []);
 
-  function selectPage(page: PageId) {
+  function selectPage(page: PageId, collection?: LibraryViewId) {
     const url = new URL(window.location.href);
-    if (studioWindow && studioSections.some(section => section === page)) {
+    if (classicWindow) {
+      if (page === "discover") url.searchParams.set("view", "discover");
+      else url.searchParams.delete("view");
+      if (collection && collection !== "all") url.searchParams.set("collection", collection);
+      else url.searchParams.delete("collection");
+    } else if (studioWindow && studioSections.some(section => section === page)) {
       url.searchParams.set("studio", page);
     } else if (!studioWindow && readerDestinations.some(section => section === page)) {
       if (page === "discover") url.searchParams.delete("view");
@@ -4893,6 +4966,18 @@ export function App() {
     setIsMobileQuickOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotificationOpen(false);
+    if (classicWindow) {
+      if (page === "home" || page === "discover") {
+        selectPage(page);
+        setReaderLibraryView("all");
+        window.scrollTo({ top: 0, behavior: "instant" });
+      }
+      else if (creatorOnlyPages.has(page)) window.location.assign("/?studio=" + page);
+      else if (page === "wallet") window.location.assign("/?open=wallet");
+      else if (page === "admin") window.location.assign("/?studio=studio&open=admin");
+      else window.location.assign("/?view=" + page);
+      return;
+    }
     if (!studioWindow && creatorOnlyPages.has(page)) {
       window.open(`/?studio=${page}`, "_blank", "noopener,noreferrer");
       return;
@@ -4941,6 +5026,7 @@ export function App() {
   }
 
   function openMyAccount() {
+    if (classicWindow) { window.location.assign("/?open=account"); return; }
     setIsMobileQuickOpen(false);
     setIsMobileMenuOpen(false);
     setIsAccountMenuOpen(false);
@@ -5664,8 +5750,8 @@ export function App() {
   }
 
   return (
-    <div className={`app ${studioWindow ? "studio-shell" : "reader-shell"} page-${activePage}`}>
-      {isBootLoading && studioWindow && (
+    <div className={`app ${classicWindow ? "classic-shell" : studioWindow ? "studio-shell" : "reader-shell"} page-${activePage}`}>
+      {isBootLoading && (classicWindow || studioWindow) && (
         <div className="boot-loader" role="status" aria-live="polite">
           <div className="boot-loader-card">
             <div className="loader-cat" aria-hidden="true">
@@ -5700,13 +5786,26 @@ export function App() {
           </div>
         </div>
       )}
-      <header className="cu-masthead">
-        <div className="cu-header-row">
-          <a className="cu-wordmark" href={studioWindow ? "/?studio=studio" : "/"}>
+      <header className={classicWindow ? "topbar" : "cu-masthead"}>
+        <HeaderRow {...(classicWindow ? {} : {className: "cu-header-row"})}>
+          {classicWindow ? <>
+            <button className="brand" onClick={() => navigate("home")}>
+              <span className="brand-logo"><img src="/logo.png" alt="" /></span>
+              <strong>크리에이터 유니버스</strong>
+              <em>Audio Studio</em>
+            </button>
+            <nav className="desktop-nav" aria-label="홈 메뉴">
+              {visibleNavItems.map(item => (
+                <button key={item.id} className={item.id === activePage ? "active" : ""} onClick={() => navigate(item.id)}>
+                  <span>{item.label}</span><small>{item.helper}</small>
+                </button>
+              ))}
+            </nav>
+          </> : <a className="cu-wordmark" href={studioWindow ? "/?studio=studio" : "/"}>
             <img src="/logo.png" width="34" height="34" alt="" />
             <strong>{studioWindow ? "Creator Studio" : "Creator Universe"}</strong>
-          </a>
-          {!studioWindow && <form className="cu-search" role="search" onSubmit={event => {
+          </a>}
+          {!classicWindow && !studioWindow && <form className="cu-search" role="search" onSubmit={event => {
             event.preventDefault();
             selectPage("discover");
             window.scrollTo(0, 0);
@@ -5718,7 +5817,7 @@ export function App() {
           </form>}
         <div className="header-actions">
           <button className="ghost-button nav-pay-button" onClick={openPayment}>
-            <Coins size={16} /> 충전 체험
+            <Coins size={16} /> {classicWindow ? "결제" : "충전 체험"}
           </button>
           <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="테마 변경">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -5841,7 +5940,7 @@ export function App() {
               )}
             </div>
           ) : (
-            <button className="primary-button compact" onClick={() => setAuthMode("login")}><LogIn size={16} /> 로그인</button>
+            <button className="primary-button compact" onClick={classicWindow ? openMyAccount : () => setAuthMode("login")}><LogIn size={16} /> 로그인</button>
           )}
           <button
             className="icon-button mobile-menu-button"
@@ -5852,31 +5951,36 @@ export function App() {
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-        </div>
-        <div className="cu-nav-row">
+        </HeaderRow>
+        {!classicWindow && <div className="cu-nav-row">
           <nav className="cu-sections" aria-label={studioWindow ? "스튜디오 메뉴" : "작품 메뉴"}>
             {visibleNavItems.filter(item => studioWindow || ["discover", "ranking", "library", "creators"].includes(item.id)).map(item => (
               <button key={item.id} aria-current={activePage === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>
             ))}
           </nav>
-          {!studioWindow && <a className="cu-classic-shortcut" href="/classic/">첫 디자인 홈페이지</a>}
+          {!studioWindow && <a className="cu-classic-shortcut" href="/classic/">개편 전 홈페이지</a>}
           {studioWindow ? <a className="cu-studio-link" href="/">작품으로 <BookOpen size={14} /></a>
             : <a className="cu-studio-link" href="/?studio=studio" target="_blank" rel="noopener noreferrer" aria-label="스튜디오 새 창에서 열기">스튜디오 <ArrowUpRight size={15} /></a>}
-        </div>
-        {isMobileMenuOpen && <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
+        </div>}
+        {isMobileMenuOpen && <div className="mobile-drawer open">
           <div className="mobile-drawer-card">
-            <strong>전체 메뉴</strong>
-            <a className="cu-drawer-classic" href="/classic/">첫 디자인 홈페이지 <ArrowRight size={15} aria-hidden="true" /></a>
+            {classicWindow ? <p><Sparkles size={16} /> Creator Universe Menu</p> : <>
+              <strong>전체 메뉴</strong>
+              <a className="cu-drawer-classic" href="/classic/">개편 전 홈페이지 <ArrowRight size={15} aria-hidden="true" /></a>
+            </>}
             {visibleNavItems.map((item) => (
               <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => navigate(item.id)}>
                 <span>{item.label}</span>
                 <small>{item.helper}</small>
               </button>
             ))}
+            {classicWindow && <button onClick={() => window.location.assign("/")}>현재 작품 홈</button>}
+            {!classicWindow && <>
             <button onClick={() => { setIsMobileMenuOpen(false); setIsSupportBotOpen(true); setIsMessengerOpen(false); }}>도움봇</button>
             <button onClick={() => { setIsMobileMenuOpen(false); openCreatorMessenger(); }}>창작자 채팅</button>
             <button onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setIsMobileMenuOpen(false); }}>테마 변경</button>
             <button onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
+            </>}
             <button className="drawer-pay-button" onClick={() => { setIsMobileMenuOpen(false); openPayment(); }}>
               <Coins size={17} /> 코인 충전 체험
             </button>
@@ -6595,7 +6699,7 @@ export function App() {
           </div>
         )}
 
-        {(activePage === "discover" || activePage === "ranking") && (
+        {!classicWindow && (activePage === "discover" || activePage === "ranking") && (
           <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
             lastReadEpisode={workProgress[tideWork.id]?.episodeNumber}
             onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
@@ -6603,16 +6707,243 @@ export function App() {
             onOpenWork={(work, mode, episode) => { setTideEntryEpisode(episode ?? null); setTideMode(mode ?? "read"); setSelectedWork(work); setReviewWorkId(work.id); }} />
         )}
 
-        {activePage === "library" && <section className="section reader-subpage page-panel">
-          <section className="recommend-strip" id="reader-library">
+        {(classicDiscover || activePage === "library" || activePage === "creators") && <section className={classicDiscover ? "section discover-page page-panel" : "section reader-subpage page-panel"}>
+          {classicDiscover && <>
+          <section className="app-discover-dashboard" aria-label="앱 작품 탐색 요약">
+            <div className="app-discover-head">
+              <span>Library</span>
+              <h2>오늘 볼 작품을 빠르게 찾기</h2>
+              <p>앱에서는 검색, 이어보기, 스크랩을 먼저 보여줘서 복잡하게 내려가지 않아도 바로 감상할 수 있게 했어요.</p>
+            </div>
+
+            <label className="app-discover-search">
+              <Search size={17} />
+              <input
+                value={readerSearch}
+                onChange={(event) => setReaderSearch(event.target.value)}
+                placeholder="웹툰 로맨스, 소설 판타지처럼 검색"
+                type="search"
+              />
+            </label>
+
+            <div className="app-discover-library-tabs" aria-label="앱 작품 보관함 바로가기">
+              {libraryViewItems.map((item) => {
+                const count =
+                  item.id === "recent"
+                    ? recentWorkIds.length
+                    : item.id === "purchased"
+                      ? purchasedWorkIds.length
+                      : item.id === "scrapped"
+                        ? scrappedWorkIds.length
+                        : readerWorks.length;
+
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={readerLibraryView === item.id ? "active" : ""}
+                    onClick={() => openReaderLibrary(item.id)}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <article className="app-continue-card">
+              {(() => {
+                const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
+                const progress = workProgress[continueWork.id];
+
+                return (
+                  <>
+                    <img src={continueWork.coverImage} alt="" />
+                    <div>
+                      <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : "추천 이어보기"}</span>
+                      <strong>{continueWork.title}</strong>
+                      <p>{continueWork.format} · {continueWork.genre}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedWork(continueWork);
+                        setReviewWorkId(continueWork.id);
+                      }}
+                    >
+                      <Play size={15} /> 보기
+                    </button>
+                  </>
+                );
+              })()}
+            </article>
+
+            <div className="app-filter-strip" aria-label="앱 장르 빠른 선택">
+              {[...readerFormatFilters.slice(0, 5), ...readerGenreFilters.slice(0, 6)].map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className={(filter === "전체" ? readerFilters.length === 0 : readerFilters.includes(filter)) ? "active" : ""}
+                  onClick={() => toggleReaderFilter(filter)}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="discover-hero">
+            <div>
+              <p className="kicker">Multi Content Library</p>
+              <h2>소설, 웹툰, 만화, 애니메이션, 오디오드라마를 장르별로 골라보세요</h2>
+              <p>독자는 웹툰 플랫폼처럼 원하는 장르와 콘텐츠 형식을 고르고, 창작팀은 하나의 IP를 글·그림·소리·영상으로 확장해 유통할 수 있습니다.</p>
+            </div>
+            <div className="featured-work">
+              <span><Flame size={15} /> 실시간 인기</span>
+              <strong>{readerWorks[0].title}</strong>
+              <p>{readerWorks[0].tagline}</p>
+              <button onClick={() => openWorkPayment(readerWorks[0].id)}><Coins size={17} /> {formatCoins(salePrices[readerWorks[0].id] ?? readerWorks[0].priceCoins)} 열람</button>
+            </div>
+          </div>
+
+          <section className="content-format-grid" aria-label="콘텐츠 형식별 협업 모델">
+            {contentFormatCards.map((item, index) => (
+              <article className="content-format-card" key={item.title}>
+                <div className={`content-3d-stack stack-${index + 1}`} aria-hidden="true">
+                  <i />
+                  <b />
+                  <em />
+                </div>
+                <span>{item.label}</span>
+                <strong>{item.title}</strong>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </section>
+
+          <section className="ranking-section">
             <div className="section-head">
               <div>
-                <h1>내 서재</h1>
+                <p className="kicker">Ranking</p>
+                <h2>지금 가장 많이 보는 작품과 장르별 TOP 차트</h2>
+              </div>
+              <p className="section-description">
+                <span>감상 수, 평점, 회차 활동성을 합산해 만든 데모 랭킹입니다.</span>
+                <span>카드 클릭 시 작품 상세와 댓글/리뷰로 바로 연결됩니다.</span>
+              </p>
+            </div>
+            <div className="ranking-layout">
+              <article className="overall-ranking-card">
+                <div className="ranking-card-head">
+                  <span>전체 차트</span>
+                  <small>오늘의 인기 순위</small>
+                </div>
+                {rankedReaderWorks.slice(0, 8).map((work, index) => (
+                  <button
+                    className={index < 3 ? "podium" : ""}
+                    key={work.id}
+                    onClick={() => {
+                      setSelectedWork(work);
+                      setReviewWorkId(work.id);
+                    }}
+                  >
+                    <b>{index + 1}</b>
+                    <img src={work.coverImage} alt="" />
+                    <div>
+                      <strong>{work.title}</strong>
+                      <small>{work.format} · {work.genre} · ★ {work.rating}</small>
+                    </div>
+                    <em>{index === 0 ? "HOT" : index % 3 === 0 ? "NEW" : `▲ ${index + 1}`}</em>
+                  </button>
+                ))}
+              </article>
+
+              <div className="genre-ranking-grid">
+                {genreRankings.map((ranking) => (
+                  <article key={ranking.genre}>
+                    <span>{ranking.genre}</span>
+                    {ranking.works.map((work, index) => (
+                      <button
+                        key={work.id}
+                        onClick={() => {
+                          setSelectedWork(work);
+                          setReviewWorkId(work.id);
+                        }}
+                      >
+                        <b>{index + 1}</b>
+                        <div>
+                          <strong>{work.title}</strong>
+                          <small>{work.format} · {work.listeners} · ★ {work.rating}</small>
+                        </div>
+                      </button>
+                    ))}
+                  </article>
+                ))}
               </div>
             </div>
+          </section>
+          </>}
+          {(classicDiscover || activePage === "library") && <section className="recommend-strip" id="reader-library">
+            <div className="section-head">
+              <div>
+                {classicDiscover ? <>
+                  <p className="kicker">Recommended</p>
+                  <h2>{readerFilters.length ? readerFilters.join(" · ") + " 추천작" : "전체 추천작"}</h2>
+                </> : <h1>내 서재</h1>}
+              </div>
+              {classicDiscover && <p>선택한 장르와 검색어에 맞춰 독자용 작품 카드가 바뀝니다.</p>}
+            </div>
+            {classicDiscover &&
+              <div className="library-shelf">
+              <article>
+                <div>
+                  <span>Continue</span>
+                  <strong>최근 본 작품</strong>
+                  <p>{recentWorks.length > 0 ? `${recentWorks.length}개 작품 이어보기 가능` : "작품 상세를 열면 자동 저장돼요"}</p>
+                </div>
+                <div className="library-cover-stack recent-stack">
+                  {(recentWorks.length > 0 ? recentWorks : readerWorks.slice(1, 4)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => openReaderLibrary("recent")}>
+                  최근 본 작품 보기
+                </button>
+              </article>
+              <article>
+                <div>
+                  <span>Purchased</span>
+                  <strong>결제한 작품</strong>
+                  <p>{purchasedWorks.length > 0 ? `${purchasedWorks.length}개 열람권 보유` : "아직 결제한 작품이 없어요"}</p>
+                </div>
+                <div className="library-cover-stack">
+                  {(purchasedWorks.length > 0 ? purchasedWorks : readerWorks.slice(0, 3)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => openReaderLibrary("purchased")}>
+                  결제한 작품만 보기
+                </button>
+              </article>
+              <article>
+                <div>
+                  <span>Scrap</span>
+                  <strong>스크랩 보관함</strong>
+                  <p>{scrappedWorks.length > 0 ? `${scrappedWorks.length}개 작품 저장됨` : "하트를 누르면 여기에 저장돼요"}</p>
+                </div>
+                <div className="library-cover-stack heart-stack">
+                  {(scrappedWorks.length > 0 ? scrappedWorks : readerWorks.slice(3, 6)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => openReaderLibrary("scrapped")}>
+                  스크랩만 보기
+                </button>
+              </article>
+            </div>}
             <div className="reader-toolbar recommend-toolbar">
               <div className="library-tabs" aria-label="내 작품 보관함 필터">
-                {libraryViewItems.filter(item => item.id !== "all").map((item) => {
+                {libraryViewItems.filter(item => classicDiscover || item.id !== "all").map((item) => {
                   const count =
                     item.id === "recent"
                       ? recentWorkIds.length
@@ -6626,11 +6957,12 @@ export function App() {
                       key={item.id}
                       className={readerLibraryView === item.id ? "active" : ""}
                       onClick={() => {
-                      if ((item.id === "purchased" || item.id === "scrapped") && !token) {
-                        setAuthMode("login");
-                        return;
-                      }
+                        if ((item.id === "purchased" || item.id === "scrapped") && !token) {
+                          setAuthMode("login");
+                          return;
+                        }
                         setReaderLibraryView(item.id);
+                        if (classicDiscover) selectPage("discover", item.id);
                       }}
                     >
                       {item.id === "recent" && <RefreshCw size={15} />}
@@ -6765,21 +7097,21 @@ export function App() {
               <div className="empty-matching">
                 <BookOpen size={24} />
                 <strong>조건에 맞는 작품이 없어요</strong>
-                <button type="button" onClick={() => navigate("discover")}>작품 둘러보기</button>
+                {classicDiscover ? <p>다른 장르를 누르거나 검색어를 바꿔보세요.</p> :
+                  <button type="button" onClick={() => navigate("discover")}>작품 둘러보기</button>}
               </div>
             )}
-          </section>
-
-        </section>}
-
-        {activePage === "creators" && <section className="section reader-subpage page-panel">
-          <section className="creator-discovery-strip">
+          </section>}
+          {(classicDiscover || activePage === "creators") && <section className="creator-discovery-strip">
             <div className="section-head">
               <div>
 
-                <h1>창작자 찾기</h1>
+                {classicDiscover ? <>
+                  <p className="kicker">Creator Search</p>
+                  <h2>작품에 참여한 작가, 성우, 그림 작가를 찾아보세요</h2>
+                </> : <h1>창작자 찾기</h1>}
               </div>
-              <p>이름, 직군, 작품명으로 참여 창작자를 검색하세요.</p>
+              <p>{classicDiscover ? "이름, 직군, 작품명, 장르를 검색해서 창작자 프로필을 열고 후원이나 구독으로 연결할 수 있습니다." : "이름, 직군, 작품명으로 참여 창작자를 검색하세요."}</p>
             </div>
             <div className="creator-search-toolbar">
               <label className="matching-search">
@@ -6817,8 +7149,7 @@ export function App() {
                 );
               })}
             </div>
-          </section>
-
+          </section>}
         </section>}
 
         {studioWindow && creatorOnlyPages.has(activePage) && !isStudioMemberView && (
@@ -8946,12 +9277,20 @@ export function App() {
 
       <footer className="site-footer">
         <div className="footer-brand">
-          <strong>Creator Universe</strong>
-          <small className="footer-copy">© 2026 Creator Universe Inc.</small>
+          {classicWindow ? <>
+            <span className="footer-logo"><img src="/logo.png" alt="" /></span>
+            <div><strong>Creator Universe</strong><p>대한민국</p></div>
+          </> : <>
+            <strong>Creator Universe</strong>
+            <small className="footer-copy">© 2026 Creator Universe Inc.</small>
+          </>}
         </div>
+        {classicWindow && <p className="footer-copy">Copyright © 2026 Creator Universe Inc. 모든 권리 보유.</p>}
         <nav className="footer-links" aria-label="하단 링크">
-          <a href="/classic/">첫 디자인 홈페이지</a>
-          <button className="cu-footer-link" onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
+          {classicWindow ? <a href="/">현재 작품 홈</a> : <>
+            <a href="/classic/">개편 전 홈페이지</a>
+            <button className="cu-footer-link" onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
+          </>}
           <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
           <a href="/terms.html" target="_blank" rel="noreferrer">약관</a>
           <a href="/refund-policy.html" target="_blank" rel="noreferrer">판매 및 환불</a>
@@ -8962,8 +9301,15 @@ export function App() {
       </footer>
 
       <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
+        {classicWindow ? <>
+          <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
+          {isStudioMemberView
+            ? <button onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
+            : <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>}
+        </> : <>
         <button className={activePage === (studioWindow ? "studio" : "discover") ? "active" : ""} onClick={() => navigate(studioWindow ? "studio" : "discover")}><BookOpen size={18} />{studioWindow ? "스튜디오" : "작품"}</button>
         <button className={activePage === (studioWindow ? "matching" : "ranking") ? "active" : ""} onClick={() => navigate(studioWindow ? "matching" : "ranking")}><Trophy size={18} />{studioWindow ? "매칭" : "랭킹"}</button>
+        </>}
         <button
           className="mobile-plus-tab"
           type="button"
