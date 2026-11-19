@@ -26,7 +26,7 @@
 
 | 구분 | 내용 |
 | --- | --- |
-| 계정 | 회원가입, 로그인, 아이디/닉네임 중복 확인, 비밀번호 찾기, 계정 탈퇴 |
+| 계정 | 패스키 가입·로그인, 기존 계정의 비밀번호 로그인, 아이디/닉네임 중복 확인, 계정 탈퇴 |
 | 작품 | 작품 탐색, 장르/형식 필터, 스크랩, 결제한 작품, 이어보기 |
 | 매칭 | 창작자 프로필 등록, 포트폴리오 보기, 채팅, 매칭 제안, 제안 수락/거절 |
 | AI 매칭 | 작품 설명을 입력하면 맞는 직군과 후보를 추천. `글 작가 한 명만`, `사운드 디자이너만` 같은 조건도 반영 |
@@ -38,7 +38,7 @@
 
 ## 독자 모드와 창작자 모드
 
-처음에는 한 화면에 너무 많은 기능이 들어가면서 앱이 복잡해 보이는 문제가 있었습니다. 그래서 회원가입할 때 독자와 창작자를 나누고, 앱 안에서도 역할에 따라 보이는 메뉴를 다르게 구성했습니다.
+새 회원은 이메일, 아이디, 닉네임을 입력한 뒤 기기의 지문·얼굴 인식 또는 PIN으로 패스키를 등록합니다. 하나의 계정으로 가입한 뒤 작품을 감상하거나 창작자 모드를 활성화할 수 있습니다. 기존 비밀번호 계정은 이전과 같은 방식으로 로그인합니다.
 
 독자에게는 작품, 지갑, 스크랩, 이어보기, 알림 같은 감상 중심 기능을 먼저 보여줍니다.
 
@@ -48,15 +48,13 @@
 
 매칭 페이지에는 AI 매칭 매니저를 넣었습니다. 사용자가 “나는 이런 장르의 소설을 썼는데 여기에 맞는 성우를 추천해줘”처럼 자연스럽게 말하면, 등록된 창작자 프로필과 포트폴리오를 기준으로 후보를 골라줍니다.
 
-Gemini API를 사용할 수 있으면 Gemini가 먼저 답하고, API 키가 없거나 한도에 걸리면 로컬 추천 로직으로 자동 전환됩니다. 로컬 추천도 같은 직군/인원 해석 규칙을 쓰도록 맞춰서, `글 작가 한 명만`, `성우 말고 그림 작가`, `사운드 디자이너 있나?` 같은 문장이 최대한 흔들리지 않게 처리되도록 했습니다.
+먼저 직군, 인원, 제외 조건에 맞는 후보를 찾습니다. 장르나 제작 방식처럼 비교할 근거가 있으면 연결된 Groq·NVIDIA Build·Google AI Studio가 최대 8명의 후보를 동시에 검토합니다. 각 모델은 후보 번호와 제시된 근거 번호만 선택합니다. 서버는 유효한 응답을 모아 점수가 근접한 후보의 순서를 조정하고 추천 근거를 표시합니다. 키가 없거나 유효한 응답이 하나도 없으면 기존 점수 순서를 사용합니다.
 
-무료 베타 운영을 생각해서 Gemini 호출은 하루 제한을 두고 사용하도록 설정했습니다.
-
-추천 순위는 API와 브라우저의 공통 매칭 엔진으로 계산합니다. 직군(30점), 장르·분위기(35점), 작업 키워드(20점), 응답률·완료 작업(15점)을 합산하며, 같은 키워드가 반복돼도 점수가 중복 가산되지 않습니다. 점수는 공개 프로필과 입력 조건의 일치 근거를 나타냅니다. 여러 직군을 요청하면 가능한 범위에서 역할별 후보를 포함합니다.
+추천 카드의 점수는 API와 브라우저의 공통 매칭 엔진으로 계산합니다. 직군(30점), 장르·분위기(35점), 작업 키워드(20점), 응답률·완료 작업(15점)을 합산하며, 같은 키워드가 반복돼도 점수가 중복 가산되지 않습니다. 점수는 공개 프로필과 입력 조건의 일치 근거를 나타냅니다. 여러 직군을 요청하면 가능한 범위에서 역할별 후보를 포함합니다.
 
 추가 질문에서도 작품 조건과 요청 인원을 유지하고, 직군·후보 제외 조건을 반영합니다. 추천 카드의 근거 상세와 후보 비교표에서 차이를 확인할 수 있습니다. 연결이 지연될 때도 브라우저에서 같은 추천 기준을 사용합니다.
 
-`npm run test:ai`로 직군 해석과 추천 순위·대화 맥락 회귀 테스트를 실행할 수 있습니다.
+`npm run test:ai`로 직군과 대화 맥락 해석, 제공사별 요청 형식, 여러 모델의 순위 집계, 응답 장애 시 로컬 추천을 검증할 수 있습니다.
 
 
 ## 기술 스택
@@ -64,11 +62,11 @@ Gemini API를 사용할 수 있으면 Gemini가 먼저 답하고, API 키가 없
 | 영역 | 사용 기술 |
 | --- | --- |
 | Frontend | React, Vite, TypeScript, CSS |
-| Backend | Node.js, Express, TypeScript |
+| Backend | Node.js, Express, TypeScript, SimpleWebAuthn |
 | Database | PostgreSQL, Prisma |
 | Deploy | Vercel, Render, Neon PostgreSQL |
 | Mobile | Android WebView |
-| AI | Gemini API + 로컬 fallback 매칭 로직 |
+| AI | 공개 프로필 매칭 엔진, Groq API, NVIDIA Build, Gemini API |
 
 ## 프로젝트 구조
 
@@ -106,11 +104,9 @@ DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
 PORT=4000
 CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
 ALLOW_INSECURE_USER_CONTEXT=false
-GEMINI_AI_ENABLED=false
+GROQ_API_KEY=""
+NVIDIA_API_KEY=""
 GEMINI_API_KEY=""
-GEMINI_FREE_ONLY=true
-GEMINI_MODEL="gemini-2.5-flash-lite"
-GEMINI_DAILY_REQUEST_LIMIT=40
 ```
 
 DB 준비:
@@ -159,12 +155,12 @@ NODE_ENV=production
 DATABASE_URL=postgresql://...
 CORS_ORIGINS=https://project-limyoobins-projects.vercel.app
 ALLOW_INSECURE_USER_CONTEXT=false
-GEMINI_AI_ENABLED=true
-GEMINI_API_KEY=Google AI Studio에서 발급한 키
-GEMINI_FREE_ONLY=true
-GEMINI_MODEL=gemini-2.5-flash-lite
-GEMINI_DAILY_REQUEST_LIMIT=40
+GROQ_API_KEY=""
+NVIDIA_API_KEY=""
+GEMINI_API_KEY=""
 ```
+
+사용할 제공사의 키만 Render 서비스의 Environment에 입력합니다. 기본 모델, 제공사별 호출 제한, 패스키 도메인 설정은 배포 가이드에 정리했습니다. [배포 가이드](DEPLOYMENT.md)
 
 ## Android 앱 빌드
 

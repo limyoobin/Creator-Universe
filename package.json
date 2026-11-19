@@ -16,12 +16,14 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
-    "test:ai": "tsx scripts/ai-matching-smoke.ts && tsx scripts/creator-matching-test.ts",
+    "test:ai": "tsx scripts/ai-matching-smoke.ts && tsx scripts/creator-matching-test.ts && tsx scripts/matching-providers-test.ts && tsx scripts/matching-consensus-test.ts",
     "test:portone": "tsx scripts/signup-identity-test.ts && tsx scripts/wallet-topup-test.ts",
-    "test:portone:postgres": "tsx scripts/portone-postgres-integration.ts"
+    "test:portone:postgres": "tsx scripts/portone-postgres-integration.ts",
+    "test:passkeys:postgres": "tsx scripts/passkey-integration-test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
+    "@simplewebauthn/server": "^13.3.3",
     "express": "^4.21.2",
     "zod": "^3.24.4"
   },

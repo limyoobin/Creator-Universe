@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { makeTestPasskey } from "./passkey-test-fixture.js";
 
 // Run migrations on a disposable local Postgres cluster using the cu_portone_qa
 // DB user. Require an explicit test URL; ignore the application's DATABASE_URL.
@@ -13,7 +14,14 @@ Object.assign(process.env, {
   PORTONE_IDENTITY_CHANNEL_KEY: "identity-fixture", PORTONE_IDENTITY_REQUIRED: "true",
 });
 const { prisma } = await import("../src/lib/prisma.js");
-const { signup } = await import("../src/services/auth.service.js");
+const { startPasskeyRegistration, finishPasskeyRegistration } = await import("../src/services/passkey.service.js");
+const { passkeyOrigin } = await import("../src/services/passkey.service.js");
+const site = passkeyOrigin("https://project-limyoobins-projects.vercel.app");
+async function signup(account: Parameters<typeof startPasskeyRegistration>[1]) {
+  const { options, ceremonyId } = await startPasskeyRegistration(site, account);
+  const localKey = makeTestPasskey(site.rpID);
+  return finishPasskeyRegistration(site, ceremonyId, account, localKey.register(options.challenge, site.origin));
+}
 const { startSignupIdentity, confirmSignupIdentity } = await import("../src/services/signup-identity.service.js");
 const { createTopUp, reconcileTopUp } = await import("../src/services/wallet-topup.service.js");
 const { settleContentPurchase, purchasedLibrary, saleCatalog, purchasedAudio } = await import("../src/services/settlement.service.js");
@@ -28,7 +36,7 @@ globalThis.fetch = async input => {
 };
 const account = () => {
   const tag = randomUUID().slice(0, 8);
-  return { username: "test_" + tag, email: tag + "@example.invalid", displayName: "test_" + tag, password: "local-test!password" };
+  return { username: "test_" + tag, email: tag + "@example.invalid", displayName: "test_" + tag };
 };
 const rejected = (code: number) => (err: unknown) => err instanceof AppError && err.statusCode === code;
 

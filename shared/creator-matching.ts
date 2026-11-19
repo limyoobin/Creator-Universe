@@ -40,6 +40,21 @@ const normalize = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]/
 const exclusions = "(?:님)?(?:은|는|을|를|이|가|도)?(?:말고|제외|빼고|빼줘|빼주세요|필요없|나중|후순위|아니고|아닌)";
 const excludedAlias = (text: string, alias: string) => new RegExp(normalize(alias) + exclusions).test(normalize(text));
 
+// Only these domain terms may leave the server. Never emit arbitrary text from
+// a brief, profile, or conversation as part of a model's candidate review.
+const reviewVocabulary = unique([
+  ...Object.values(topicAliases).flat(), ...workKeywords, ...Object.values(roleWords).flat(),
+  "몽환", "서정", "웅장", "서늘", "경쾌", "차분", "밝은", "어두운", "속삭임", "잔향",
+  "재즈", "현악", "신시사이저", "폴리", "앰비언트", "편곡", "마스터링", "게임음악",
+  "반실사", "셀채색", "픽셀아트", "3D", "2D", "스토리보드", "모션그래픽", "인물화",
+  "장편", "단편", "복선", "추격", "반전", "고증", "교정", "교열", "윤문",
+]);
+
+export function matchingReviewTags(text: string) {
+  const normalized = normalize(text);
+  return reviewVocabulary.filter(term => normalized.includes(normalize(term)) && !excludedAlias(text, term));
+}
+
 function currentRoleText(text: string) {
   const markers = ["지금은", "이번엔", "이번에는", "현재는", "이번 질문은", "다음은"];
   const index = Math.max(...markers.map(marker => text.lastIndexOf(marker)));
@@ -94,6 +109,7 @@ export type MatchingContext = {
   source: string;
   roles: string[];
   excludedRoles: string[];
+  roleFilterConflict?: boolean;
   topics: string[];
   workTerms: string[];
   limit: number;
@@ -117,13 +133,22 @@ export function resolveMatchingContext(input: MatchingInput): MatchingContext {
     limit = detectMatchingLimit(text) ?? limit;
   }
   const source = texts.join("\n");
+  let roleFilterConflict = false;
+  if (input.preferredRoles?.length) {
+    const allowed = unique(input.preferredRoles).filter(role => !excludedRoles.includes(role));
+    const overlap = roles.filter(role => allowed.includes(role));
+    const lastRoleRequest = [...texts].reverse().find(text => detectMatchingRoles(text).length);
+    const explicit = lastRoleRequest && Object.values(rolePhrases).flat().some(term => normalize(currentRoleText(lastRoleRequest)).includes(normalize(term)));
+    roles = overlap.length || explicit ? overlap : allowed;
+    roleFilterConflict = !roles.length;
+  }
   const topicSource = [source, ...(input.genres ?? [])].join(" ");
   const normalized = normalize(topicSource);
   const topics = Object.entries(topicAliases).filter(([, aliases]) =>
     aliases.some(alias => normalized.includes(normalize(alias))) && !aliases.some(alias => excludedAlias(topicSource, alias)),
   ).map(([topic]) => topic);
   const workTerms = workKeywords.filter(term => normalized.includes(normalize(term)) && !excludedAlias(topicSource, term));
-  return { source, roles, excludedRoles, topics, workTerms, limit: Math.max(1, Math.min(limit, 6)) };
+  return { source, roles, excludedRoles, roleFilterConflict, topics, workTerms, limit: Math.max(1, Math.min(limit, 6)) };
 }
 
 export type MatchSignal = { label: string; points: number; maximum: number; detail: string };
@@ -136,7 +161,7 @@ export type MatchableCreator = {
 };
 
 export function rankMatchingCreators<T extends MatchableCreator>(creators: T[], context: MatchingContext) {
-  const ranked = creators.filter(creator => !excludedAlias(context.source, creator.displayName) && !context.excludedRoles.includes(creator.primaryRole) &&
+  const ranked = creators.filter(creator => !context.roleFilterConflict && !excludedAlias(context.source, creator.displayName) && !context.excludedRoles.includes(creator.primaryRole) &&
     (!context.roles.length || context.roles.includes(creator.primaryRole))).map(creator => {
     const evidence = normalize([creator.headline, creator.bio, ...creator.skills, creator.portfolioSummary ?? "", creator.voiceDemo?.title ?? "",
       ...(creator.portfolioItems ?? []).flatMap(item => [item.title, item.category, item.description, ...item.tags])].join(" "));

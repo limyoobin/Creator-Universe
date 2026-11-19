@@ -8,6 +8,40 @@
   font-family: SUIT, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
 }
 .cu-catalog button, .cu-catalog select { font-family: inherit; }
+.cu-feature-actions { display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.cu-feature .cu-motion-open { pointer-events:auto; display:inline-flex; align-items:center; gap:7px; min-height:40px; padding:8px 15px; border:1px solid #ffffff6b; border-radius:24px; color:white; background:rgb(20 26 35 / 66%); font-size:.85rem; font-weight:650; backdrop-filter:blur(5px); }
+.cu-feature-original .cu-feature-copy h2 { margin:8px 0 9px; font-family:"Nanum Myeongjo",Batang,"AppleMyungjo",serif; font-weight:600; font-size:clamp(2.45rem,4.1vw,4.1rem); letter-spacing:-.08em; }
+.cu-feature .cu-original-deck { margin:0 0 20px; color:#fff8ef; font-size:clamp(.85rem,1.2vw,1rem); text-shadow:0 1px 8px #130d20; }
+.cu-feature-original .cu-feature-shade { background:linear-gradient(90deg,rgb(17 21 37 / 65%),transparent 66%),linear-gradient(0deg,rgb(22 17 32 / 72%),transparent 66%); }
+.cu-feature-original .cu-feature-meta { font-weight:750; color:#ffe6c9; }
+.cu-feature-original .cu-feature-open { background:#fff7eb; color:#28212b; }
+.cu-episode-shelf { padding:clamp(18px,2.2vw,30px) 0; border-bottom:1px solid var(--cu-border); }
+.cu-episode-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; margin:0 0 12px; }
+.cu-episode-heading h2 { margin:0; color:var(--text); font-size:clamp(1.05rem,1.7vw,1.4rem); letter-spacing:-.045em; }
+.cu-episode-heading span,.cu-episode-links small { color:var(--muted); font-size:.78rem; }
+.cu-episode-links { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.cu-episode-links button { display:flex; align-items:center; min-width:0; gap:12px; text-align:left; background:var(--surface); color:var(--text); border:1px solid var(--cu-border); border-radius:13px; padding:6px 12px 6px 6px; }
+.cu-episode-links img { width:27%; height:clamp(48px,5vw,68px); border-radius:8px; object-fit:cover; }
+.cu-episode-links span { flex:1; min-width:0; }.cu-episode-links :is(small,strong) { display:block; }.cu-episode-links strong { margin-top:3px; font-size:.94rem; line-height:1.35; letter-spacing:-.03em; }
+.cu-episode-links svg { flex:none; color:var(--muted); }
+@media (hover:hover) { .cu-episode-links button:hover { border-color:var(--muted); background:var(--cu-soft); } }
+@media(max-width:700px) { .cu-episode-links { display:flex; overflow-x:auto; scroll-snap-type:x proximity; padding:3px 3px 7px; }.cu-episode-links button { flex:0 0 min(77%,260px); scroll-snap-align:start; }.cu-episode-links img { height:52px; } }
+@media(max-width:700px) {
+  .cu-feature-original .cu-feature-controls { top:12px; right:12px; bottom:auto; }
+  .cu-feature-original .cu-feature-copy h2 { font-size:clamp(2rem,7vw,3rem); margin-bottom:4px; }
+  .cu-feature-original .cu-original-deck { margin-bottom:12px; font-size:.8rem; }
+  .cu-feature .cu-motion-open { min-height:36px; font-size:.8rem; padding:6px 11px; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  body:not([data-reduced-motion=true]) .cu-feature-actions button { transition:transform .22s ease,background .22s; }
+  body:not([data-reduced-motion=true]) .cu-feature-actions button:active { transform:scale(.96); }
+  @supports(animation-timeline:view()) {
+    body:not([data-reduced-motion=true]) .cu-feature-original .cu-feature-image img {
+      animation:cu-editorial-pan linear both; animation-timeline:view(); animation-range:exit 0% exit 100%;
+    }
+  }
+}
+@keyframes cu-editorial-pan { from{transform:scale(1)} to{transform:scale(1.07) translateY(2%)} }
 .cu-catalog button:focus-visible, .cu-catalog select:focus-visible {
   outline: 3px solid var(--cyan);
   outline-offset: 3px;

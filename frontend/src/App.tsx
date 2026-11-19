@@ -1,8 +1,11 @@
 import { CoinCheckout } from "./CoinCheckout";
 import { IdentityCheck } from "./IdentityCheck";
+import { cancelPasskeyPrompt, passkeyError, passkeySupported, verifyAccountPasskey, type SignupAccount } from "./passkeys";
 import { useIntegrationStatus, readProviderReturn, clearProviderReturn, saveChallenge, type IdentityProof } from "./portone";
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { WorksCatalog } from "./WorksCatalog";
+import { TideReader, type TideMode } from "./TideReader";
+import { tideWork } from "./tide-letter";
 import { ArrowUpRight, Trophy } from "lucide-react";
 import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
 import {
@@ -171,12 +174,17 @@ type AiMatchRecommendation = {
   reason: string;
   reasonDetails?: string[];
   matchedKeywords: string[];
+  reviewEvidence?: string[];
   suggestedMessage?: string;
   creator: Creator;
 };
 
+const matchProviderNames = { groq: "Groq", nvidia: "NVIDIA", gemini: "Gemini" } as const;
+type MatchProvider = keyof typeof matchProviderNames;
+
 type AiMatchingResponse = {
-  provider?: "local" | "gemini";
+  provider?: MatchProvider | "local" | "ensemble";
+  providersUsed?: MatchProvider[];
   providerNote?: string;
   assistantMessage: string;
   projectBrief: {
@@ -192,13 +200,23 @@ type AiMatchingResponse = {
 type AiChatMessage = {
   role: "user" | "assistant";
   content: string;
+  source?: string;
 };
 
-const AI_MATCH_MESSAGES_STORAGE_KEY = "creator-universe-ai-match-messages";
+function matchSource(response: AiMatchingResponse) {
+  const { provider, providersUsed } = response;
+  const providers = providersUsed ?? (provider && provider !== "local" && provider !== "ensemble" ? [provider] : []);
+  const names = providers.map(key => matchProviderNames[key]).filter(Boolean);
+  return names.length ? names.join(" · ") + " 검토" : "공개 프로필 기반 기본 매칭";
+}
 
-function readStoredAiMessages() {
+function aiMessagesKey(userId: string) {
+  return "creator-universe-ai-match-messages:" + userId;
+}
+
+function readStoredAiMessages(userId: string): AiChatMessage[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(AI_MATCH_MESSAGES_STORAGE_KEY) || "[]");
+    const parsed = JSON.parse(localStorage.getItem(aiMessagesKey(userId)) || "[]");
     if (!Array.isArray(parsed)) {
       return [];
     }
@@ -211,6 +229,9 @@ function readStoredAiMessages() {
           typeof item.content === "string" &&
           item.content.trim().length > 0,
       )
+      .map((item: AiChatMessage) => ({
+        role: item.role, content: item.content, source: typeof item.source === "string" ? item.source : undefined,
+      }))
       .slice(-30);
   } catch {
     return [];
@@ -589,6 +610,7 @@ const readerWorks = [
     badge: "애니 파일럿",
     tone: "animation",
   },
+  tideWork,
 ];
 
 type ReaderWork = (typeof readerWorks)[number];
@@ -1868,6 +1890,8 @@ function buildLocalAiMatchingResponse(
       })());
 
   return {
+    provider: "local",
+    providersUsed: [],
     assistantMessage,
     projectBrief: {
       summary,
@@ -1996,19 +2020,50 @@ function AuthModal({
   const [view, setView] = useState(mode);
   const enrollment = useIntegrationStatus(request, view === "signup");
   const [identity, setIdentity] = useState<IdentityProof | null>(null);
-  const signingUp = useRef(false);
-  const [signupBusy, setSignupBusy] = useState(false);
+  const passkeyRequest = useRef<AbortController | null>(null);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState<"find-id" | "reset-password">("find-id");
   const [message, setMessage] = useState("");
-  const [signupRole, setSignupRole] = useState<"READER" | "CREATOR">("READER");
-  const [checkedUsername, setCheckedUsername] = useState("");
-  const [checkedNickname, setCheckedNickname] = useState("");
-  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
   const [isLoginPending, setIsLoginPending] = useState(false);
+  const supportsPasskeys = passkeySupported();
+
+  useEffect(() => {
+    setMessage("");
+    setPasskeyBusy(false);
+    return () => {
+      if (passkeyRequest.current) {
+        passkeyRequest.current.abort();
+        passkeyRequest.current = null;
+        cancelPasskeyPrompt();
+      }
+    };
+  }, [view]);
+
+  async function finishPasskey(account?: SignupAccount) {
+    if (passkeyRequest.current || isLoginPending || !supportsPasskeys) return;
+    const controller = new AbortController();
+    passkeyRequest.current = controller;
+    setPasskeyBusy(true);
+    setMessage("");
+    try {
+      const result = await verifyAccountPasskey<{user: User; token: string}>(request, controller.signal, account);
+      if (controller.signal.aborted) return;
+      if (account) saveChallenge(null);
+      onAuth(result.user, result.token);
+      onClose();
+    } catch (error) {
+      if (!controller.signal.aborted) setMessage(passkeyError(error));
+    } finally {
+      if (passkeyRequest.current === controller) {
+        passkeyRequest.current = null;
+        setPasskeyBusy(false);
+      }
+    }
+  }
 
   async function submitLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isLoginPending) {
+    if (isLoginPending || passkeyRequest.current) {
       return;
     }
     const data = new FormData(event.currentTarget);
@@ -2033,54 +2088,16 @@ function AuthModal({
 
   async function submitSignup(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (signingUp.current) return;
     if (enrollment.status?.identityRequired && !identity) { setMessage("가입 전 본인인증을 완료해 주세요."); return; }
     const data = new FormData(event.currentTarget);
     const displayName = String(data.get("displayName") || "").trim();
     const username = String(data.get("username") || "").trim();
     const email = String(data.get("email") || "").trim();
-    const password = String(data.get("password") || "");
     if (!isValidEmailAddress(email)) {
       setMessage("이메일은 example@email.com 형식으로 입력해 주세요.");
       return;
     }
-    if (data.get("password") !== data.get("passwordConfirm")) {
-      setMessage("비밀번호 확인이 일치하지 않습니다.");
-      return;
-    }
-    if (!isStrongPassword(password)) {
-      setMessage("비밀번호는 8자 이상이며 특수문자를 1개 이상 포함해야 합니다.");
-      return;
-    }
-    if (checkedNickname !== displayName) {
-      setMessage("닉네임 중복확인을 먼저 완료해 주세요.");
-      return;
-    }
-    if (checkedUsername !== username) {
-      setMessage("아이디 중복확인을 먼저 완료해 주세요.");
-      return;
-    }
-
-    setMessage("");
-    signingUp.current = true; setSignupBusy(true);
-    try {
-      const result = await request<{ user: User; token: string }>("/api/auth/signup", null, {
-        method: "POST",
-        body: JSON.stringify({
-          displayName,
-          email,
-          username,
-          password,
-          role: signupRole,
-          ...(identity ? {identityVerification: identity} : {}),
-        }),
-      });
-      saveChallenge(null);
-      onAuth(result.user, result.token);
-      onClose();
-    } catch (error) {
-      setMessage(`회원가입 실패: ${getFriendlyError(error)}`);
-    } finally { signingUp.current = false; setSignupBusy(false); }
+    await finishPasskey({ displayName, email, username, ...(identity ? {identityVerification: identity} : {}) });
   }
 
   async function submitFindId(event: React.FormEvent<HTMLFormElement>) {
@@ -2133,50 +2150,6 @@ function AuthModal({
     }
   }
 
-  async function checkAuthValue(type: "nickname" | "username", form: HTMLFormElement | null) {
-    if (!form) {
-      return;
-    }
-    const data = new FormData(form);
-    const value = String(data.get(type === "nickname" ? "displayName" : "username") || "").trim();
-    if (!value) {
-      setMessage(type === "nickname" ? "닉네임을 먼저 입력해 주세요." : "아이디를 먼저 입력해 주세요.");
-      return;
-    }
-
-    setIsCheckingAuth(true);
-    setMessage("");
-    try {
-      const result = await request<{ available: boolean; value: string }>(
-        type === "nickname" ? "/api/auth/check-nickname" : "/api/auth/check-username",
-        null,
-        {
-          method: "POST",
-          body: JSON.stringify(type === "nickname" ? { displayName: value } : { username: value }),
-        },
-      );
-      if (!result.available) {
-        if (type === "nickname") {
-          setCheckedNickname("");
-        } else {
-          setCheckedUsername("");
-        }
-        setMessage(type === "nickname" ? "이미 사용 중인 닉네임입니다." : "이미 사용 중인 아이디입니다.");
-        return;
-      }
-      if (type === "nickname") {
-        setCheckedNickname(result.value);
-      } else {
-        setCheckedUsername(result.value);
-      }
-      setMessage(type === "nickname" ? "사용 가능한 닉네임입니다." : "사용 가능한 아이디입니다.");
-    } catch (error) {
-      setMessage(`중복확인 실패: ${getFriendlyError(error)}`);
-    } finally {
-      setIsCheckingAuth(false);
-    }
-  }
-
   return (
     <div className="modal-backdrop auth-backdrop" role="dialog" aria-modal="true">
       <div className="auth-modal">
@@ -2202,85 +2175,38 @@ function AuthModal({
           </button>
         </div>
 
-        {message && <div className="notice">{message}</div>}
+        {message && <div className="notice" role="status">{message}</div>}
 
         {view === "login" && (
-          <form className="auth-form" onSubmit={submitLogin}>
-            <label>아이디<input name="username" required placeholder="가입한 아이디" /></label>
-            <label>비밀번호<input name="password" required type="password" placeholder="비밀번호" /></label>
-            <button className="primary-button" type="submit" disabled={isLoginPending}>
-              <LogIn size={18} />
-              {isLoginPending ? "로그인 확인 중" : "로그인"}
+          <div className="auth-form">
+            <button className="primary-button" type="button" disabled={passkeyBusy || isLoginPending || !supportsPasskeys} onClick={() => void finishPasskey()}>
+              <ShieldCheck size={18} /> {passkeyBusy ? "기기 인증 중…" : "패스키로 로그인"}
             </button>
-          </form>
+            {!supportsPasskeys && <p className="auth-help">패스키는 HTTPS 주소의 지원 브라우저에서 이용할 수 있습니다.</p>}
+            <details className="auth-password-login" open={!supportsPasskeys || undefined}>
+              <summary>기존 비밀번호로 로그인</summary>
+              <form className="auth-form" onSubmit={submitLogin}>
+                <label>아이디<input name="username" autoComplete="username" required placeholder="가입한 아이디" /></label>
+                <label>비밀번호<input name="password" autoComplete="current-password" required type="password" placeholder="비밀번호" /></label>
+                <button className="ghost-button" type="submit" disabled={isLoginPending || passkeyBusy}>
+                  <LogIn size={18} />
+                  {isLoginPending ? "로그인 확인 중" : "비밀번호로 로그인"}
+                </button>
+              </form>
+            </details>
+          </div>
         )}
 
         {view === "signup" && (
           <form className="auth-form" onSubmit={submitSignup}>
+            <p className="auth-help">한 계정으로 작품을 감상하고 창작자 스튜디오를 이용할 수 있어요. 지문, 얼굴 또는 화면 잠금으로 패스키를 등록하세요.</p>
             <IdentityCheck request={request} status={enrollment.status} onVerified={setIdentity} returned={providerReturn?.flow === "identity" ? providerReturn : null} />
-            {enrollment.failed && <p className="auth-help" role="status">간편인증 연결 상태를 확인하지 못했습니다. <button type="button" onClick={enrollment.retry}>다시 확인</button></p>}
-            <fieldset className="auth-role-selector">
-              <legend>가입 유형</legend>
-              <div>
-                <button
-                  type="button"
-                  className={signupRole === "READER" ? "active" : ""}
-                  onClick={() => setSignupRole("READER")}
-                >
-                  <BookOpen size={18} />
-                  <strong>독자</strong>
-                  <span>작품 감상, 코인 지갑, 스크랩 중심</span>
-                </button>
-                <button
-                  type="button"
-                  className={signupRole === "CREATOR" ? "active" : ""}
-                  onClick={() => setSignupRole("CREATOR")}
-                >
-                  <Rocket size={18} />
-                  <strong>창작자</strong>
-                  <span>스튜디오, 매칭, 정산 기능 사용</span>
-                </button>
-              </div>
-            </fieldset>
-            <label>
-              닉네임
-              <div className="auth-inline-field">
-                <input
-                  name="displayName"
-                  required
-                  onChange={() => setCheckedNickname("")}
-                  placeholder="서비스에서 사용할 닉네임"
-                />
-                <button type="button" onClick={(event) => void checkAuthValue("nickname", event.currentTarget.form)} disabled={isCheckingAuth}>
-                  중복확인
-                </button>
-              </div>
-            </label>
-            <label>이메일<input name="email" type="email" required /></label>
-            <label>
-              아이디
-              <div className="auth-inline-field">
-                <input
-                  name="username"
-                  required
-                  minLength={2}
-                  maxLength={24}
-                  pattern="[A-Za-z0-9_]+"
-                  onChange={() => setCheckedUsername("")}
-                  placeholder="영문, 숫자, 밑줄만 가능"
-                />
-                <button type="button" onClick={(event) => void checkAuthValue("username", event.currentTarget.form)} disabled={isCheckingAuth}>
-                  중복확인
-                </button>
-              </div>
-            </label>
-            <label>
-              비밀번호
-              <input name="password" type="password" minLength={8} required placeholder="8자 이상, 특수문자 1개 이상" />
-              <small className="auth-help">예: universe!2026 처럼 특수문자를 포함해 주세요.</small>
-            </label>
-            <label>비밀번호 확인<input name="passwordConfirm" type="password" minLength={8} required /></label>
-            <button className="primary-button" type="submit" disabled={signupBusy || Boolean(enrollment.status?.identityRequired && !identity)}><UserPlus size={18} /> {signupBusy ? "가입 처리 중…" : "회원가입"}</button>
+            {enrollment.failed && <p className="auth-help" role="status">실명인증 서비스의 연결 상태를 확인하지 못했어요. <button type="button" onClick={enrollment.retry}>다시 확인</button></p>}
+            <label>닉네임<input name="displayName" autoComplete="nickname" maxLength={20} required placeholder="공개 프로필에 사용할 이름" /></label>
+            <label>이메일<input name="email" type="email" autoComplete="email" required /></label>
+            <label>아이디<input name="username" autoComplete="username" minLength={2} maxLength={24} pattern="[A-Za-z0-9_]+" required placeholder="영문, 숫자, 밑줄 2~24자" /></label>
+            {!supportsPasskeys && <p className="auth-help" role="status">이 브라우저에서는 패스키를 등록할 수 없어요. 휴대폰이나 컴퓨터의 지원 브라우저에서 HTTPS 주소로 열어주세요.</p>}
+            <button className="primary-button" type="submit" disabled={!supportsPasskeys || passkeyBusy || Boolean(enrollment.status?.identityRequired && !identity)}><ShieldCheck size={18} /> {passkeyBusy ? "기기 인증 중…" : "패스키로 가입하기"}</button>
           </form>
         )}
 
@@ -3433,14 +3359,13 @@ function AccountModal({
   workProgress,
   premiumSubscription,
   notificationPreferences,
-  isCreatorAccount,
+  isStudioMemberView,
   onClose,
   onLogout,
   onDeleteAccount,
   onOpenPayment,
   onStartPremium,
   onCancelPremium,
-  onUpgradeToCreator,
   onToggleNotificationPreference,
   onNavigate,
   onOpenLibrary,
@@ -3453,14 +3378,13 @@ function AccountModal({
   workProgress: Record<string, WorkProgressEntry>;
   premiumSubscription: PremiumSubscriptionState;
   notificationPreferences: NotificationPreferences;
-  isCreatorAccount: boolean;
+  isStudioMemberView: boolean;
   onClose: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
   onOpenPayment: () => void;
   onStartPremium: () => void;
   onCancelPremium: () => void;
-  onUpgradeToCreator: () => void;
   onToggleNotificationPreference: (key: keyof NotificationPreferences) => void;
   onNavigate: (page: PageId) => void;
   onOpenLibrary: (view: (typeof libraryViewItems)[number]["id"]) => void;
@@ -3592,13 +3516,13 @@ function AccountModal({
                 <strong>작품 구매 · 후원 · 프리미엄 구독</strong>
               </article>
               <article>
-                <span>{isCreatorAccount ? "정산 연결" : "독자 지갑"}</span>
-                <strong>{isCreatorAccount ? "창작팀 수익은 지갑으로 자동 입금" : "작품 구매와 프리미엄 구독에 사용"}</strong>
+                <span>{isStudioMemberView ? "정산 연결" : "독자 지갑"}</span>
+                <strong>{isStudioMemberView ? "창작팀 수익은 지갑으로 자동 입금" : "작품 구매와 프리미엄 구독에 사용"}</strong>
               </article>
             </div>
             <div className="account-quick-actions">
               <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
-              {isCreatorAccount ? (
+              {isStudioMemberView ? (
                 <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
               ) : (
                 <button onClick={() => { onClose(); onOpenLibrary("purchased"); }}><BookOpen size={15} /> 결제 작품</button>
@@ -3665,13 +3589,13 @@ function AccountModal({
             </div>
           </section>
 
-          {!isCreatorAccount && (
+          {!isStudioMemberView && (
             <section className="account-panel reader-creator-upgrade-panel reader-only-guide-panel">
               <div className="account-panel-head">
                 <BookOpen size={20} />
-                <strong>독자 전용 동선</strong>
+                <strong>내 작품과 스튜디오</strong>
               </div>
-              <p>독자 계정은 작품 감상, 스크랩, 코인 지갑, 새 회차 알림을 중심으로 깔끔하게 보여줍니다.</p>
+              <p>작품을 감상하고 같은 계정의 스튜디오에서 작품을 발행할 수 있어요.</p>
               <div className="creator-upgrade-preview">
                 <span><BookOpen size={14} /> 작품 탐색</span>
                 <span><Heart size={14} /> 스크랩</span>
@@ -3680,6 +3604,7 @@ function AccountModal({
               <button onClick={() => { onClose(); onOpenLibrary("scrapped"); }}>
                 <Heart size={16} /> 내 보관함 보기
               </button>
+              <button onClick={() => { onClose(); onNavigate("studio"); }}><Rocket size={16} /> 내 스튜디오 열기</button>
             </section>
           )}
 
@@ -3792,7 +3717,7 @@ function AccountModal({
               />
               새 회차 알림
             </label>
-            {isCreatorAccount ? (
+            {isStudioMemberView ? (
               <label className="account-check">
                 <input
                   type="checkbox"
@@ -3802,7 +3727,7 @@ function AccountModal({
                 정산 완료 알림
               </label>
             ) : (
-              <p className="account-role-note">독자 계정은 새 회차, 스크랩 작품 업데이트, 결제 알림을 중심으로 보여줍니다.</p>
+              <p className="account-role-note">스튜디오에서 창작 활동과 정산 알림을 관리할 수 있어요.</p>
             )}
             <label className="account-check">
               <input
@@ -3838,10 +3763,11 @@ export function App() {
   const [selectedGenre, setSelectedGenre] = useState("전체");
   const [matchingFilters, setMatchingFilters] = useState<string[]>([]);
   const [aiMatchPrompt, setAiMatchPrompt] = useState("");
-  const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>(["ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"]);
+  const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>([]);
   const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
   const [aiMatchResponse, setAiMatchResponse] = useState<AiMatchingResponse | null>(null);
-  const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>(() => readStoredAiMessages());
+  const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>([]);
+  const [aiHistoryUserId, setAiHistoryUserId] = useState<string | null>(null);
   const [isAiHistoryOpen, setIsAiHistoryOpen] = useState(false);
   const [isAiMatching, setIsAiMatching] = useState(false);
   const [aiMatchMessage, setAiMatchMessage] = useState("");
@@ -3959,7 +3885,13 @@ export function App() {
   const [isMobileQuickOpen, setIsMobileQuickOpen] = useState(false);
   const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
-  const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(null);
+  const entryQuery = new URLSearchParams(window.location.search);
+  const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(() => entryQuery.get("work") === tideWork.id ? tideWork : null);
+  const [tideMode, setTideMode] = useState<TideMode>(() => entryQuery.get("view") === "motion" ? "motion" : "read");
+  const [tideEntryEpisode, setTideEntryEpisode] = useState<number | null>(() => {
+    const ep = Number(entryQuery.get("episode"));
+    return [1,2,3].includes(ep) ? ep : null;
+  });
   const [activePage, setActivePage] = useState<PageId>(locationPage);
   useEffect(() => {
     const label = navItems.find(item => item.id === activePage)?.label ?? "서비스 소개";
@@ -4019,8 +3951,8 @@ export function App() {
 
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
-  const isCreatorAccount = accountRole === "CREATOR" || accountRole === "ADMIN";
-  const isCreatorAppShell = Boolean(studioWindow && user && isCreatorAccount);
+  const isStudioMemberView = Boolean(studioWindow && user);
+
   const visibleNavItems = useMemo(
     () =>
       navItems.filter((item) => {
@@ -4039,13 +3971,13 @@ export function App() {
           return appMode === "reader" ? guide.page === "discover" : creatorOnlyPages.has(guide.page);
         }
 
-        if (isCreatorAccount) {
+        if (isStudioMemberView) {
           return appMode === "reader" ? guide.page === "discover" : creatorOnlyPages.has(guide.page);
         }
 
         return !creatorOnlyPages.has(guide.page);
       }),
-    [appMode, isCreatorAccount, user],
+    [appMode, isStudioMemberView, user],
   );
 
   const allPortfolioItems = useMemo(
@@ -4175,6 +4107,7 @@ export function App() {
   }, [creators]);
 
   function getCreditNames(work: ReaderWork) {
+    if (work.id === tideWork.id) return ["크리에이터 유니버스"];
     return work.participantUserIds.map(id => creditNames[id]).filter(Boolean);
   }
 
@@ -4298,7 +4231,7 @@ export function App() {
     const latestScrappedWork = scrappedWorks[0];
     const latestRecentWork = recentWorks[0];
 
-    if (isCreatorAccount && pendingReceivedProposal) {
+    if (isStudioMemberView && pendingReceivedProposal) {
       const partnerName = pendingReceivedProposal.partner?.displayName ?? pendingReceivedProposal.proposal.requesterName ?? "창작자";
       items.push({
         id: `proposal-pending-${pendingReceivedProposal.proposal.id}`,
@@ -4311,7 +4244,7 @@ export function App() {
       });
     }
 
-    if (isCreatorAccount && acceptedProposal && notificationPreferences.settlement) {
+    if (isStudioMemberView && acceptedProposal && notificationPreferences.settlement) {
       items.push({
         id: `proposal-accepted-${acceptedProposal.proposal.id}`,
         title: "팀원 합류가 완료됐어요",
@@ -4418,7 +4351,7 @@ export function App() {
       });
     }
 
-    if (isCreatorAccount && myCreatorProfile && !pendingReceivedProposal) {
+    if (isStudioMemberView && myCreatorProfile && !pendingReceivedProposal) {
       items.push({
         id: `studio-profile-${myCreatorProfile.id}`,
         title: "창작자 프로필이 공개 중입니다",
@@ -4446,7 +4379,7 @@ export function App() {
   }, [
     currentWalletDetail.transactions,
     followedNewEpisodeWorks,
-    isCreatorAccount,
+    isStudioMemberView,
     matchProposalInboxItems,
     myCreatorProfile,
     notificationPreferences.marketing,
@@ -4607,16 +4540,14 @@ export function App() {
       request<ContentReview[]>("/api/content/reviews", currentToken),
     ]);
 
-    if (creatorResult.status === "rejected" || projectResult.status === "rejected") {
-      throw new Error(getRejectedMessage(creatorResult) || getRejectedMessage(projectResult) || "초기 데이터를 불러오지 못했습니다.");
+    if (creatorResult.status === "fulfilled") {
+      const normalizedCreators = creatorResult.value.map(normalizeCreator);
+      setCreators(normalizedCreators);
+      setSelectedCreator((current) =>
+        current ? normalizedCreators.find((creator) => creator.userId === current.userId) ?? current : current,
+      );
     }
-
-    const normalizedCreators = creatorResult.value.map(normalizeCreator);
-    setCreators(normalizedCreators);
-    setSelectedCreator((current) =>
-      current ? normalizedCreators.find((creator) => creator.userId === current.userId) ?? current : current,
-    );
-    setProject(projectResult.value);
+    setProject(projectResult.status === "fulfilled" ? projectResult.value : null);
     setSettlement(settlementResult.status === "fulfilled" ? settlementResult.value : null);
     setContentReviews(reviewsResult.status === "fulfilled" ? reviewsResult.value.map(normalizeContentReview) : []);
 
@@ -4653,7 +4584,7 @@ export function App() {
       setMatchRequests([]);
     }
 
-    setStatus("");
+    setStatus(getRejectedMessage(creatorResult));
   }
 
   async function refreshCreatorChats(currentToken = token) {
@@ -4692,15 +4623,8 @@ export function App() {
       return;
     }
 
-    setAppMode(isCreatorAccount ? "creator" : "reader");
-  }, [isCreatorAccount, user]);
-
-  useEffect(() => {
-    if (!studioWindow && user && creatorOnlyPages.has(activePage) && !isCreatorAccount) {
-      setActivePage(studioWindow ? "studio" : "discover");
-      setCommunityMessage("독자 계정에서는 작품과 지갑 중심으로 이용할 수 있어요. 창작자 기능은 창작자 계정에서 열립니다.");
-    }
-  }, [activePage, isCreatorAccount, user]);
+    setAppMode(isStudioMemberView ? "creator" : "reader");
+  }, [isStudioMemberView, user]);
 
   useEffect(() => {
     if (user && adminOnlyPages.has(activePage) && !isAdminAccount) {
@@ -4748,13 +4672,20 @@ export function App() {
   }, [aiMatchMessages, isAiMatching, accessibilityPreferences.reducedMotion]);
 
   useEffect(() => {
-    if (aiMatchMessages.length === 0) {
-      localStorage.removeItem(AI_MATCH_MESSAGES_STORAGE_KEY);
-      return;
-    }
+    resetAiMatchingConversation();
+    setAiPreferredRoles([]);
+    setAiHistoryUserId(user?.id ?? null);
+    if (user) setAiMatchMessages(readStoredAiMessages(user.id));
+  }, [user?.id]);
 
-    localStorage.setItem(AI_MATCH_MESSAGES_STORAGE_KEY, JSON.stringify(aiMatchMessages.slice(-30)));
-  }, [aiMatchMessages]);
+  useEffect(() => {
+    if (!aiHistoryUserId || aiHistoryUserId !== user?.id) return;
+    try {
+      const key = aiMessagesKey(aiHistoryUserId);
+      if (aiMatchMessages.length) localStorage.setItem(key, JSON.stringify(aiMatchMessages.slice(-30)));
+      else localStorage.removeItem(key);
+    } catch { /* The active conversation still works when browser storage is full or disabled. */ }
+  }, [aiMatchMessages, aiHistoryUserId, user?.id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -4867,7 +4798,7 @@ export function App() {
   }, [activePage, accessibilityPreferences.reducedMotion]);
 
   useEffect(() => {
-    if (activePage !== "home") {
+    if (activePage !== "home" || !("IntersectionObserver" in window)) {
       return;
     }
 
@@ -4951,6 +4882,7 @@ export function App() {
   }
 
   function openWorkPayment(workId: string) {
+    if (workId === tideWork.id) { setTideEntryEpisode(null); setTideMode("read"); setSelectedWork(tideWork); return; }
     if (!token) {
       setAuthMode("login");
       return;
@@ -4961,6 +4893,7 @@ export function App() {
   }
 
   function openWorkEpisode(work: ReaderWork, episodeNumber: number) {
+    if (work.id === tideWork.id) { setTideEntryEpisode(episodeNumber); setTideMode("read"); setSelectedWork(work); return; }
     const episodes = getWorkEpisodes(work);
     const selectedEpisode = episodes.find((episode) => episode.episodeNumber === episodeNumber) ?? episodes[0];
     const unlocked = selectedEpisode.isFree || purchasedWorkIds.includes(work.id);
@@ -5082,7 +5015,7 @@ export function App() {
       window.location.assign(page === "ranking" ? "/?view=ranking" : "/");
       return;
     }
-    if (studioWindow && creatorOnlyPages.has(page) && !isCreatorAccount) {
+    if (studioWindow && creatorOnlyPages.has(page) && !isStudioMemberView) {
       selectPage(page);
       return;
     }
@@ -5091,15 +5024,6 @@ export function App() {
       setAuthMode("login");
       setIsMobileMenuOpen(false);
       setIsAccountMenuOpen(false);
-      return;
-    }
-
-    if (creatorOnlyPages.has(page) && !isCreatorAccount) {
-      setCommunityMessage("스튜디오, 매칭, 정산은 창작자 계정으로 가입하거나 로그인해야 이용할 수 있어요.");
-      selectPage(studioWindow ? "studio" : "discover");
-      setIsMobileMenuOpen(false);
-      setIsAccountMenuOpen(false);
-      setIsMobileQuickOpen(false);
       return;
     }
 
@@ -5220,7 +5144,7 @@ export function App() {
   }
 
   async function runAiMatchingRecommendation(promptOverride?: string) {
-    if (aiRequestRef.current) return;
+    if (aiRequestRef.current || !user || aiHistoryUserId !== user.id) return;
     const prompt = (promptOverride ?? aiMatchPrompt).trim();
     if (prompt.length < 2) {
       setAiMatchMessage("AI 매칭 매니저에게 물어볼 내용을 짧게라도 적어주세요.");
@@ -5250,7 +5174,7 @@ export function App() {
           projectDescription: prompt,
           preferredRoles: aiPreferredRoles,
           genres: matchingFilters,
-          messages: nextMessages.slice(-8).map(message => ({ ...message, content: message.content.slice(0, 2000) })),
+          messages: nextMessages.slice(-8).map(message => ({ role: message.role, content: message.content.slice(0, 2000) })),
           limit: requestedLimit,
         }),
       });
@@ -5260,11 +5184,8 @@ export function App() {
       setAiMatchResults(response.recommendations);
       setAiMatchMessages((current) => [
         ...current,
-        { role: "assistant", content: response.assistantMessage },
+        { role: "assistant", content: response.assistantMessage, source: matchSource(response) },
       ]);
-      setAiMatchMessage(
-        response.recommendations.length > 0 ? "" : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
-      );
     } catch (error) {
       if (aiRequestRef.current !== controller) return;
       const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters, nextMessages);
@@ -5272,12 +5193,12 @@ export function App() {
       setAiMatchResults(fallbackResponse.recommendations);
       setAiMatchMessages((current) => [
         ...current,
-        { role: "assistant", content: fallbackResponse.assistantMessage },
+        { role: "assistant", content: fallbackResponse.assistantMessage, source: matchSource(fallbackResponse) },
       ]);
       setAiMatchMessage(
         fallbackResponse.recommendations.length > 0
-          ? "연결을 기다리는 대신, 현재 공개 프로필에서 같은 기준으로 추천했어요."
-          : `추천 실패: ${getFriendlyError(error)}`,
+          ? "매칭 서버에 연결할 수 없어 이 기기에 불러온 공개 프로필을 비교했어요."
+          : "매칭 서버에 연결할 수 없어요. 잠시 후 다시 시도해 주세요.",
       );
     } finally {
       window.clearTimeout(timeout);
@@ -5758,7 +5679,7 @@ export function App() {
     }
     setUser(nextUser);
     setToken(nextToken);
-    setAppMode(nextUser.role === "CREATOR" || nextUser.role === "ADMIN" ? "creator" : "reader");
+    setAppMode(studioWindow ? "creator" : "reader");
     localStorage.setItem("creator-universe-token", nextToken);
   }
 
@@ -5798,23 +5719,6 @@ export function App() {
     setActivePage(studioWindow ? "studio" : "discover");
     localStorage.removeItem("creator-universe-token");
     setStatus("계정 탈퇴가 완료되었습니다.");
-  }
-
-  async function upgradeToCreatorAccount() {
-    if (!token) {
-      setAuthMode("login");
-      return;
-    }
-
-    const result = await request<{ user: User }>("/api/auth/me/creator-mode", token, { method: "POST" });
-    setUser(result.user);
-    setAppMode("creator");
-    setIsAccountMenuOpen(false);
-    setIsAccountModalOpen(false);
-    setCommunityMessage("창작자 계정으로 전환되었습니다. 스튜디오에서 내 프로필과 대표작을 먼저 등록해보세요.");
-    await loadData(token);
-    setActivePage(studioWindow ? "studio" : "discover");
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function startPremiumSubscription() {
@@ -5941,7 +5845,7 @@ export function App() {
                     <div>
                       <strong>알림센터</strong>
                       <small>{unreadNotificationCount > 0 ? `${unreadNotificationCount}개의 새 알림` : "모두 확인했어요"}</small>
-                      <em>{isCreatorAccount ? "매칭 · 채팅 · 정산 알림 중심" : "새 회차 · 스크랩 · 결제 알림 중심"}</em>
+                      <em>{isStudioMemberView ? "매칭 · 채팅 · 정산 알림 중심" : "새 회차 · 스크랩 · 결제 알림 중심"}</em>
                     </div>
                     <button type="button" onClick={markAllNotificationsRead}>모두 읽음</button>
                   </div>
@@ -5982,7 +5886,7 @@ export function App() {
                     >
                       새 회차
                     </button>
-                    {isCreatorAccount && (
+                    {isStudioMemberView && (
                       <button
                         className={notificationPreferences.settlement ? "active" : ""}
                         type="button"
@@ -6023,11 +5927,11 @@ export function App() {
                   <button onClick={() => { openReaderLibrary("recent"); setIsAccountMenuOpen(false); }}><RefreshCw size={17} /> 최근 본 작품</button>
                   <button onClick={() => { openReaderLibrary("purchased"); setIsAccountMenuOpen(false); }}><BookOpen size={17} /> 결제한 작품</button>
                   <button onClick={() => { openReaderLibrary("scrapped"); setIsAccountMenuOpen(false); }}><Heart size={17} /> 스크랩한 작품</button>
-                  {isCreatorAccount && (
+                  {isStudioMemberView && (
                     <button onClick={() => { navigate("studio"); setIsAccountMenuOpen(false); }}><Rocket size={17} /> 창작자 스튜디오</button>
                   )}
                   <button onClick={() => { navigate("wallet"); setIsAccountMenuOpen(false); }}><Wallet size={17} /> 내 지갑</button>
-                  {isCreatorAccount && (
+                  {isStudioMemberView && (
                     <button onClick={() => { navigate("settlement"); setIsAccountMenuOpen(false); }}><Split size={17} /> 정산 콘솔</button>
                   )}
                   {isAdminAccount && (
@@ -6089,7 +5993,7 @@ export function App() {
                 <h1>{user ? `${user.displayName}님, 이어서 볼까요?` : "오늘 볼 작품을 바로 찾아볼까요?"}</h1>
                 <p>
                   {user
-                    ? isCreatorAccount
+                    ? isStudioMemberView
                       ? "오늘 확인할 제안, 프로필 준비도, 정산 상태를 먼저 정리했습니다."
                       : "이어보기, 새 회차, 코인 상태를 먼저 보여줘 바로 감상으로 들어갈 수 있어요."
                     : appMode === "creator"
@@ -6099,10 +6003,10 @@ export function App() {
               </div>
 
               {user ? (
-                <div className="app-mode-switch role-locked" aria-label="현재 계정 유형">
+                <div className="app-mode-switch role-locked" aria-label="현재 화면">
                   <button type="button" className="active" disabled>
-                    {isCreatorAccount ? <Rocket size={16} /> : <BookOpen size={16} />}
-                    {isCreatorAccount ? "창작자 계정" : "독자 계정"}
+                    {isStudioMemberView ? <Rocket size={16} /> : <BookOpen size={16} />}
+                    {isStudioMemberView ? "창작자 스튜디오" : "작품 감상"}
                   </button>
                 </div>
               ) : (
@@ -6119,8 +6023,8 @@ export function App() {
               )}
 
               {user ? (
-                <div className="app-today-strip" aria-label={isCreatorAccount ? "창작자 오늘 요약" : "독자 오늘 요약"}>
-                  {isCreatorAccount ? (
+                <div className="app-today-strip" aria-label={isStudioMemberView ? "창작자 오늘 요약" : "독자 오늘 요약"}>
+                  {isStudioMemberView ? (
                     <>
                       <button type="button" className="app-today-card primary" onClick={() => navigate("matching")}>
                         <MessageCircle size={17} />
@@ -6237,8 +6141,8 @@ export function App() {
                 </div>
               </section>
 
-              <div className="app-role-action-strip" aria-label={isCreatorAccount ? "창작자 오늘 할 일" : "독자 오늘 추천 동선"}>
-                {isCreatorAccount ? (
+              <div className="app-role-action-strip" aria-label={isStudioMemberView ? "창작자 오늘 할 일" : "독자 오늘 추천 동선"}>
+                {isStudioMemberView ? (
                   <>
                     <button type="button" onClick={() => navigate("studio")}>
                       <Rocket size={18} />
@@ -6306,7 +6210,7 @@ export function App() {
 
               <div className="app-home-quick-grid">
                 <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 보기</span></button>
-                {isCreatorAccount ? (
+                {isStudioMemberView ? (
                   <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span></button>
                 ) : (
                   <button type="button" onClick={openPayment}><Coins size={18} /><span>코인 충전</span></button>
@@ -6344,7 +6248,7 @@ export function App() {
               </div>
 
               <div className="app-trust-strip" aria-label="앱 신뢰 기능 요약">
-                {(isCreatorAccount
+                {(isStudioMemberView
                   ? trustSignals
                   : [
                       trustSignals[1],
@@ -6434,7 +6338,7 @@ export function App() {
                 </div>
                 <div className="intro-actions">
                   <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보기</button>
-                  {isCreatorAccount ? (
+                  {isStudioMemberView ? (
                     <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 스튜디오 열기</button>
                   ) : (
                     <button className="ghost-button" onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /> 스크랩 보관함</button>
@@ -6780,7 +6684,7 @@ export function App() {
               <h2>창작자가 모이고, 독자가 듣고, 수익이 공정하게 흐르는 오디오 유니버스</h2>
               <p>이제 매칭, 작품 결제, 정산, 고객센터 화면에서 실제 MVP 흐름을 확인해보세요.</p>
               <div>
-                {isCreatorAccount ? (
+                {isStudioMemberView ? (
                   <button className="primary-button" onClick={() => navigate("matching")}><Users size={18} /> 매칭 화면 보기</button>
                 ) : (
                   <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 추천 작품 보기</button>
@@ -6795,7 +6699,7 @@ export function App() {
           <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
             onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
             onClearSearch={() => setReaderSearch("")} getRankScore={getWorkRankScore} getCreatorNames={getCreditNames}
-            onOpenWork={work => { setSelectedWork(work); setReviewWorkId(work.id); }} />
+            onOpenWork={(work, mode, episode) => { setTideEntryEpisode(episode ?? null); setTideMode(mode ?? "read"); setSelectedWork(work); setReviewWorkId(work.id); }} />
         )}
 
         {activePage === "library" && <section className="section reader-subpage page-panel">
@@ -7016,17 +6920,15 @@ export function App() {
 
         </section>}
 
-        {studioWindow && creatorOnlyPages.has(activePage) && !isCreatorAccount && (
+        {studioWindow && creatorOnlyPages.has(activePage) && !isStudioMemberView && (
           <section className="cu-studio-entry">
             <img src="/logo.png" alt="" width="72" height="72" />
             <h1>창작자 스튜디오</h1>
             <p>작품을 등록하고, 함께할 팀원을 찾고, 주 단위 정산 내역을 확인하세요.</p>
-            {user
-              ? <button className="primary-button" onClick={openMyAccount}>내 계정에서 창작자로 전환</button>
-              : <button className="primary-button" onClick={() => setAuthMode("login")}>로그인하고 시작하기</button>}
+            <button className="primary-button" onClick={() => setAuthMode("login")}>로그인하고 시작하기</button>
           </section>
         )}
-        {activePage === "studio" && isCreatorAccount && <section className="section studio-page page-panel">
+        {activePage === "studio" && isStudioMemberView && <section className="section studio-page page-panel">
           <section className="app-studio-dashboard" aria-label="앱 창작자 스튜디오 요약">
             <div className="app-studio-head">
               <span>Creator Studio</span>
@@ -7808,7 +7710,7 @@ export function App() {
           {communityMessage && <p className="community-message studio-message">{communityMessage}</p>}
         </section>}
 
-        {activePage === "matching" && isCreatorAccount && <section className="section matching-page page-panel">
+        {activePage === "matching" && isStudioMemberView && <section className="section matching-page page-panel">
           <section className="app-matching-dashboard" aria-label="앱 팀원 찾기 요약">
             <div className="app-matching-head">
               <span>Team Matching</span>
@@ -7925,34 +7827,15 @@ export function App() {
 
           <section className="ai-match-panel" aria-label="AI 팀원 추천">
             <div className="ai-match-copy">
-              <p className="kicker">AI Matching Coach</p>
-              <h2>작품 설명만 넣으면 맞는 팀원을 순위로 정리해요</h2>
+              <p className="kicker">AI 매칭 매니저</p>
+              <h2>이 작품, 누구와 만들까요?</h2>
               <p>
-                장르, 분위기, 필요한 직군을 편하게 말하면 AI가 공개 포트폴리오를 비교해서
-                추천 이유와 다음 질문까지 이어서 정리합니다.
+                필요한 역할과 작품 분위기를 알려주세요. 후보의 공개 포트폴리오에서 맞닿는 작업을 찾아 추천 근거와 함께 보여드려요.
               </p>
-              <div className="ai-availability-note" aria-label="AI 매칭 동작 기준">
-                <span>작품 조건별 추천</span>
-                <span>등록 후보만 추천</span>
-                <span>후보 없으면 솔직 안내</span>
-              </div>
-              <div className="ai-coach-steps" aria-label="AI 매칭 이용 순서">
-                <article>
-                  <b>01</b>
-                  <strong>작품 설명</strong>
-                  <span>장르와 분위기 입력</span>
-                </article>
-                <article>
-                  <b>02</b>
-                  <strong>후보 비교</strong>
-                  <span>직군별 포트폴리오 분석</span>
-                </article>
-                <article>
-                  <b>03</b>
-                  <strong>바로 액션</strong>
-                  <span>채팅, 지분 제안 연결</span>
-                </article>
-              </div>
+              <details className="ai-review-info">
+                <summary>추천은 어떻게 만들어지나요?</summary>
+                <p>공개 프로필을 직군, 작품 방향, 작업 역량, 협업 기록으로 비교합니다. Groq, NVIDIA, Gemini가 연결되어 있으면 작품 조건에서 추출한 키워드와 후보의 공개 프로필 키워드를 추가로 검토할 수 있어요. 각 답변에 실제로 참여한 AI를 표시합니다.</p>
+              </details>
             </div>
 
             <div className="ai-match-workbench">
@@ -7995,21 +7878,10 @@ export function App() {
                       <Bot size={19} />
                     </div>
                     <div>
-                      <span>AI 매칭 매니저</span>
-                      <strong>대화하듯 물어보면 후보와 이유를 같이 정리해요</strong>
+                      <strong>작품 상담</strong>
                       <p>
-                        대화 기억 {aiMatchMessages.filter((message) => message.role === "user").length}개 · 공개 포트폴리오 기반 추천
-                        <span className={`ai-provider-badge ${aiMatchResponse?.provider ?? "waiting"}`}>
-                          {aiMatchResponse?.provider === "gemini"
-                            ? "AI 분석"
-                            : aiMatchResponse
-                              ? "프로필 분석"
-                              : "조건 입력 대기"}
-                        </span>
+                        {aiMatchMessages.length ? "앞서 이야기한 조건을 이어서 비교해요." : "찾고 싶은 팀원을 알려주세요."}
                       </p>
-                      {aiMatchResponse?.provider === "local" && (
-                        <small className="ai-provider-note">현재 공개된 프로필과 요청 조건을 비교한 추천입니다.</small>
-                      )}
                     </div>
                   </div>
                   <div className="ai-history-actions">
@@ -8017,6 +7889,7 @@ export function App() {
                       <button
                         className={`ai-history-toggle ${isAiHistoryOpen ? "active" : ""}`}
                         type="button"
+                        aria-expanded={isAiHistoryOpen}
                         onClick={() => setIsAiHistoryOpen((value) => !value)}
                       >
                         <MessageCircle size={15} />
@@ -8058,6 +7931,7 @@ export function App() {
                     <div className={`ai-chat-bubble ${message.role}`} key={`${message.role}-${index}-${message.content.slice(0, 12)}`}>
                       <span>{message.role === "user" ? "나" : "AI 매칭 매니저"}</span>
                       <p>{message.content}</p>
+                      {message.role === "assistant" && message.source && <small className="ai-answer-source">{message.source}</small>}
                     </div>
                   ))}
                   {isAiMatching && (
@@ -8091,7 +7965,6 @@ export function App() {
                   <span>{aiMatchPrompt.length.toLocaleString()} / 1,200자</span>
                   <span>Enter 전송</span>
                   <span>Shift+Enter 줄바꿈</span>
-                  <span>“왜?”라고 물으면 근거를 다시 설명해요</span>
                 </div>
                 {aiMatchMessage && <p className="ai-match-message" role="status">{aiMatchMessage}</p>}
               </div>
@@ -8100,13 +7973,14 @@ export function App() {
             {aiMatchResponse && (
               <div className="ai-conversation-card ai-analysis-card">
                 <div className="ai-brief-card">
-                  <span>AI가 읽은 작품 방향</span>
+                  <span>이번 작품의 매칭 조건</span>
                   <strong>{aiMatchResponse.projectBrief.summary}</strong>
                   <div>
                     <em>{aiMatchResponse.projectBrief.tone}</em>
                     {aiMatchResponse.projectBrief.topics.map((topic) => <em key={topic}>{topic}</em>)}
                     {aiMatchResponse.projectBrief.neededRoles.map((roleName) => <em key={roleName}>{roleName} 필요</em>)}
                   </div>
+                  {aiMatchResponse.providersUsed && aiMatchResponse.providerNote && <p className="ai-result-note">{aiMatchResponse.providerNote}</p>}
                 </div>
                 <div className="ai-followup-row">
                   {aiMatchResponse.followUpSuggestions.map((question) => (
@@ -8132,7 +8006,7 @@ export function App() {
                     <article className={`ai-recommendation-card ${item.creator.primaryRole.toLowerCase()}`} key={`${item.creator.userId}-${item.rank}`} style={{ animationDelay: `${(item.rank - 1) * 70}ms` }}>
                       <div className="ai-rank-badge">
                         <b>{item.rank}</b>
-                        <span>{item.matchSignals ? `추천 점수 ${item.score} / 100` : `${item.matchRate}% 매칭`}</span>
+                        <span>{item.matchSignals ? `프로필 점수 ${item.score} / 100` : `${item.matchRate}% 매칭`}</span>
                       </div>
                       <div className="ai-creator-line">
                         <i>{item.creator.displayName.slice(0, 1)}</i>
@@ -8142,6 +8016,12 @@ export function App() {
                         </div>
                       </div>
                       <p>{item.reason}</p>
+                      {Boolean(item.reviewEvidence?.length) && (
+                        <div className="ai-reviewed-evidence">
+                          <h3><Sparkles size={14} aria-hidden="true" />AI가 선택한 프로필 근거</h3>
+                          <ul>{item.reviewEvidence?.map(detail => <li key={detail}>{detail}</li>)}</ul>
+                        </div>
+                      )}
                       {item.matchSignals && (
                         <details className="ai-score-details">
                           <summary>추천 근거 자세히 보기 <ChevronDown size={14} /></summary>
@@ -8662,7 +8542,7 @@ export function App() {
           </div>
         </section>}
 
-        {activePage === "settlement" && isCreatorAccount && <section className="section settlement-console page-panel">
+        {activePage === "settlement" && isStudioMemberView && <section className="section settlement-console page-panel">
           <section className="app-settlement-dashboard" aria-label="앱 정산 요약">
             <div className="app-settlement-head">
               <span>Smart Settlement</span>
@@ -9159,13 +9039,9 @@ export function App() {
 
       <footer className="site-footer">
         <div className="footer-brand">
-          <span className="footer-logo"><img src="/logo.png" alt="" /></span>
-          <div>
-            <strong>Creator Universe</strong>
-            <p>대한민국</p>
-          </div>
+          <strong>Creator Universe</strong>
+          <small className="footer-copy">© 2026 Creator Universe Inc.</small>
         </div>
-        <p className="footer-copy">Copyright © 2026 Creator Universe Inc. 모든 권리 보유.</p>
         <nav className="footer-links" aria-label="하단 정책 링크">
           <button className="cu-footer-link" onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
           <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
@@ -9194,7 +9070,7 @@ export function App() {
         >
           {isMobileQuickOpen ? <X size={20} /> : <Plus size={22} />}
         </button>
-        {isCreatorAppShell ? (
+        {isStudioMemberView ? (
           <button className={activePage === "matching" ? "active" : ""} onClick={() => navigate("matching")}><Users size={18} />매칭</button>
         ) : (
           <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
@@ -9219,10 +9095,10 @@ export function App() {
       <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
         <div className="quick-sheet-head">
           <strong>빠른 시작</strong>
-          <span>{isCreatorAppShell ? "작품을 만들고, 팀을 찾고, 제안을 바로 확인하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
+          <span>{isStudioMemberView ? "작품을 만들고, 팀을 찾고, 제안을 바로 확인하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
         </div>
         <div className="quick-sheet-primary-actions" aria-label="핵심 빠른 실행">
-          {isCreatorAppShell ? (
+          {isStudioMemberView ? (
             <>
               <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 등록</span><small>원고·웹툰·오디오</small></button>
               <button onClick={() => navigate("matching")}><Users size={18} /><span>팀 매칭</span><small>팀원 찾기</small></button>
@@ -9253,7 +9129,7 @@ export function App() {
         </div>
 
         <div className="quick-sheet-secondary-actions" aria-label="보조 빠른 실행">
-          {isCreatorAppShell ? (
+          {isStudioMemberView ? (
             <button onClick={() => navigate("settlement")}><Split size={17} /><span>정산</span><small>{formatCoins(settlementPreview.mySettlementAmount)}</small></button>
           ) : (
             <button onClick={() => openReaderLibrary("recent")}><RefreshCw size={17} /><span>최근</span><small>{recentWorks.length}개</small></button>
@@ -9552,7 +9428,7 @@ export function App() {
           workProgress={workProgress}
           premiumSubscription={premiumSubscription}
           notificationPreferences={notificationPreferences}
-          isCreatorAccount={isCreatorAccount}
+          isStudioMemberView={isStudioMemberView}
           onClose={() => setIsAccountModalOpen(false)}
           onLogout={logout}
           onDeleteAccount={() => void deleteAccount()}
@@ -9562,7 +9438,6 @@ export function App() {
           }}
           onStartPremium={startPremiumSubscription}
           onCancelPremium={cancelPremiumSubscription}
-          onUpgradeToCreator={() => void upgradeToCreatorAccount()}
           onToggleNotificationPreference={toggleNotificationPreference}
           onNavigate={navigate}
           onOpenLibrary={openReaderLibrary}
@@ -9579,7 +9454,15 @@ export function App() {
           onToggleFollow={() => void toggleCreatorFollow(selectedCreator.userId)}
         />
       )}
-      {selectedWork && (
+      {selectedWork?.id === tideWork.id && <TideReader
+        initialEpisode={tideEntryEpisode ?? workProgress[tideWork.id]?.episodeNumber ?? 1}
+        mode={tideMode} onMode={setTideMode} onClose={() => setSelectedWork(null)}
+        onRead={episode => {
+          setWorkProgress(current => ({...current, [tideWork.id]: {episodeNumber: episode, percent: Math.round(episode / 3 * 100), updatedAt: new Date().toISOString()}}));
+          setRecentWorkIds(current => [tideWork.id, ...current.filter(id => id !== tideWork.id)].slice(0,12));
+        }}
+      />}
+      {selectedWork && selectedWork.id !== tideWork.id && (
         <WorkDetailModal
           token={token}
           work={selectedWork}

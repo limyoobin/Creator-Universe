@@ -7,6 +7,51 @@
   animation: matchingCardEnter 420ms ease backwards;
 }
 
+.ai-review-info {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+.ai-review-info summary {
+  width: fit-content;
+  max-width: 100%;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+.ai-review-info summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; }
+.ai-match-copy .ai-review-info p,
+.ai-result-note,
+.ai-answer-source {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.ai-result-note { margin: 2px 0 0; }
+.ai-answer-source { padding-inline: 4px; }
+.ai-reviewed-evidence {
+  border-inline-start: 2px solid var(--brand);
+  padding-inline-start: 10px;
+}
+.ai-reviewed-evidence h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+}
+.ai-reviewed-evidence ul {
+  margin: 6px 0 0;
+  padding-inline-start: 18px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
 .ai-score-details,
 .ai-candidate-comparison {
   min-width: 0;

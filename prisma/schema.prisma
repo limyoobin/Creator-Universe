@@ -98,6 +98,7 @@ model User {
   creatorProfile    CreatorProfile?
   contentAccesses   ContentAccess[]
   authSessions      AuthSession[]
+  passkeys          PasskeyCredential[]
   sentChatMessages   ChatMessage[]   @relation("ChatSender")
   receivedChatMessages ChatMessage[] @relation("ChatReceiver")
   sentMatchRequests  MatchRequest[]  @relation("MatchRequester")
@@ -325,6 +326,29 @@ model AuthSession {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model PasskeyChallenge {
+  id            String   @id @default(uuid())
+  challenge     String
+  purpose       String
+  origin        String
+  accountId     String?
+  accountDigest String?
+  expiresAt     DateTime
+
+  @@index([expiresAt])
+}
+
+model PasskeyCredential {
+  id          String @id
+  userId      String
+  rpId        String
+  publicKey   String
+  counter     BigInt
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model MatchRequest {

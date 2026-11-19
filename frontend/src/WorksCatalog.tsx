@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Pause, Play, Search, Star, TrendingUp } from "lucide-react";
 import "./works-catalog.css";
+import { tideChapters, tideWork } from "./tide-letter";
 
 type CatalogWork = {
   id: string;
@@ -23,12 +24,13 @@ type CatalogProps<W extends CatalogWork> = {
   mode: CatalogMode;
   onModeChange: (mode: CatalogMode) => void;
   onClearSearch: () => void;
-  onOpenWork: (work: W) => void;
+  onOpenWork: (work: W, mode?: "read" | "motion", episode?: number) => void;
   getRankScore: (work: W) => number;
   getCreatorNames: (work: W) => string[];
 };
 
 const features = [
+  { id: tideWork.id, image: "/originals/tide-letter/feature.webp" },
   { id: "starlight-contract", image: "/banners/starlight-contract.webp" },
   { id: "dragon-archive", image: "/banners/dragon-archive.webp" },
   { id: "neon-pulse-zero", image: "/banners/neon-pulse-zero.webp" },
@@ -94,6 +96,7 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   if (!count) return null;
   const selected = index % count;
   const { work, image, ranking } = slides[selected];
+  const original = work.id === tideWork.id && !ranking;
   function move(amount: number) {
     setIndex((selected + amount + count) % count);
     setPaused(true);
@@ -108,7 +111,7 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
   }
 
   return (
-    <section className="cu-feature" aria-label="추천 작품" aria-roledescription="캐러셀"
+    <section className={"cu-feature" + (original ? " cu-feature-original" : "")} aria-label="추천 작품" aria-roledescription="캐러셀"
       onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)}
       onFocus={() => setHasFocus(true)} onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setHasFocus(false);
@@ -129,12 +132,16 @@ function FeaturedWorks<W extends CatalogWork>({ works, onOpenWork, onOpenRanking
       </div>
       <div className="cu-feature-shade" />
       <div className="cu-feature-copy" aria-live={paused || reducedMotion ? "polite" : "off"} aria-atomic="true">
-        <span className="cu-feature-meta">{ranking ? "인기 랭킹 1위" : work.format}<i />{work.genre}</span>
+        <span className="cu-feature-meta">{original ? "오리지널 웹툰" : ranking ? "인기 랭킹 1위" : work.format}<i />{work.genre}</span>
         <h2>{work.title}</h2>
+        {original && <p className="cu-original-deck">내일의 소인이 찍힌 편지가 도착했다.</p>}
+        <div className="cu-feature-actions">
         <button type="button" className="cu-feature-open" onClick={() => ranking ? onOpenRanking() : onOpenWork(work)}
-          aria-label={ranking ? "인기 작품 랭킹 보기" : work.title + " 작품 보기"}>
-          {ranking ? "랭킹 보기" : "작품 보기"} <ArrowRight size={16} />
+          aria-label={ranking ? "인기 작품 랭킹 보기" : work.title + (original ? " 웹툰 읽기" : " 작품 보기")}>
+          {ranking ? "랭킹 보기" : original ? "웹툰 읽기" : "작품 보기"} <ArrowRight size={16} />
         </button>
+        {original && <button type="button" className="cu-motion-open" onClick={() => onOpenWork(work, "motion")}><Play size={14} fill="currentColor"/>모션툰 보기</button>}
+        </div>
       </div>
       {count > 1 && <div className="cu-feature-controls">
         <span className="cu-slide-count" aria-label={count + "개 중 " + (selected + 1) + "번째"}>
@@ -182,15 +189,17 @@ export function WorksCatalog<W extends CatalogWork>(props: CatalogProps<W>) {
   const words = search.split(/\s+/).filter(Boolean).map(normalize);
   const formats = shelves[shelf].formats;
   const entries = works.filter((work) => {
-    if (!search) return !formats.length || formats.includes(work.format);
+    if (!search) return !formats.length || formats.includes(work.format) || (formats.includes("애니메이션") && work.tags.includes("모션툰"));
     const fields = [work.title, work.format, work.genre, work.subGenre, ...work.tags, ...getCreatorNames(work)].map(normalize);
     return words.every((word) => fields.some((field) => field.includes(word)));
   });
   const byRank = (left: W, right: W) => getRankScore(right) - getRankScore(left);
   const ranked = [...works].sort(byRank);
+  const original = works.find(work => work.id === tideWork.id);
   const rankedView = mode === "ranking";
   if (rankedView || sort === "popular") entries.sort(byRank);
   else if (sort === "rating") entries.sort((a, b) => b.rating - a.rating || byRank(a, b));
+  else entries.sort((left, right) => Number(right.id === tideWork.id) - Number(left.id === tideWork.id));
 
   const browseHeading = search ? "검색 결과" : rankedView ? "작품 랭킹" : "작품 둘러보기";
   return <div className={"cu-catalog" + (rankedView ? " cu-catalog-ranking" : "")}>
@@ -203,6 +212,14 @@ export function WorksCatalog<W extends CatalogWork>(props: CatalogProps<W>) {
         <RankList works={ranked.slice(0, 4)} onOpenWork={onOpenWork} getCreatorNames={getCreatorNames} />
       </aside>
     </div>}
+    {!search && !rankedView && original && <section className="cu-episode-shelf" aria-label={original.title + " 무료 공개 회차"}>
+      <div className="cu-episode-heading"><h2>무료 공개 회차</h2><span>{original.title} · 완결</span></div>
+      <div className="cu-episode-links">{tideChapters.map((chapter, index) => <button type="button" key={chapter.title}
+        aria-label={original.title + " " + (index + 1) + "화 " + chapter.title + " 읽기"} onClick={() => onOpenWork(original, "read", index + 1)}>
+        <img src={chapter.panels[index === 2 ? 0 : 1].art} alt="" loading="lazy" />
+        <span><small>제 {index + 1} 화</small><strong>{chapter.title}</strong></span><ChevronRight size={17}/>
+      </button>)}</div>
+    </section>}
     <section className="cu-shelf" aria-labelledby="cu-catalog-heading">
       <div className="cu-shelf-title">
         <div><h1 id="cu-catalog-heading" ref={heading} tabIndex={-1}>{browseHeading}</h1>
@@ -232,7 +249,7 @@ export function WorksCatalog<W extends CatalogWork>(props: CatalogProps<W>) {
             </span>
             <strong>{work.title}</strong>
             <span className="cu-tile-byline">{getCreatorNames(work).join(" · ") || work.genre}</span>
-            <span className="cu-tile-stats"><Star size={12} fill="currentColor" /> {work.rating.toFixed(1)} <i /> {work.episodes}화</span>
+            <span className="cu-tile-stats">{work.id === tideWork.id ? <>전편 무료 <i/> 3화 완결</> : <><Star size={12} fill="currentColor"/> {work.rating.toFixed(1)} <i/> {work.episodes}화</>}</span>
           </button>
         ))}</div>}
     </section>

@@ -2,17 +2,15 @@ import { PartnerTier, UserRole, type Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../errors/app-error.js";
 import { createSessionToken, hashPassword, hashToken, verifyPassword } from "../utils/auth.js";
-import { checkSignupIdentityRequirement, consumeSignupIdentity, type IdentityProof } from "./signup-identity.service.js";
+import { type IdentityProof } from "./signup-identity.service.js";
 import { identityReady, identityRequired, paymentReady } from "../lib/portone.js";
 
 const SESSION_DAYS = 7;
 
-type SignupInput = {
+export type SignupAccount = {
   email: string;
   username: string;
   displayName: string;
-  password: string;
-  role?: UserRole;
   identityVerification?: IdentityProof;
 };
 
@@ -22,7 +20,7 @@ export function isValidPassword(password: string) {
   return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
 }
 
-function publicUser(user: {
+export function publicUser(user: {
   id: string;
   email: string;
   username: string;
@@ -42,7 +40,7 @@ function publicUser(user: {
   };
 }
 
-async function issueSession(userId: string, db: Prisma.TransactionClient = prisma) {
+export async function issueSession(userId: string, db: Prisma.TransactionClient = prisma) {
   const token = createSessionToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
@@ -57,12 +55,11 @@ async function issueSession(userId: string, db: Prisma.TransactionClient = prism
   return { token, expiresAt };
 }
 
-export async function signup(input: SignupInput) {
-  checkSignupIdentityRequirement(input.identityVerification);
+export async function checkSignupAvailability(input: SignupAccount, db: Prisma.TransactionClient = prisma) {
   const [emailExists, usernameExists, displayNameExists] = await Promise.all([
-    prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
-    prisma.user.findUnique({ where: { username: input.username }, select: { id: true } }),
-    prisma.user.findFirst({ where: { displayName: input.displayName }, select: { id: true } }),
+    db.user.findUnique({ where: { email: input.email }, select: { id: true } }),
+    db.user.findUnique({ where: { username: input.username }, select: { id: true } }),
+    db.user.findFirst({ where: { displayName: input.displayName }, select: { id: true } }),
   ]);
 
   if (emailExists) {
@@ -77,28 +74,6 @@ export async function signup(input: SignupInput) {
     throw new AppError("Nickname is already taken.", 409);
   }
 
-  if (!isValidPassword(input.password)) {
-    throw new AppError(PASSWORD_RULE_MESSAGE, 422);
-  }
-
-  const passwordHash = await hashPassword(input.password);
-
-  return prisma.$transaction(async (tx) => {
-    const identity = input.identityVerification ? await consumeSignupIdentity(tx, input.identityVerification) : {};
-    const user = await tx.user.create({
-      data: {
-        email: input.email,
-        username: input.username,
-        displayName: input.displayName,
-        passwordHash,
-        role: input.role ?? UserRole.READER,
-        wallet: { create: { currency: "COIN" } },
-        ...identity,
-      },
-    });
-    const session = await issueSession(user.id, tx);
-    return { user: publicUser(user), ...session };
-  });
 }
 
 export async function login(username: string, password: string) {
@@ -207,13 +182,13 @@ export async function resetPassword(username: string, email: string, newPassword
 
   const user = await prisma.user.findFirst({
     where: { username, email },
-    select: { id: true, identityVerifiedAt: true },
+    select: { id: true, identityVerifiedAt: true, passwordHash: true },
   });
 
   if (!user) {
     throw new AppError("No matching account was found.", 404);
   }
-  if (user.identityVerifiedAt) throw protectedReset();
+  if (!user.passwordHash || user.identityVerifiedAt) throw protectedReset();
 
   await prisma.user.update({
     where: { id: user.id },
@@ -245,6 +220,8 @@ export async function deactivateAccount(token: string) {
   const deletedSuffix = `${session.userId.slice(0, 8)}-${Date.now()}`;
 
   await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${session.userId} FOR UPDATE`;
+    await tx.passkeyCredential.deleteMany({ where: { userId: session.userId } });
     await tx.authSession.deleteMany({
       where: { userId: session.userId },
     });

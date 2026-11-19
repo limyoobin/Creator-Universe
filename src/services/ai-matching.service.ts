@@ -1,5 +1,7 @@
 import { MemberRole } from "@prisma/client";
-import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching.js";
+import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, matchingReviewTags, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching.js";
+import { reviewMatchingShortlist } from "./matching-consensus.js";
+import type { MatchingProvider } from "../lib/matching-providers.js";
 import { prisma } from "../lib/prisma.js";
 
 type AiChatMessage = {
@@ -30,6 +32,7 @@ type CreatorRecommendation = {
   reason: string;
   reasonDetails: string[];
   matchedKeywords: string[];
+  reviewEvidence?: string[];
   suggestedMessage: string;
   creator: {
     id: string;
@@ -56,7 +59,8 @@ type CreatorRecommendation = {
 };
 
 type AiMatchingResponse = {
-  provider: "local" | "gemini";
+  provider: "local" | "ensemble" | MatchingProvider;
+  providersUsed: MatchingProvider[];
   providerNote?: string;
   assistantMessage: string;
   projectBrief: ProjectBrief;
@@ -85,46 +89,6 @@ type ConversationIntent =
   | "platformGuide"
   | "generalQuestion"
   | "recommend";
-
-type GeminiGenerateContentResponse = {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
-    };
-  }>;
-};
-
-type GeminiQuotaState = {
-  dateKey: string;
-  count: number;
-  lastRequestAt: number;
-};
-
-const GEMINI_FREE_MODEL_ALLOWLIST = new Set([
-  "gemini-3.1-flash-lite",
-  "gemini-3.1-flash-lite-preview",
-  "gemini-3.5-flash",
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-2.0-flash",
-  "gemini-flash-latest",
-]);
-
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite";
-const DEFAULT_GEMINI_DAILY_REQUEST_LIMIT = 40;
-const DEFAULT_GEMINI_MIN_INTERVAL_MS = 1500;
-const DEFAULT_GEMINI_TIMEOUT_MS = 7000;
-const DEFAULT_GEMINI_MAX_INPUT_CHARS = 5200;
-const DEFAULT_GEMINI_MAX_OUTPUT_TOKENS = 650;
-
-const geminiQuotaState: GeminiQuotaState = {
-  dateKey: new Date().toISOString().slice(0, 10),
-  count: 0,
-  lastRequestAt: 0,
-};
 
 const roleLabels: Record<MemberRole, string> = {
   WRITER: "글",
@@ -202,117 +166,6 @@ function normalize(value: string) {
 
 function unique<T>(items: T[]) {
   return Array.from(new Set(items));
-}
-
-function readBooleanEnv(name: string, defaultValue: boolean) {
-  const value = process.env[name]?.trim().toLowerCase();
-
-  if (!value) {
-    return defaultValue;
-  }
-
-  return ["1", "true", "yes", "on"].includes(value);
-}
-
-function readPositiveIntegerEnv(name: string, defaultValue: number) {
-  const value = Number(process.env[name]);
-
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : defaultValue;
-}
-
-function truncateText(value: string, maxLength: number) {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
-}
-
-function getGeminiConfig() {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  const enabled = readBooleanEnv("GEMINI_AI_ENABLED", Boolean(apiKey));
-  const freeOnly = readBooleanEnv("GEMINI_FREE_ONLY", true);
-  const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
-  const dailyRequestLimit = readPositiveIntegerEnv("GEMINI_DAILY_REQUEST_LIMIT", DEFAULT_GEMINI_DAILY_REQUEST_LIMIT);
-  const minIntervalMs = readPositiveIntegerEnv("GEMINI_MIN_INTERVAL_MS", DEFAULT_GEMINI_MIN_INTERVAL_MS);
-  const timeoutMs = readPositiveIntegerEnv("GEMINI_TIMEOUT_MS", DEFAULT_GEMINI_TIMEOUT_MS);
-  const maxInputChars = readPositiveIntegerEnv("GEMINI_MAX_INPUT_CHARS", DEFAULT_GEMINI_MAX_INPUT_CHARS);
-  const maxOutputTokens = readPositiveIntegerEnv("GEMINI_MAX_OUTPUT_TOKENS", DEFAULT_GEMINI_MAX_OUTPUT_TOKENS);
-
-  return {
-    apiKey,
-    enabled,
-    freeOnly,
-    model,
-    dailyRequestLimit,
-    minIntervalMs,
-    timeoutMs,
-    maxInputChars,
-    maxOutputTokens,
-  };
-}
-
-function resetGeminiQuotaIfNeeded() {
-  const today = new Date().toISOString().slice(0, 10);
-
-  if (geminiQuotaState.dateKey !== today) {
-    geminiQuotaState.dateKey = today;
-    geminiQuotaState.count = 0;
-    geminiQuotaState.lastRequestAt = 0;
-  }
-}
-
-function canUseGeminiApi() {
-  const config = getGeminiConfig();
-  resetGeminiQuotaIfNeeded();
-
-  if (!config.apiKey) {
-    return { ok: false as const, config, reason: "GEMINI_API_KEY is missing." };
-  }
-
-  if (!config.enabled) {
-    return { ok: false as const, config, reason: "Gemini is disabled by GEMINI_AI_ENABLED." };
-  }
-
-  if (config.freeOnly && !GEMINI_FREE_MODEL_ALLOWLIST.has(config.model)) {
-    return { ok: false as const, config, reason: `Gemini model "${config.model}" is blocked by GEMINI_FREE_ONLY.` };
-  }
-
-  if (geminiQuotaState.count >= config.dailyRequestLimit) {
-    return { ok: false as const, config, reason: "Gemini daily request limit reached." };
-  }
-
-  if (Date.now() - geminiQuotaState.lastRequestAt < config.minIntervalMs) {
-    return { ok: false as const, config, reason: "Gemini minimum request interval is active." };
-  }
-
-  return { ok: true as const, config };
-}
-
-function getGeminiFallbackNote(reason: string) {
-  if (reason.includes("GEMINI_API_KEY")) {
-    return "Gemini API 키가 백엔드 환경변수에 없어서 로컬 매칭으로 응답했습니다.";
-  }
-
-  if (reason.includes("disabled")) {
-    return "Gemini가 비활성화되어 로컬 매칭으로 응답했습니다. GEMINI_AI_ENABLED 값을 확인해 주세요.";
-  }
-
-  if (reason.includes("daily request limit")) {
-    return "Gemini 무료 사용량 한도에 도달해 로컬 매칭으로 응답했습니다.";
-  }
-
-  if (reason.includes("minimum request interval")) {
-    return "Gemini 호출 간격 제한 중이라 로컬 매칭으로 응답했습니다.";
-  }
-
-  if (reason.includes("blocked by GEMINI_FREE_ONLY")) {
-    return "무료 허용 모델이 아니라 로컬 매칭으로 응답했습니다. GEMINI_MODEL 또는 GEMINI_FREE_ONLY를 확인해 주세요.";
-  }
-
-  return "Gemini를 사용할 수 없어 로컬 매칭으로 응답했습니다.";
-}
-
-function reserveGeminiQuota() {
-  resetGeminiQuotaIfNeeded();
-  geminiQuotaState.count += 1;
-  geminiQuotaState.lastRequestAt = Date.now();
 }
 
 function includesAny(source: string, keywords: string[]) {
@@ -989,183 +842,11 @@ function buildResponse(input: AiMatchingInput, recommendations: CreatorRecommend
 
   return {
     provider: "local",
+    providersUsed: [],
     assistantMessage: buildAssistantMessage(input, recommendations),
     projectBrief: brief,
     recommendations,
     followUpSuggestions: buildFollowUpSuggestions(brief),
-  };
-}
-
-function buildGeminiCandidateContext(recommendations: CreatorRecommendation[]) {
-  return recommendations
-    .slice(0, 5)
-    .map((item) => ({
-      rank: item.rank,
-      name: item.creator.displayName,
-      username: item.creator.username,
-      role: roleLabels[item.creator.primaryRole],
-      headline: item.creator.headline,
-      bio: item.creator.bio,
-      skills: item.creator.skills,
-      responseRate: item.creator.responseRate,
-      completedProjects: item.creator.completedProjects,
-      followerCount: item.creator.followerCount,
-      matchRate: item.matchRate,
-      matchedKeywords: item.matchedKeywords,
-      localReason: item.reason,
-      reasonDetails: item.reasonDetails.slice(0, 3),
-      suggestedMessage: item.suggestedMessage,
-    }));
-}
-
-function buildGeminiTrainingExamples() {
-  return [
-    "예시 1) 사용자가 '그림 작가만 알려줘'라고 하면 ILLUSTRATOR 후보만 순위로 답하고, 글 작가는 추천하지 않는다.",
-    "예시 2) 사용자가 '사운드 디자이너 구하고 있는데 있을까?'라고 하면 SOUND_DIRECTOR 후보만 찾는다. 후보가 없으면 없다고 말하고, 대신 등록하면 좋은 프로필 조건을 안내한다.",
-    "예시 3) 사용자가 '성우 말고 표지 작가 찾아줘'라고 하면 VOICE_ACTOR는 제외하고 ILLUSTRATOR 후보를 추천한다.",
-    "예시 4) 사용자가 '왜 1순위야?'라고 하면 직전 추천 후보의 포트폴리오 키워드, 역할 적합도, 응답률을 근거로 짧게 설명한다.",
-    "예시 5) 사용자가 'DM 문구 써줘'라고 하면 작품 톤, 작업 범위, 수익 지분 논의를 자연스럽게 여는 메시지를 작성한다.",
-  ].join("\n");
-}
-
-function buildGeminiConversationPrompt(input: AiMatchingInput, localResponse: AiMatchingResponse, maxInputChars: number) {
-  const conversationHistory = (input.messages ?? [])
-    .slice(-8)
-    .map((message) => `${message.role === "assistant" ? "AI 매칭 매니저" : "사용자"}: ${message.content}`)
-    .join("\n");
-  const candidateContext = JSON.stringify(buildGeminiCandidateContext(localResponse.recommendations), null, 2);
-  const explicitRoles = detectExplicitRoleNeeds(input.projectDescription).map((role) => roleLabels[role]);
-  const excludedRoles = detectExcludedRoles(input.projectDescription).map((role) => roleLabels[role]);
-  const prompt = `
-사용자의 최신 질문:
-${input.projectDescription}
-
-최근 대화:
-${conversationHistory || "(이전 대화 없음)"}
-
-대화 규칙 예시:
-${buildGeminiTrainingExamples()}
-
-로컬 분석 요약:
-- 작품 요약: ${localResponse.projectBrief.summary}
-- 톤: ${localResponse.projectBrief.tone}
-- 키워드: ${localResponse.projectBrief.topics.join(", ") || "없음"}
-- 필요한 역할: ${localResponse.projectBrief.neededRoles.join(", ") || "미정"}
-- 사용자가 문장에 직접 말한 직군: ${explicitRoles.join(", ") || "없음"}
-- 사용자가 제외하거나 후순위로 말한 직군: ${excludedRoles.join(", ") || "없음"}
-
-추천 후보 데이터:
-${candidateContext}
-
-로컬 기본 답변:
-${localResponse.assistantMessage}
-`;
-
-  return truncateText(prompt.trim(), maxInputChars);
-}
-
-function isGeminiTextConsistentWithCandidates(text: string, recommendations: CreatorRecommendation[]) {
-  if (recommendations.length === 0) {
-    return true;
-  }
-
-  const topCandidateNames = recommendations.slice(0, 3).map((item) => item.creator.displayName);
-
-  return topCandidateNames.some((name) => text.includes(name));
-}
-
-function extractGeminiText(payload: GeminiGenerateContentResponse) {
-  return payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
-}
-
-async function generateGeminiAssistantMessage(input: AiMatchingInput, localResponse: AiMatchingResponse) {
-  const availability = canUseGeminiApi();
-
-  if (!availability.ok) {
-    return null;
-  }
-
-  reserveGeminiQuota();
-
-  const { config } = availability;
-  const apiKey = config.apiKey;
-
-  if (!apiKey) {
-    return null;
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [
-              {
-                text:
-                  "너는 Creator Universe의 AI 매칭 매니저다. 반드시 한국어로 답한다. 사용자가 일상 대화를 하면 자연스럽게 대화하고, 작품/장르/직군/기획/앱 사용 질문이 나오면 도움되는 조언을 한다. 창작자 추천은 제공된 후보 데이터 안에서만 1순위, 2순위, 3순위와 이유를 정리한다. 사용자가 사운드 디자이너, 성우, 작가, 일러스트레이터처럼 특정 직군을 직접 말하면 해당 직군 후보를 우선 추천하고 다른 직군은 보조 후보로만 설명한다. 특히 '그림 작가', '웹툰 작가', '만화 작가', '일러스트 작가', '표지 작가', '콘티 작가'는 글 작가가 아니라 그림/일러스트 직군으로 해석하고, '글 작가', '소설 작가', '웹소설 작가', '대본 작가'만 글 직군으로 해석한다. 'A 말고 B', 'A 제외', 'A는 나중'처럼 말하면 A 직군은 추천하지 않는다. 후보 데이터에 없는 사람과 없는 포트폴리오는 지어내지 않는다. 요청한 직군 후보가 없으면 없다고 말하고, 어떤 프로필이 등록되면 좋은지 안내한다. 결제/정산 안내는 일반 수수료 13%, 파트너 8% 기준으로 설명한다. 답변은 친근하지만 장황하지 않게, 모바일에서 읽기 좋게 문단을 짧게 쓴다.",
-              },
-            ],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: buildGeminiConversationPrompt(input, localResponse, config.maxInputChars),
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: config.maxOutputTokens,
-          },
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const payload = (await response.json()) as GeminiGenerateContentResponse;
-    const assistantMessage = extractGeminiText(payload);
-
-    if (assistantMessage.length < 8) {
-      return null;
-    }
-
-    if (!isGeminiTextConsistentWithCandidates(assistantMessage, localResponse.recommendations)) {
-      return null;
-    }
-
-    return assistantMessage;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function enhanceResponseWithGemini(input: AiMatchingInput, localResponse: AiMatchingResponse): Promise<AiMatchingResponse> {
-  const assistantMessage = await generateGeminiAssistantMessage(input, localResponse);
-
-  if (!assistantMessage) {
-    return localResponse;
-  }
-
-  return {
-    ...localResponse,
-    provider: "gemini",
-    assistantMessage,
   };
 }
 
@@ -1497,66 +1178,51 @@ function buildCleanRankedBlock(recommendations: CreatorRecommendation[]) {
     .join("\n\n");
 }
 
-function getCleanIntent(text: string) {
-  const source = cleanNormalize(text);
-
-  if (["안녕", "하이", "hello", "처음"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "greeting";
-  if (["왜", "이유", "근거"].some((keyword) => source.includes(keyword))) return "explain";
-  if (["비교", "누가 더", "1순위", "2순위"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "compare";
-  if (["dm", "디엠", "메시지", "문구", "제안"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "message";
-  if (["정산", "지분", "수수료", "수익"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "settlement";
-  if (["뭐야", "무슨", "이해", "다시", "쉽게"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "clarify";
-  if (["고마워", "좋아", "오케이", "ㅇㅋ"].some((keyword) => source.includes(cleanNormalize(keyword)))) return "smallTalk";
-
-  return "recommend";
+function matchingIntent(text: string): ConversationIntent {
+  const source = normalize(text);
+  if (includesAny(source, ["비교", "누가 더", "누구가 더", "두 사람 차이"])) return "compare";
+  if (includesAny(source, ["dm", "디엠", "메시지", "보낼 말", "문구"])) return "message";
+  if (includesAny(source, ["정산", "지분", "수수료", "수익"])) return "settlement";
+  if (includesAny(source, ["근거", "이유", "왜 추천"])) return "explain";
+  if (includesAny(source, ["찾아", "추천", "골라", "섭외"])) return "recommend";
+  const intent = getConversationIntent(text);
+  if (intent === "generalQuestion" && matchingReviewTags(text).length) return "recommend";
+  return intent;
 }
 
-function buildCleanAssistantMessage(input: AiMatchingInput, recommendations: CreatorRecommendation[]) {
-  const brief = buildCleanBrief(input);
-  const latestText = input.projectDescription.trim();
-  const previousUserTexts = input.messages?.filter((message) => message.role === "user").slice(0, -1).map((message) => message.content.trim()).filter(Boolean) ?? [];
-  const memory = previousUserTexts.length > 0 ? `앞에서 말한 조건도 같이 기억하고 있어요: ${previousUserTexts.slice(-2).join(" / ")}\n\n` : "";
-  const intent = getCleanIntent(latestText);
-  const top = recommendations[0];
-  const second = recommendations[1];
-  const third = recommendations[2];
+function reviewedReason(item: CreatorRecommendation) {
+  return item.reviewEvidence?.length
+    ? `${item.reason} 함께 살펴볼 프로필 키워드는 ${item.reviewEvidence.join(" · ")}입니다.`
+    : item.reason;
+}
 
-  if (!top) {
-    const requestedRoles = detectReliableExplicitRoleNeeds(latestText).map((role) => reliableRoleLabels[role]);
-    const roleText = requestedRoles.length > 0 ? requestedRoles.join(", ") : brief.neededRoles.join(", ");
-
-    return `${memory}현재 공개 매칭 프로필 중에는 ${roleText} 조건에 딱 맞는 후보가 아직 없어요.\n\n없는 사람을 억지로 추천하지는 않을게요. 대신 지금 공고에는 “${roleText} 포지션 모집, 장르 ${brief.topics.join(", ") || "미정"}, 필요한 작업 범위와 예상 지분”을 명확히 적으면 맞는 창작자가 등록됐을 때 추천 정확도가 올라갑니다.`;
+function buildMatchingMessage(input: AiMatchingInput, brief: ProjectBrief, intent: ConversationIntent, items: CreatorRecommendation[]) {
+  if (intent === "paymentGuide") {
+    return "코인은 결제 메뉴에서 충전합니다. 카드 결제 준비 중으로 표시되면 아직 충전할 수 없어요. 승인이 확인된 충전은 지갑 내역에 반영됩니다. 중복 결제나 취소는 주문번호와 함께 고객센터에 문의해 주세요.";
   }
-
-  if (intent === "greeting") {
-    return "안녕하세요. 저는 작품 설명을 듣고 필요한 팀원을 1·2·3순위로 골라주는 AI 매칭 매니저예요.\n\n장르, 분위기, 필요한 역할을 편하게 말해주면 공개 포트폴리오와 비교해서 추천 이유까지 정리해드릴게요.";
-  }
-
-  if (intent === "smallTalk") {
-    return "좋아요. 편하게 이야기해도 돼요.\n\n작품 얘기가 나오면 바로 매칭 기준으로 바꿔서 후보를 다시 계산할게요. 예를 들어 “미스터리 애니메이션에 맞는 사운드 디자이너 찾아줘”처럼 말하면 됩니다.";
-  }
-
-  if (intent === "clarify") {
-    return `${memory}쉽게 말하면 지금 작품은 “${brief.tone}” 쪽으로 읽혔고, 필요한 역할은 ${brief.neededRoles.join(", ")} 쪽이에요.\n\n그래서 현재 후보 중 ${top.creator.displayName}님을 먼저 봤습니다. “그림만”, “성우 제외”, “사운드 디자이너만”처럼 조건을 더 주면 그 기준으로 다시 좁혀볼게요.`;
-  }
-
-  if (intent === "explain") {
-    return `${memory}${top.creator.displayName}님을 ${top.rank}순위로 본 이유는 세 가지예요.\n\n1. ${top.reason}\n2. ${top.reasonDetails[0] ?? "작품 키워드와 포트폴리오 접점이 있습니다."}\n3. 응답률과 완료 프로젝트를 봤을 때 실제 상담으로 이어질 가능성이 있습니다.`;
-  }
-
-  if (intent === "compare" && second) {
-    return `${memory}비교하면 ${top.creator.displayName}님은 지금 작품의 핵심 조건에 가장 먼저 맞고, ${second.creator.displayName}님은 보조 또는 백업 후보로 좋습니다.\n\n${top.creator.displayName}: ${top.reason}\n${second.creator.displayName}: ${second.reason}\n\n빠르게 팀을 꾸리려면 1순위에게 먼저 DM을 보내고, 2순위는 동시에 백업으로 연락하는 흐름이 좋아요.`;
-  }
-
-  if (intent === "message") {
-    return `${memory}바로 보낼 수 있게 짧게 써볼게요.\n\n“안녕하세요, ${top.creator.displayName}님. 포트폴리오를 보고 제 작품 분위기와 잘 맞을 것 같아 연락드려요. ${top.suggestedMessage} 가능하시다면 작업 범위와 일정부터 짧게 이야기해보고 싶습니다.”`;
-  }
-
   if (intent === "settlement") {
-    return `${memory}정산 제안은 처음부터 투명하게 말하는 게 좋아요.\n\n“플랫폼 수수료는 일반 13%, 파트너 8% 기준이고, 차감 후 금액을 합의한 지분율대로 자동 정산하는 방식으로 진행하고 싶습니다. 초기안은 30:30:40이지만 역할 범위에 맞춰 조정 가능합니다.”`;
+    return "작품 구매 수익은 플랫폼 수수료(일반 13%, 파트너 8%)를 차감한 뒤 합의한 지분율로 나눕니다. 제안서에는 각자 맡을 작업과 수정 범위, 지분율, 주 단위 정산 일정을 함께 적어 보세요.";
   }
-
-  return `${memory}좋아요. 작품 방향은 이렇게 읽혔어요.\n\n${brief.summary}\n\n추천 순위는 아래처럼 볼게요.\n\n${buildCleanRankedBlock([top, second, third].filter(Boolean) as CreatorRecommendation[])}\n\n없는 직군은 억지로 섞지 않고, 현재 공개 프로필 안에서만 추천했습니다.`;
+  if (intent === "greeting" || intent === "smallTalk") {
+    return "어떤 작품의 팀원을 찾고 계세요? 장르와 맡길 작업을 알려주세요. 예를 들어 ‘도시괴담 오디오드라마에서 속삭이는 장면을 맡을 성우’처럼 적으면 공개 프로필의 근거를 비교해 드릴게요.";
+  }
+  const knowledge = buildKnowledgeAssistantMessage(intent, input.projectDescription, brief, "");
+  if (knowledge) return knowledge;
+  const [first, second] = items;
+  if (!first) {
+    return `현재 조건에 맞는 ${brief.neededRoles.join(" · ") || "창작자"} 공개 프로필이 없습니다. 직군이나 장르 조건을 바꾸거나 필요한 작업을 적어 모집 공고를 만들어 보세요.`;
+  }
+  if (intent === "compare") {
+    if (!second) return `비교할 수 있는 후보는 현재 ${first.creator.displayName}님 한 명입니다. ${reviewedReason(first)}`;
+    return items.map(item => `${item.creator.displayName}님 · ${reliableRoleLabels[item.creator.primaryRole]}\n${reviewedReason(item)} ${item.matchSignals?.find(s => s.label === "협업 기록")?.detail ?? ""}`.trim()).join("\n\n");
+  }
+  if (intent === "message" || intent === "toneChange") {
+    return `${first.creator.displayName}님에게 보낼 제안 초안이에요.\n\n“${first.suggestedMessage}”`;
+  }
+  if (intent === "explain" || intent === "shorten") return `${first.creator.displayName}님 · ${reviewedReason(first)}\n${first.reasonDetails.join(" / ")}`;
+  if (intent === "nextStep") return `${first.creator.displayName}님에게 작업 범위와 희망 일정을 먼저 보내 보세요. 회신을 받은 뒤 시안, 수정 횟수, 수익 배분을 함께 정하면 됩니다.`;
+  if (intent === "confusion" || intent === "clarify") return `지금까지 알려주신 조건은 ${[...brief.neededRoles, ...brief.topics].join(" · ") || "아직 구체화되지 않았어요"}. 어떤 작업을 먼저 맡길지 알려주시면 후보를 다시 좁혀 볼게요.`;
+  return [brief.summary, ...items.map(item => `${item.rank}순위. ${item.creator.displayName}님 (${reliableRoleLabels[item.creator.primaryRole]})\n${reviewedReason(item)}`)].join("\n\n");
 }
 
 function buildCleanFollowUps(input: AiMatchingInput, recommendations: CreatorRecommendation[]) {
@@ -1574,10 +1240,7 @@ function buildCleanFollowUps(input: AiMatchingInput, recommendations: CreatorRec
   ];
 }
 
-async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchingResponse> {
-  const context = resolveMatchingContext(input);
-  const brief = buildCleanBrief(input);
-
+async function loadMatchingProfiles() {
   const profiles = await prisma.creatorProfile.findMany({
     include: {
       user: {
@@ -1593,7 +1256,7 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
     orderBy: [{ featured: "desc" }, { followerCount: "desc" }, { completedProjects: "desc" }],
   });
 
-  const candidates = profiles.map(profile => ({
+  return profiles.map(profile => ({
     id: profile.user.id,
     userId: profile.user.id,
     username: profile.user.username,
@@ -1617,193 +1280,79 @@ async function buildCleanLocalResponse(input: AiMatchingInput): Promise<AiMatchi
         }
       : null,
   }));
-  const recommendations = rankMatchingCreators(candidates, context);
+}
 
+type Profile = CreatorRecommendation["creator"];
+
+function namedProfiles(text: string, profiles: Profile[]) {
+  const mentions = profiles.map(profile => ({ profile, index: text.indexOf(profile.displayName) }))
+    .filter(item => item.index >= 0 && item.profile.displayName.trim())
+    .sort((a, b) => a.index - b.index || b.profile.displayName.length - a.profile.displayName.length);
+  const matches: Profile[] = [];
+  let end = -1;
+  for (const { profile, index } of mentions) {
+    if (index < end) continue;
+    matches.push(profile);
+    end = index + profile.displayName.length;
+  }
+  return matches;
+}
+
+function referencedProfiles(input: AiMatchingInput, profiles: Profile[], intent: ConversationIntent) {
+  if (!["compare", "explain", "message", "shorten", "toneChange", "nextStep"].includes(intent)) return [];
+  const explicit = namedProfiles(input.projectDescription, profiles);
+  if (explicit.length) return explicit;
+  for (const message of [...input.messages ?? []].reverse()) {
+    if (message.role !== "assistant") continue;
+    const previous = namedProfiles(message.content, profiles);
+    if (!previous.length) continue;
+    const ordinals = Array.from(input.projectDescription.matchAll(/([1-6])\s*순위/g), match => Number(match[1]) - 1);
+    return ordinals.length ? unique(ordinals).map(index => previous[index]).filter(Boolean) : previous;
+  }
+  return [];
+}
+
+async function buildReviewedResponse(input: AiMatchingInput, profiles: Profile[], chat: boolean): Promise<AiMatchingResponse> {
+  const brief = buildCleanBrief(input);
+  const intent = chat ? matchingIntent(input.projectDescription) : "recommend";
+  const context = resolveMatchingContext(input);
+  const referenced = referencedProfiles(input, profiles, intent);
+  const baseline = rankMatchingCreators(profiles, context);
+  let recommendations: CreatorRecommendation[] = baseline;
+  let providersUsed: MatchingProvider[] = [];
+  let providerNote = "공개 프로필과 작품 조건을 기준으로 매칭했습니다.";
+  if (referenced.length) {
+    // Preserve the people the user asked to discuss, including the earlier order
+    // for “2순위에게 DM”, without sending names or chat history to providers.
+    const eligible = rankMatchingCreators(referenced, { ...context, limit: referenced.length });
+    recommendations = referenced.flatMap(profile => eligible.filter(item => item.creator.userId === profile.userId))
+      .map((item, i) => ({ ...item, rank: i + 1 }));
+    providerNote = "대화에서 지정한 후보의 공개 프로필을 확인했습니다.";
+  } else if (["recommend", "refine", "rolePriority", "compare", "explain"].includes(intent) && baseline.length) {
+    const shortlist = rankMatchingCreators(profiles, { ...context, limit: 8 });
+    const review = await reviewMatchingShortlist(context, input.genres ?? [], shortlist, baseline);
+    recommendations = review.recommendations;
+    providersUsed = review.providersUsed;
+    if (providersUsed.length) providerNote = "공개 프로필에서 확인한 작업 키워드를 바탕으로 후보 순서를 검토했습니다.";
+  }
   return {
-    provider: "local",
-    assistantMessage: buildCleanAssistantMessage(input, recommendations),
-    projectBrief: brief,
-    recommendations,
+    provider: providersUsed.length > 1 ? "ensemble" : providersUsed[0] ?? "local",
+    providersUsed, providerNote, projectBrief: brief, recommendations,
+    assistantMessage: buildMatchingMessage(input, brief, intent, recommendations),
     followUpSuggestions: buildCleanFollowUps(input, recommendations),
   };
 }
 
-function buildCleanGeminiCandidateContext(recommendations: CreatorRecommendation[]) {
-  return recommendations.slice(0, 5).map((item) => ({
-    rank: item.rank,
-    name: item.creator.displayName,
-    username: item.creator.username,
-    role: reliableRoleLabels[item.creator.primaryRole],
-    headline: item.creator.headline,
-    bio: item.creator.bio,
-    skills: item.creator.skills,
-    responseRate: item.creator.responseRate,
-    completedProjects: item.creator.completedProjects,
-    matchRate: item.matchRate,
-    matchedKeywords: item.matchedKeywords,
-    localReason: item.reason,
-    reasonDetails: item.reasonDetails.slice(0, 3),
-    suggestedMessage: item.suggestedMessage,
-  }));
+export async function recommendCreatorsForProject(input: AiMatchingInput) {
+  return buildReviewedResponse(input, await loadMatchingProfiles(), false);
 }
 
-function buildCleanGeminiPrompt(input: AiMatchingInput, localResponse: AiMatchingResponse, maxInputChars: number) {
-  const conversationHistory = (input.messages ?? [])
-    .slice(-8)
-    .map((message) => `${message.role === "assistant" ? "AI 매칭 매니저" : "사용자"}: ${message.content}`)
-    .join("\n");
-  const explicitRoles = detectReliableExplicitRoleNeeds(input.projectDescription).map((role) => reliableRoleLabels[role]);
-  const excludedRoles = detectReliableExcludedRoles(input.projectDescription).map((role) => reliableRoleLabels[role]);
-  const prompt = `
-사용자의 최신 질문:
-${input.projectDescription}
-
-최근 대화:
-${conversationHistory || "(이전 대화 없음)"}
-
-로컬 분석 요약:
-- 작품 요약: ${localResponse.projectBrief.summary}
-- 톤: ${localResponse.projectBrief.tone}
-- 키워드: ${localResponse.projectBrief.topics.join(", ") || "없음"}
-- 필요한 역할: ${localResponse.projectBrief.neededRoles.join(", ") || "미정"}
-- 직접 요청한 직군: ${explicitRoles.join(", ") || "없음"}
-- 제외한 직군: ${excludedRoles.join(", ") || "없음"}
-
-추천 후보 데이터:
-${JSON.stringify(buildCleanGeminiCandidateContext(localResponse.recommendations), null, 2)}
-
-중요 규칙:
-1. 후보 데이터에 없는 사람은 절대 만들지 않는다.
-2. 요청한 직군 후보가 0명이면 "현재 등록된 후보가 없습니다"라고 솔직하게 말한다.
-3. 그림 작가, 웹툰 작가, 만화 작가, 표지 작가, 콘티 작가, 애니메이터는 그림 직군이다.
-4. 사운드 디자이너, BGM 담당, 효과음, OST는 BGM 직군이다.
-5. "A 말고 B", "A 제외"는 A를 추천하지 않는다.
-6. 추천할 때는 1순위, 2순위, 3순위와 각각의 이유를 짧은 문단으로 말한다.
-7. 사용자가 일상 대화를 하면 자연스럽게 답하되, 작품/팀/기획 이야기가 나오면 매칭 매니저처럼 돕는다.
-
-로컬 fallback 답변:
-${localResponse.assistantMessage}
-`;
-
-  return truncateText(prompt.trim(), maxInputChars);
-}
-
-function isCleanGeminiTextUsable(text: string, recommendations: CreatorRecommendation[]) {
-  if (text.length < 8) {
-    return false;
-  }
-
-  if (recommendations.length === 0) {
-    return text.includes("없") || text.includes("등록") || text.includes("후보");
-  }
-
-  return recommendations.slice(0, 3).some((item) => text.includes(item.creator.displayName));
-}
-
-async function enhanceCleanResponseWithGemini(input: AiMatchingInput, localResponse: AiMatchingResponse): Promise<AiMatchingResponse> {
-  const availability = canUseGeminiApi();
-
-  if (!availability.ok) {
-    return {
-      ...localResponse,
-      providerNote: getGeminiFallbackNote(availability.reason),
-    };
-  }
-
-  reserveGeminiQuota();
-
-  const { config } = availability;
-  const apiKey = config.apiKey;
-
-  if (!apiKey) {
-    return {
-      ...localResponse,
-      providerNote: "Gemini API 키가 백엔드 환경변수에 없어서 로컬 매칭으로 응답했습니다.",
-    };
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [
-              {
-                text:
-                  "너는 Creator Universe의 AI 매칭 매니저다. 항상 한국어로 답한다. Gemini가 우선 답하지만, 제공된 후보 데이터와 로컬 분석을 절대 벗어나지 않는다. 후보 데이터에 없는 사람, 포트폴리오, 숫자는 지어내지 않는다. 요청 직군 후보가 없으면 솔직히 없다고 말하고 어떤 프로필이 등록되면 좋은지 안내한다. 답변은 모바일에서 읽기 좋게 짧은 문단과 1·2·3순위 구조로 작성한다. 일반 수수료는 13%, 파트너 수수료는 8%로 설명한다.",
-              },
-            ],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: buildCleanGeminiPrompt(input, localResponse, config.maxInputChars) }],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: config.maxOutputTokens,
-          },
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      return {
-        ...localResponse,
-        providerNote: `Gemini 응답 오류가 발생해 로컬 매칭으로 응답했습니다. 상태 코드: ${response.status}`,
-      };
-    }
-
-    const payload = (await response.json()) as GeminiGenerateContentResponse;
-    const assistantMessage = extractGeminiText(payload);
-
-    if (!isCleanGeminiTextUsable(assistantMessage, localResponse.recommendations)) {
-      return {
-        ...localResponse,
-        providerNote: "Gemini 응답이 등록 후보 데이터와 맞지 않아 로컬 매칭으로 안전하게 응답했습니다.",
-      };
-    }
-
-    return {
-      ...localResponse,
-      provider: "gemini",
-      assistantMessage,
-    };
-  } catch {
-    return {
-      ...localResponse,
-      providerNote: "Gemini 요청이 시간 초과되었거나 네트워크 오류가 발생해 로컬 매칭으로 응답했습니다.",
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-export async function recommendCreatorsForProject(input: AiMatchingInput): Promise<AiMatchingResponse> {
-  const localResponse = await buildCleanLocalResponse(input);
-
-  return enhanceCleanResponseWithGemini(input, localResponse);
-}
-
-export async function createAiMatchingChat(input: AiMatchingInput): Promise<AiMatchingResponse> {
-  const localResponse = await buildCleanLocalResponse(input);
-  const conversationalResponse: AiMatchingResponse = {
-    ...localResponse,
-    assistantMessage: buildCleanAssistantMessage(input, localResponse.recommendations),
-    followUpSuggestions: buildCleanFollowUps(input, localResponse.recommendations),
-  };
-
-  return enhanceCleanResponseWithGemini(input, conversationalResponse);
+export async function createAiMatchingChat(input: AiMatchingInput) {
+  return buildReviewedResponse(input, await loadMatchingProfiles(), true);
 }
 
 export const __aiMatchingTestUtils = {
+  buildReviewedResponse,
   detectExplicitRoleNeeds: detectReliableExplicitRoleNeeds,
   detectExcludedRoles: detectReliableExcludedRoles,
   detectRequestedLimit: detectRequestedRecommendationLimit,

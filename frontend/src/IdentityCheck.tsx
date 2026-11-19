@@ -61,9 +61,9 @@ export function IdentityCheck({ request, status, onVerified, returned }: Props) 
   }
 
   if (!status) return null;
-  if (!status.identityReady && !status.identityRequired) return <p className="auth-help">간편 본인인증은 준비 중입니다. 아래 계정 정보로 가입할 수 있습니다.</p>;
+  if (!status.identityReady && !status.identityRequired) return null;
   return <fieldset className="auth-role-selector">
-    <legend>간편 본인인증 {status.identityRequired ? "(필수)" : "(선택)"}</legend>
+    <legend>실명 본인인증 {status.identityRequired ? "(필수)" : "(선택)"}</legend>
     <p className="auth-help">{!status.identityReady ? "현재 본인인증을 이용할 수 없습니다. 잠시 후 다시 시도해 주세요."
       : status.mode === "test" ? "테스트 채널에서 인증 흐름을 확인합니다." : "인증창에서 본인 명의의 인증 수단을 선택해 주세요."}</p>
     <button type="button" className="ghost-button" disabled={busy || verified || !status.identityReady} onClick={verify}>
