@@ -1,14 +1,13 @@
-import { PreviousTopUp } from "./PreviousTopUp";
-import "./easy-login.css";
-import { cancelPasskeyPrompt, passkeyError, passkeySupported, verifyAccountPasskey } from "./passkeys";
+import { API_URL, cleanDisplayText, getFriendlyError, request } from "./api";
+import { AuthModal, PaymentModal, PurchasedAudio, formatCoins, formatDuration, type AuthView, type User } from "./AccountDialogs";
 import { readProviderReturn, clearProviderReturn } from "./portone";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { WorksCatalog } from "./WorksCatalog";
 import { MatchingProviders, matchProviderNames } from "./MatchingProviders";
 import type { MatchingProviderIssues } from "../../shared/matching-providers";
 import { TideReader, type TideMode } from "./TideReader";
 import { tideWork } from "./tide-letter";
-import { ArrowRight, ArrowUpRight, Home, Trophy } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Trophy } from "lucide-react";
 import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
 import {
   Bell,
@@ -48,43 +47,9 @@ import {
   X,
 } from "lucide-react";
 
-const DEFAULT_PRODUCTION_API_URL = "https://creator-universe-api-7qfc.onrender.com";
-const DEFAULT_LOCAL_API_URL = "http://127.0.0.1:4000";
-
-function resolveApiUrl() {
-  const configuredValue = String(import.meta.env.VITE_API_URL || "").trim();
-  const configuredUrl = configuredValue
-    .replace(/^VITE_API_URL\s*=\s*/i, "")
-    .trim()
-    .replace(/\/$/, "");
-
-  if (configuredUrl) {
-    try {
-      const host = new URL(configuredUrl).hostname;
-      const isFrontendDeployment = host.endsWith(".vercel.app") || host.includes("limyoobins-projects");
-      if (!isFrontendDeployment) {
-        return configuredUrl;
-      }
-    } catch {
-      return import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : DEFAULT_LOCAL_API_URL;
-    }
-  }
-
-  return import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : DEFAULT_LOCAL_API_URL;
-}
-
-const API_URL = resolveApiUrl();
 const PROJECT_ID = "project-midnight-signal";
 const STANDARD_PLATFORM_FEE_RATE = 0.13;
 const PARTNER_PLATFORM_FEE_RATE = 0.08;
-
-type User = {
-  id: string;
-  email: string;
-  username: string;
-  displayName: string;
-  role: "CREATOR" | "READER" | "ADMIN";
-};
 
 type CreatorChatMessage = {
   from: "me" | "creator";
@@ -458,8 +423,7 @@ const libraryViewItems = [
   { id: "scrapped", label: "스크랩" },
 ] as const;
 
-const classicWindow = /^\/classic(?:\/(?:index\.html)?)?$/.test(window.location.pathname);
-const originalReaderWorks = [
+const readerWorks = [
   {
     id: "midnight-signal",
     title: "미드나잇 시그널",
@@ -613,10 +577,8 @@ const originalReaderWorks = [
     badge: "애니 파일럿",
     tone: "animation",
   },
+  tideWork,
 ];
-const readerWorks = classicWindow
-  ? originalReaderWorks.map(work => ({...work, coverImage: `/covers/${work.id}.svg`}))
-  : [...originalReaderWorks, tideWork];
 
 type ReaderWork = (typeof readerWorks)[number];
 
@@ -640,34 +602,6 @@ function getAudioExperienceLabel(work: ReaderWork) {
   }
   return "오디오 확장";
 }
-
-const contentFormatCards = [
-  {
-    title: "웹소설",
-    label: "Story First",
-    text: "작가가 원작을 연재하고 일러스트, 표지, 보이스 특전으로 확장합니다.",
-  },
-  {
-    title: "웹툰·만화",
-    label: "Visual IP",
-    text: "콘티, 펜선, 채색, 배경, 효과음 팀이 에피소드 단위로 협업합니다.",
-  },
-  {
-    title: "오디오드라마",
-    label: "Voice Expansion",
-    text: "성우, BGM, 사운드 디자이너가 기존 IP를 배리어프리 감상 경험으로 넓힙니다.",
-  },
-  {
-    title: "애니메이션",
-    label: "Motion IP",
-    text: "웹툰과 소설 IP를 숏폼 파일럿, 티저, 오프닝 영상으로 확장합니다.",
-  },
-  {
-    title: "믹스미디어",
-    label: "Fan Package",
-    text: "글, 이미지, 음성, ASMR, 비하인드 콘텐츠를 묶어 팬덤형 상품으로 판매합니다.",
-  },
-];
 
 const creatorFanPosts = [
   {
@@ -844,19 +778,12 @@ const studioSections = ["studio", "matching", "settlement"] as const;
 const previousLoginReturn = /^\/auth\/return\/(kakao|naver|pass)\/?$/.test(window.location.pathname);
 if (previousLoginReturn) window.history.replaceState(null, "", "/");
 const entryParams = new URLSearchParams(window.location.search);
-const HeaderRow = classicWindow ? Fragment : "div";
-const studioWindow = !classicWindow && studioSections.some(section => section === entryParams.get("studio"));
+const studioWindow = studioSections.some(section => section === entryParams.get("studio"));
 const readerDestinations = ["discover", "ranking", "creators", "library", "support", "home"] as const;
 function locationPage(): PageId {
   const params = new URLSearchParams(window.location.search);
-  if (classicWindow) return params.get("view") === "discover" ? "discover" : "home";
   return studioSections.find(section => section === params.get("studio"))
     ?? readerDestinations.find(section => section === params.get("view")) ?? "discover";
-}
-function locationLibraryView(): LibraryViewId {
-  if (!classicWindow) return "recent";
-  const collection = new URLSearchParams(window.location.search).get("collection");
-  return libraryViewItems.find(item => item.id === collection)?.id ?? "all";
 }
 
 const catalogueCredits: Record<string, { name: string; role: string }> = {
@@ -919,12 +846,6 @@ const walletFallback: WalletDetail = {
   payoutAccount: "정산 계좌 등록 필요",
   transactions: [],
 };
-
-const coinProducts = [
-  { id: "coin-1000", title: "베이직 충전", coins: 1000, priceKrw: 1000, badge: "가볍게 시작" },
-  { id: "coin-3000", title: "인기 충전팩", coins: 3000, priceKrw: 3000, badge: "인기" },
-  { id: "coin-5000", title: "스튜디오 후원팩", coins: 5000, priceKrw: 5000, badge: "창작자 추천" },
-];
 
 const introSlides = [
   {
@@ -1173,20 +1094,6 @@ const growthTimeline = [
   { year: "Scale", title: "글로벌 오디오 IP 확장", text: "AI 번역과 로컬라이징으로 한국 IP와 해외 성우 협업을 연결합니다." },
 ];
 
-function formatCoins(value = 0) {
-  return `${Number(value).toLocaleString("ko-KR")} 코인`;
-}
-
-function formatWon(value = 0) {
-  return `${Number(value).toLocaleString("ko-KR")}원`;
-}
-
-function formatDuration(seconds = 0) {
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
-  const rest = Math.floor(seconds % 60).toString().padStart(2, "0");
-  return `${minutes}:${rest}`;
-}
-
 function formatBytes(bytes = 0) {
   if (bytes < 1024 * 1024) {
     return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("ko-KR")}KB`;
@@ -1397,31 +1304,6 @@ function getWalletTypeLabel(type: WalletTransaction["type"]) {
 
 function formatChatTime(createdAt: string) {
   return new Date(createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function isBrokenDisplayText(value?: string | null) {
-  if (!value) {
-    return true;
-  }
-
-  const normalized = value.trim();
-
-  return (
-    /[�諛援肄踰媛蹂쒓꾩먯좊꾨誘몄젣寃곗愿李梨]/.test(normalized) ||
-    /\?{2,}/.test(normalized) ||
-    /API \?/.test(normalized) ||
-    /^deleted[_\s-]/i.test(normalized) ||
-    /^Deleted user/i.test(normalized) ||
-    /^\?+[a-z0-9-]{6,}$/i.test(normalized)
-  );
-}
-
-function cleanDisplayText(value: string | null | undefined, fallback: string) {
-  if (isBrokenDisplayText(value)) {
-    return fallback;
-  }
-
-  return value!.trim();
 }
 
 function normalizeCreator(creator: Creator): Creator {
@@ -1967,57 +1849,6 @@ function buildLocalAiMatchingResponse(
 }
 
 const providerReturn = readProviderReturn();
-const apiConnectionErrorMessage = "백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.";
-const apiResponseParseErrorMessage = "API 응답을 읽을 수 없습니다. 프론트가 백엔드가 아닌 페이지 응답을 받았습니다.";
-async function request<T>(path: string, token: string | null, options: RequestInit = {}) {
-  const apiBases = [
-    API_URL,
-    import.meta.env.PROD && !token && (!options.method || options.method === "GET") && !path.startsWith("/api/integrations/") && !path.startsWith("/api/auth/") && API_URL !== DEFAULT_PRODUCTION_API_URL ? DEFAULT_PRODUCTION_API_URL : "",
-  ].filter((baseUrl, index, list) => baseUrl && list.indexOf(baseUrl) === index);
-  let lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
-
-  lastError = new Error(apiConnectionErrorMessage);
-
-  for (const baseUrl of apiBases) {
-    let response: Response;
-    try {
-      response = await fetch(`${baseUrl}${path}`, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...options.headers,
-        },
-      });
-    } catch (error) {
-      if (options.signal?.aborted) throw error;
-      lastError = new Error("백엔드 서버에 연결할 수 없습니다. VITE_API_URL 또는 Render 배포 상태를 확인해 주세요.");
-      continue;
-    }
-
-    const rawText = await response.text();
-    let payload: { message?: string; data: T };
-    try {
-      payload = rawText ? JSON.parse(rawText) : { success: response.ok, data: null as T };
-    } catch {
-      lastError = new Error("API 응답을 읽을 수 없습니다. 프론트가 백엔드가 아닌 페이지 응답을 받았습니다.");
-      continue;
-    }
-
-    if (!response.ok) {
-      throw new Error(cleanDisplayText(payload.message, "요청 처리에 실패했습니다."));
-    }
-
-    return payload.data as T;
-  }
-
-  throw lastError;
-}
-
-function getFriendlyError(error: unknown) {
-  return error instanceof Error ? cleanDisplayText(error.message, "요청 처리 중 오류가 발생했습니다.") : "요청 처리 중 오류가 발생했습니다.";
-}
-
 function isApiConnectionError(error: unknown) {
   const message = getFriendlyError(error);
   return message.includes("백엔드 서버에 연결") || message.includes("API 응답을 읽을 수 없습니다");
@@ -2027,284 +1858,8 @@ function getRejectedMessage(result: PromiseSettledResult<unknown>) {
   return result.status === "rejected" ? getFriendlyError(result.reason) : "";
 }
 
-function isStrongPassword(password: string) {
-  return password.length >= 8 && /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password);
-}
-
 function getActiveAuthToken(currentToken: string | null) {
   return currentToken || localStorage.getItem("creator-universe-token");
-}
-
-type AuthView = "login" | "signup" | "recovery";
-function AuthModal({ mode, onClose, onAuth }: {
-  mode: AuthView;
-  onClose: () => void;
-  onAuth: (user: User, token: string) => void;
-}) {
-  const [view, setView] = useState(mode);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const active = useRef<AbortController | null>(null);
-  useEffect(() => {
-    setMessage("");
-    setBusy(false);
-    return () => {
-      active.current?.abort();
-      active.current = null;
-      cancelPasskeyPrompt();
-    };
-  }, [view]);
-
-  async function run(action: (signal: AbortSignal) => Promise<void>) {
-    if (active.current) return;
-    const controller = new AbortController();
-    active.current = controller;
-    setBusy(true);
-    setMessage("");
-    try { await action(controller.signal); }
-    catch (error) { if (!controller.signal.aborted) setMessage(getFriendlyError(error)); }
-    finally { if (active.current === controller) { active.current = null; setBusy(false); } }
-  }
-  type Session = {user: User; token: string};
-  function signedIn(result: Session, signal: AbortSignal) {
-    if (signal.aborted) return;
-    onAuth(result.user, result.token);
-    onClose();
-  }
-  async function legacyPasskey(signal: AbortSignal) {
-    try { signedIn(await verifyAccountPasskey<Session>(request, signal), signal); }
-    catch (error) { throw new Error(passkeyError(error)); }
-  }
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const username = String(form.get("username") ?? "").trim();
-    const password = String(form.get("password") ?? "");
-    const email = String(form.get("email") ?? "").trim();
-    const displayName = String(form.get("displayName") ?? "").trim();
-    if (view === "signup" && !isStrongPassword(password)) {
-      setMessage("비밀번호에 특수문자를 포함해 8자 이상 입력해 주세요."); return;
-    }
-    if (view === "signup" && password !== form.get("passwordConfirm")) {
-      setMessage("비밀번호 확인이 일치하지 않습니다."); return;
-    }
-    void run(async signal => {
-      if (view === "recovery") {
-        const result = await request<{username: string}>("/api/auth/find-id", null, {method: "POST", signal, body: JSON.stringify({email})});
-        if (!signal.aborted) setMessage("가입한 아이디는 " + result.username + "입니다.");
-        return;
-      }
-      const payload = view === "signup" ? {username, password, email, displayName} : {username, password};
-      const result = await request<Session>("/api/auth/" + view, null, {method: "POST", signal, body: JSON.stringify(payload)});
-      signedIn(result, signal);
-    });
-  }
-
-  return <div className="modal-backdrop auth-backdrop cu-auth-backdrop" role="dialog" aria-modal="true" aria-labelledby="cu-auth-heading">
-    <div className="auth-modal cu-auth-modal">
-      <div className="modal-header">
-        <h2 id="cu-auth-heading">{view === "login" ? "로그인" : view === "signup" ? "회원가입" : "계정 찾기"}</h2>
-        <button className="icon-button" type="button" onClick={onClose} aria-label="닫기"><X size={20}/></button>
-      </div>
-      <div className="segmented">
-        <button className={view === "login" ? "active" : ""} onClick={() => setView("login")}>로그인</button>
-        <button className={view === "signup" ? "active" : ""} onClick={() => setView("signup")}>회원가입</button>
-        <button className={view === "recovery" ? "active" : ""} onClick={() => setView("recovery")}>계정 찾기</button>
-      </div>
-      {message && <div className="notice" role="status">{message}</div>}
-      <form key={view} className="auth-form" onSubmit={submit}>
-        {view === "signup" && <>
-          <p className="auth-help">하나의 계정으로 작품을 감상하고 창작자 스튜디오를 이용할 수 있어요.</p>
-          <label>닉네임<input name="displayName" autoComplete="nickname" required maxLength={20} placeholder="공개 프로필에 사용할 이름" /></label>
-        </>}
-        {view !== "login" && <label>가입 이메일<input name="email" type="email" autoComplete="email" required maxLength={254} /></label>}
-        {view !== "recovery" && <>
-          <label>아이디<input name="username" autoComplete="username" required
-            minLength={view === "signup" ? 2 : undefined} maxLength={view === "signup" ? 24 : undefined}
-            pattern={view === "signup" ? "[A-Za-z0-9_]+" : undefined} placeholder={view === "signup" ? "영문, 숫자, 밑줄 2~24자" : "가입한 아이디"} /></label>
-          <label>비밀번호<input name="password" type="password" autoComplete={view === "signup" ? "new-password" : "current-password"}
-            required minLength={view === "signup" ? 8 : undefined} maxLength={view === "signup" ? 256 : undefined}
-            placeholder={view === "signup" ? "8자 이상, 특수문자 1개 이상" : "비밀번호"} /></label>
-        </>}
-        {view === "signup" && <label>비밀번호 확인<input name="passwordConfirm" type="password" autoComplete="new-password" required /></label>}
-        <button className="primary-button" type="submit" disabled={busy}>
-          {view === "signup" ? <UserPlus size={18}/> : view === "login" ? <LogIn size={18}/> : <Search size={18}/>}
-          {busy ? "확인 중…" : view === "signup" ? "회원가입" : view === "login" ? "로그인" : "아이디 찾기"}
-        </button>
-      </form>
-      {view === "login" && <details className="auth-other-methods">
-        <summary>이전에 패스키로 가입하셨나요?</summary>
-        {passkeySupported()
-          ? <button className="ghost-button" type="button" disabled={busy} onClick={() => void run(legacyPasskey)}><ShieldCheck size={18} />기존 패스키로 로그인</button>
-          : <p className="auth-help">가입할 때 사용한 패스키를 지원하는 기기나 브라우저에서 열어주세요.</p>}
-      </details>}
-      {view === "recovery" && <p className="auth-help">비밀번호 재설정은 가입한 이메일로 고객센터에 문의해 주세요. <a href="mailto:support@creator-universe.app">support@creator-universe.app</a></p>}
-    </div>
-  </div>;
-}
-
-function PaymentModal({
-  mode,
-  project,
-  work,
-  wallet,
-  onClose,
-  onConfirm,
-  onLogin,
-  isLoggedIn, token, userId, onBalance, salePrice, isPaymentReturn,
-}: {
-  mode: "charge" | "content";
-  project: Project | null;
-  work: ReaderWork | null;
-  wallet: number | null;
-  onClose: () => void;
-  onConfirm: (coinAmount: number) => Promise<void>;
-  token: string | null; userId?: string;
-  onBalance: (balance: number) => void;
-  salePrice: number | undefined;
-  isPaymentReturn: boolean;
-  onLogin: () => void;
-  isLoggedIn: boolean;
-}) {
-  const [selectedProductId, setSelectedProductId] = useState("coin-1000");
-  const [isPaying, setIsPaying] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState("");
-  const selectedProduct = coinProducts.find((item) => item.id === selectedProductId) || coinProducts[0];
-  const isChargeMode = mode === "charge";
-  const [previewed, setPreviewed] = useState(false);
-  const contentPrice = salePrice ?? 0;
-  const purchasing = useRef(false);
-  const feeRate = project?.appliedFeeRate ?? STANDARD_PLATFORM_FEE_RATE;
-  const estimatedCreatorShare = Math.floor(contentPrice * (1 - feeRate));
-  const hasEnoughCoins = wallet !== null && wallet >= contentPrice;
-  const finalPaymentLabel = isChargeMode ? formatWon(0) : formatCoins(contentPrice);
-  const currentWallet = wallet ?? 0;
-  const expectedWalletAfterPayment = Math.max(0, currentWallet - contentPrice);
-
-  async function submitPayment() {
-    setPaymentMessage("");
-    if (!isLoggedIn) {
-      onLogin();
-      return;
-    }
-
-    if (purchasing.current || salePrice === undefined || !hasEnoughCoins) return;
-    purchasing.current = true; setIsPaying(true);
-    try {
-      await onConfirm(contentPrice);
-      onClose();
-    } catch (error) {
-      setPaymentMessage(getFriendlyError(error));
-    } finally {
-      purchasing.current = false; setIsPaying(false);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop payment-backdrop" role="dialog" aria-modal="true">
-      <div className="payment-modal">
-        <div className="modal-header">
-          <div>
-            <h2>{isChargeMode ? "코인 충전 체험" : "콘텐츠 결제"}</h2>
-          </div>
-          <button className="icon-button" onClick={onClose} aria-label="결제창 닫기">
-            <X size={19} />
-          </button>
-        </div>
-
-        <div className="payment-hero">
-          <div>
-            <span className="payment-label">{isChargeMode ? "무료 체험" : "콘텐츠 열람권"}</span>
-            <strong>{isChargeMode ? "체험할 코인을 선택하세요" : work?.title || project?.title || "미드나잇 시그널"}</strong>
-            <p>{isChargeMode ? "이 화면에서만 충전 결과를 미리 볼 수 있어요. 지갑 잔액은 그대로예요." : work?.tagline || project?.synopsis || "작품 정보를 불러오는 중입니다."}</p>
-          </div>
-          <div className="coin-orb">
-            <Coins size={34} />
-            <b>{isChargeMode ? formatCoins(selectedProduct.coins) : formatCoins(contentPrice)}</b>
-          </div>
-        </div>
-
-        {isChargeMode ? (
-          <div className="coin-products" aria-label="코인 상품 선택">
-            {coinProducts.map((item) => (
-              <button
-                key={item.id}
-                className={selectedProductId === item.id ? "active" : ""}
-                aria-pressed={selectedProductId === item.id}
-                onClick={() => { setSelectedProductId(item.id); setPreviewed(false); }}
-                type="button"
-              >
-                <span>{item.badge}</span>
-                <strong>{item.title}</strong>
-                <b>{formatCoins(item.coins)}</b>
-                <small>{formatWon(item.priceKrw)}</small>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="payment-content-ticket">
-            <span>열람권 구매</span>
-            <strong>{formatCoins(contentPrice)}</strong>
-            <p>{hasEnoughCoins ? "보유 코인에서 차감됩니다." : !isLoggedIn ? "로그인하면 보유 코인을 확인할 수 있어요." : "이 열람권을 구매하기에 보유 코인이 부족해요. 현재 신규 유료 충전은 중단되어 있어요."}</p>
-          </div>
-        )}
-
-        {!isChargeMode && <div className="payment-grid">
-          <div className="payment-method-card">
-            <CreditCard size={20} />
-            <div>
-              <strong>코인 결제</strong>
-              <p>보유 코인으로 작품 열람권을 구매합니다.</p>
-            </div>
-            <CheckCircle2 size={20} />
-          </div>
-          <div className="payment-method-card">
-            <ShieldCheck size={20} />
-            <div>
-              <strong>스마트 자동 정산</strong>
-              <p>{`결제 후 수수료 ${Math.round(feeRate * 100)}%를 제외한 ${formatCoins(estimatedCreatorShare)}이 팀 지분율대로 분배됩니다.`}</p>
-            </div>
-          </div>
-        </div>}
-
-        <div className="payment-summary">
-          <div><span>선택 상품</span><b>{isChargeMode ? selectedProduct.title : work?.title || project?.title}</b></div>
-          {!isChargeMode && <div><span>내 지갑</span><b>{isLoggedIn ? formatCoins(currentWallet) : "로그인 필요"}</b></div>}
-          <div><span>{isChargeMode ? "체험 코인" : "사용 코인"}</span><b>{isChargeMode ? formatCoins(selectedProduct.coins) : formatCoins(contentPrice)}</b></div>
-          <div className="total"><span>{isChargeMode ? "실제 청구액" : "최종 결제"}</span><b>{finalPaymentLabel}</b></div>
-        </div>
-
-        {paymentMessage && <p className="payment-error-message">{paymentMessage}</p>}
-
-        {isLoggedIn && !isChargeMode && hasEnoughCoins && (
-          <div className="payment-balance-preview">
-            <div>
-              <span>현재 보유</span>
-              <strong>{formatCoins(currentWallet)}</strong>
-            </div>
-            <i>-</i>
-            <div>
-              <span>결제 후 보유</span>
-              <strong>{formatCoins(expectedWalletAfterPayment)}</strong>
-            </div>
-          </div>
-        )}
-
-        {isChargeMode ? <>
-          {previewed && <p className="notice" role="status">{formatCoins(selectedProduct.coins)} 충전을 체험했어요. 청구액은 0원입니다.</p>}
-          <button type="button" className="primary-button payment-submit" onClick={() => previewed ? onClose() : setPreviewed(true)}>
-            {previewed ? <CheckCircle2 size={18} /> : <Coins size={18} />}{previewed ? "완료" : "충전 체험하기"}
-          </button>
-          <PreviousTopUp key={userId ?? "guest"} token={token} userId={userId}
-            request={request} returnId={isPaymentReturn ? providerReturn?.id ?? null : undefined}
-            onLogin={onLogin} onBalance={onBalance} />
-        </> : <button className="primary-button payment-submit" onClick={submitPayment} disabled={isPaying || salePrice === undefined || (isLoggedIn && !hasEnoughCoins)}>
-          <Wallet size={18} />{salePrice === undefined ? "판매 준비 중" : !isLoggedIn ? "로그인하고 결제하기" : isPaying ? "결제 처리 중…" :
-            hasEnoughCoins ? `${formatCoins(contentPrice)}으로 열람하기` : "보유 코인 부족"}
-        </button>}
-      </div>
-    </div>
-  );
 }
 
 function MatchProposalModal({
@@ -2786,57 +2341,6 @@ function CreatorDetailModal({
       </div>
     </div>
   );
-}
-
-type LibraryEpisode = {
-  id: string;
-  title: string;
-  sequenceNumber: number;
-  audioUrl: string;
-  transcriptCues: { text: string; startMs: number; endMs: number }[];
-};
-
-function PurchasedAudio({ workId, token }: { workId: string; token: string }) {
-  const [episodes, setEpisodes] = useState<LibraryEpisode[] | null>(null);
-  const [selectedId, setSelectedId] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const [error, setError] = useState("");
-  const [playbackError, setPlaybackError] = useState(false);
-  const selected = episodes?.find(item => item.id === selectedId) ?? episodes?.[0];
-  useEffect(() => {
-    const controller = new AbortController();
-    setEpisodes(null);
-    setError("");
-    setPlaybackError(false);
-    request<{ episodes: LibraryEpisode[] }>(
-      `/api/settlements/me/library/${encodeURIComponent(workId)}/episodes`, token, { signal: controller.signal },
-    ).then(result => {
-      if (!controller.signal.aborted) setEpisodes(result.episodes);
-    }).catch(reason => {
-      if (!controller.signal.aborted) setError(getFriendlyError(reason));
-    });
-    return () => controller.abort();
-  }, [workId, token, attempt]);
-
-  return <section className="work-detail-section purchased-audio" aria-label="구매한 오디오 회차">
-    <h3>구매한 오디오 회차</h3>
-    {error ? <div role="status"><p>{error}</p><button type="button" className="ghost-button" onClick={() => setAttempt(value => value + 1)}>회차 다시 불러오기</button></div>
-      : !episodes ? <p role="status">회차를 불러오는 중입니다.</p>
-      : !selected ? <p role="status">현재 재생할 수 있는 유료 회차가 없습니다.</p>
-      : <>
-        <label>감상할 회차
-          <select value={selected.id} onChange={event => { setSelectedId(event.target.value); setPlaybackError(false); }}>
-            {episodes.map(item => <option key={item.id} value={item.id}>{item.sequenceNumber}화 · {item.title}</option>)}
-          </select>
-        </label>
-        <audio key={selected.id} controls preload="none" src={selected.audioUrl}
-          aria-label={`${selected.sequenceNumber}화 ${selected.title} 재생`} onError={() => setPlaybackError(true)} />
-        {playbackError && <div role="status"><p>오디오를 재생할 수 없습니다.</p><button className="ghost-button" type="button" onClick={() => setAttempt(value => value + 1)}>오디오 다시 불러오기</button></div>}
-        {selected.transcriptCues.length > 0 ? <details key={selected.id}><summary>회차 대본 읽기</summary>
-          <ol>{selected.transcriptCues.map((cue, index) => <li key={index}><span>{formatDuration(cue.startMs / 1000)}</span> {cue.text}</li>)}</ol>
-        </details> : <p>이 회차에 등록된 대본이 없습니다.</p>}
-      </>}
-  </section>;
 }
 
 function WorkDetailModal({
@@ -3668,7 +3172,7 @@ export function App() {
   const [readerSearch, setReaderSearch] = useState("");
   const catalogSearch = useRef<HTMLInputElement>(null);
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
-  const [readerLibraryView, setReaderLibraryView] = useState<LibraryViewId>(locationLibraryView);
+  const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("recent");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
   const [salePrices, setSalePrices] = useState<Record<string,number>>({});
   useEffect(() => {
@@ -3806,7 +3310,6 @@ export function App() {
     return [1,2,3].includes(ep) ? ep : null;
   });
   const [activePage, setActivePage] = useState<PageId>(locationPage);
-  const classicDiscover = classicWindow && activePage === "discover";
   useEffect(() => {
     const label = navItems.find(item => item.id === activePage)?.label ?? "서비스 소개";
     document.title = `${label} | ${studioWindow ? "Creator Studio" : "크리에이터 유니버스"}`;
@@ -3824,7 +3327,7 @@ export function App() {
     isNotificationOpen ? "notifications" : isAccountMenuOpen ? "account-menu" :
     isMessengerOpen ? "messenger" : isSupportBotOpen ? "help" : isAiHistoryOpen ? "ai-history" : null;
   useEffect(() => {
-    if (classicWindow || studioWindow || overlay) return;
+    if (studioWindow || overlay) return;
     function focusSearch(event: KeyboardEvent) {
       if (event.key !== "/" || event.defaultPrevented || event.isComposing || event.altKey || event.metaKey || event.ctrlKey) return;
       const target = event.target;
@@ -3877,30 +3380,18 @@ export function App() {
 
   const accountRole = user?.role ?? "READER";
   const isAdminAccount = accountRole === "ADMIN";
-  const isStudioMemberView = Boolean(studioWindow && user) || (classicWindow && (accountRole === "CREATOR" || isAdminAccount));
+  const isStudioMemberView = Boolean(studioWindow && user);
 
   const visibleNavItems = useMemo(
-    () => {
-      if (classicWindow) {
-        // The home before the works/ranking redesign used a single role-aware menu.
-        const home: (typeof navItems)[number] = { id: "home", label: "홈", helper: "서비스 소개" };
-        const works: (typeof navItems)[number] = { id: "discover", label: "작품", helper: "장르 탐색" };
-        return [home, works, ...navItems.filter(item => {
-          if (item.id === "support") return true;
-          if (item.id === "wallet") return Boolean(user);
-          if (item.id === "admin") return isAdminAccount;
-          return isStudioMemberView && creatorOnlyPages.has(item.id);
-        })];
-      }
-      return navItems.filter((item) => {
+    () =>
+      navItems.filter((item) => {
         if (item.id === "admin") return isAdminAccount && studioWindow;
         if (item.id === "wallet") return Boolean(user);
         if (creatorOnlyPages.has(item.id)) return studioWindow;
         if (studioWindow) return item.id === "support";
         return true;
-      });
-    },
-    [isAdminAccount, isStudioMemberView, user],
+      }),
+    [isAdminAccount, user],
   );
   const visibleOnboardingGuides = useMemo(
     () =>
@@ -4074,10 +3565,6 @@ export function App() {
     () => [...readerWorks].sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left)),
     [],
   );
-
-  const genreRankings = useMemo(() => classicWindow ? readerGenreFilters.map(genre => ({
-    genre, works: rankedReaderWorks.filter(work => work.genre === genre || work.tags.includes(genre)).slice(0, 3),
-  })).filter(chart => chart.works.length > 0) : [], [rankedReaderWorks]);
 
   const purchasedWorks = useMemo(
     () => readerWorks.filter((work) => purchasedWorkIds.includes(work.id)),
@@ -4818,7 +4305,6 @@ export function App() {
   }, [token, role]);
 
   function openPayment() {
-    if (classicWindow) { window.location.assign("/?open=wallet-preview"); return; }
     setIsPaymentReturn(false);
     setPaymentMode("charge");
     setIsPaymentOpen(true);
@@ -4914,26 +4400,15 @@ export function App() {
       return;
     }
 
-    setReaderLibraryView(view === "all" && !classicWindow ? "recent" : view);
+    setReaderLibraryView(view === "all" ? "recent" : view);
     setReaderSearch("");
     setReaderFilters([]);
-    if (classicWindow) {
-      setIsMobileQuickOpen(false);
-      setIsAccountModalOpen(false);
-      setIsMobileMenuOpen(false);
-      selectPage("discover", view);
-      window.requestAnimationFrame(() => document.getElementById("reader-library")?.scrollIntoView({
-        behavior: accessibilityPreferences.reducedMotion ? "instant" : "smooth", block: "start",
-      }));
-      return;
-    }
     navigate(view === "all" ? "discover" : "library");
   }
 
   useEffect(() => {
     function restorePage() {
       setActivePage(locationPage());
-      if (classicWindow) setReaderLibraryView(locationLibraryView());
       setReaderSearch("");
       setIsMobileMenuOpen(false);
       setIsMobileQuickOpen(false);
@@ -4944,14 +4419,9 @@ export function App() {
     return () => window.removeEventListener("popstate", restorePage);
   }, []);
 
-  function selectPage(page: PageId, collection?: LibraryViewId) {
+  function selectPage(page: PageId) {
     const url = new URL(window.location.href);
-    if (classicWindow) {
-      if (page === "discover") url.searchParams.set("view", "discover");
-      else url.searchParams.delete("view");
-      if (collection && collection !== "all") url.searchParams.set("collection", collection);
-      else url.searchParams.delete("collection");
-    } else if (studioWindow && studioSections.some(section => section === page)) {
+    if (studioWindow && studioSections.some(section => section === page)) {
       url.searchParams.set("studio", page);
     } else if (!studioWindow && readerDestinations.some(section => section === page)) {
       if (page === "discover") url.searchParams.delete("view");
@@ -4966,18 +4436,6 @@ export function App() {
     setIsMobileQuickOpen(false);
     setIsAccountMenuOpen(false);
     setIsNotificationOpen(false);
-    if (classicWindow) {
-      if (page === "home" || page === "discover") {
-        selectPage(page);
-        setReaderLibraryView("all");
-        window.scrollTo({ top: 0, behavior: "instant" });
-      }
-      else if (creatorOnlyPages.has(page)) window.location.assign("/?studio=" + page);
-      else if (page === "wallet") window.location.assign("/?open=wallet");
-      else if (page === "admin") window.location.assign("/?studio=studio&open=admin");
-      else window.location.assign("/?view=" + page);
-      return;
-    }
     if (!studioWindow && creatorOnlyPages.has(page)) {
       window.open(`/?studio=${page}`, "_blank", "noopener,noreferrer");
       return;
@@ -5026,7 +4484,6 @@ export function App() {
   }
 
   function openMyAccount() {
-    if (classicWindow) { window.location.assign("/?open=account"); return; }
     setIsMobileQuickOpen(false);
     setIsMobileMenuOpen(false);
     setIsAccountMenuOpen(false);
@@ -5656,6 +5113,7 @@ export function App() {
   }
 
   function completeAuth(nextUser: User, nextToken: string) {
+    setAuthMode(null);
     if (resumeCheckoutAfterLogin.current) {
       resumeCheckoutAfterLogin.current = false;
       setIsPaymentOpen(true);
@@ -5750,8 +5208,8 @@ export function App() {
   }
 
   return (
-    <div className={`app ${classicWindow ? "classic-shell" : studioWindow ? "studio-shell" : "reader-shell"} page-${activePage}`}>
-      {isBootLoading && (classicWindow || studioWindow) && (
+    <div className={`app ${studioWindow ? "studio-shell" : "reader-shell"} page-${activePage}`}>
+      {isBootLoading && studioWindow && (
         <div className="boot-loader" role="status" aria-live="polite">
           <div className="boot-loader-card">
             <div className="loader-cat" aria-hidden="true">
@@ -5786,26 +5244,13 @@ export function App() {
           </div>
         </div>
       )}
-      <header className={classicWindow ? "topbar" : "cu-masthead"}>
-        <HeaderRow {...(classicWindow ? {} : {className: "cu-header-row"})}>
-          {classicWindow ? <>
-            <button className="brand" onClick={() => navigate("home")}>
-              <span className="brand-logo"><img src="/logo.png" alt="" /></span>
-              <strong>크리에이터 유니버스</strong>
-              <em>Audio Studio</em>
-            </button>
-            <nav className="desktop-nav" aria-label="홈 메뉴">
-              {visibleNavItems.map(item => (
-                <button key={item.id} className={item.id === activePage ? "active" : ""} onClick={() => navigate(item.id)}>
-                  <span>{item.label}</span><small>{item.helper}</small>
-                </button>
-              ))}
-            </nav>
-          </> : <a className="cu-wordmark" href={studioWindow ? "/?studio=studio" : "/"}>
+      <header className="cu-masthead">
+        <div className="cu-header-row">
+          <a className="cu-wordmark" href={studioWindow ? "/?studio=studio" : "/"}>
             <img src="/logo.png" width="34" height="34" alt="" />
             <strong>{studioWindow ? "Creator Studio" : "Creator Universe"}</strong>
-          </a>}
-          {!classicWindow && !studioWindow && <form className="cu-search" role="search" onSubmit={event => {
+          </a>
+          {!studioWindow && <form className="cu-search" role="search" onSubmit={event => {
             event.preventDefault();
             selectPage("discover");
             window.scrollTo(0, 0);
@@ -5817,7 +5262,7 @@ export function App() {
           </form>}
         <div className="header-actions">
           <button className="ghost-button nav-pay-button" onClick={openPayment}>
-            <Coins size={16} /> {classicWindow ? "결제" : "충전 체험"}
+            <Coins size={16} /> 충전 체험
           </button>
           <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="테마 변경">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -5940,7 +5385,7 @@ export function App() {
               )}
             </div>
           ) : (
-            <button className="primary-button compact" onClick={classicWindow ? openMyAccount : () => setAuthMode("login")}><LogIn size={16} /> 로그인</button>
+            <button className="primary-button compact" onClick={() => setAuthMode("login")}><LogIn size={16} /> 로그인</button>
           )}
           <button
             className="icon-button mobile-menu-button"
@@ -5951,8 +5396,8 @@ export function App() {
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
-        </HeaderRow>
-        {!classicWindow && <div className="cu-nav-row">
+        </div>
+        <div className="cu-nav-row">
           <nav className="cu-sections" aria-label={studioWindow ? "스튜디오 메뉴" : "작품 메뉴"}>
             {visibleNavItems.filter(item => studioWindow || ["discover", "ranking", "library", "creators"].includes(item.id)).map(item => (
               <button key={item.id} aria-current={activePage === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>
@@ -5961,26 +5406,21 @@ export function App() {
           {!studioWindow && <a className="cu-classic-shortcut" href="/classic/">개편 전 홈페이지</a>}
           {studioWindow ? <a className="cu-studio-link" href="/">작품으로 <BookOpen size={14} /></a>
             : <a className="cu-studio-link" href="/?studio=studio" target="_blank" rel="noopener noreferrer" aria-label="스튜디오 새 창에서 열기">스튜디오 <ArrowUpRight size={15} /></a>}
-        </div>}
-        {isMobileMenuOpen && <div className="mobile-drawer open">
+        </div>
+        {isMobileMenuOpen && <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
           <div className="mobile-drawer-card">
-            {classicWindow ? <p><Sparkles size={16} /> Creator Universe Menu</p> : <>
-              <strong>전체 메뉴</strong>
-              <a className="cu-drawer-classic" href="/classic/">개편 전 홈페이지 <ArrowRight size={15} aria-hidden="true" /></a>
-            </>}
+            <strong>전체 메뉴</strong>
+            <a className="cu-drawer-classic" href="/classic/">개편 전 홈페이지 <ArrowRight size={15} aria-hidden="true" /></a>
             {visibleNavItems.map((item) => (
               <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => navigate(item.id)}>
                 <span>{item.label}</span>
                 <small>{item.helper}</small>
               </button>
             ))}
-            {classicWindow && <button onClick={() => window.location.assign("/")}>현재 작품 홈</button>}
-            {!classicWindow && <>
             <button onClick={() => { setIsMobileMenuOpen(false); setIsSupportBotOpen(true); setIsMessengerOpen(false); }}>도움봇</button>
             <button onClick={() => { setIsMobileMenuOpen(false); openCreatorMessenger(); }}>창작자 채팅</button>
             <button onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setIsMobileMenuOpen(false); }}>테마 변경</button>
-            <button onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
-            </>}
+            <a className="cu-drawer-classic" href="/classic/?view=intro">서비스 소개 · 접근성 설정</a>
             <button className="drawer-pay-button" onClick={() => { setIsMobileMenuOpen(false); openPayment(); }}>
               <Coins size={17} /> 코인 충전 체험
             </button>
@@ -6699,7 +6139,7 @@ export function App() {
           </div>
         )}
 
-        {!classicWindow && (activePage === "discover" || activePage === "ranking") && (
+        {(activePage === "discover" || activePage === "ranking") && (
           <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
             lastReadEpisode={workProgress[tideWork.id]?.episodeNumber}
             onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
@@ -6707,243 +6147,16 @@ export function App() {
             onOpenWork={(work, mode, episode) => { setTideEntryEpisode(episode ?? null); setTideMode(mode ?? "read"); setSelectedWork(work); setReviewWorkId(work.id); }} />
         )}
 
-        {(classicDiscover || activePage === "library" || activePage === "creators") && <section className={classicDiscover ? "section discover-page page-panel" : "section reader-subpage page-panel"}>
-          {classicDiscover && <>
-          <section className="app-discover-dashboard" aria-label="앱 작품 탐색 요약">
-            <div className="app-discover-head">
-              <span>Library</span>
-              <h2>오늘 볼 작품을 빠르게 찾기</h2>
-              <p>앱에서는 검색, 이어보기, 스크랩을 먼저 보여줘서 복잡하게 내려가지 않아도 바로 감상할 수 있게 했어요.</p>
-            </div>
-
-            <label className="app-discover-search">
-              <Search size={17} />
-              <input
-                value={readerSearch}
-                onChange={(event) => setReaderSearch(event.target.value)}
-                placeholder="웹툰 로맨스, 소설 판타지처럼 검색"
-                type="search"
-              />
-            </label>
-
-            <div className="app-discover-library-tabs" aria-label="앱 작품 보관함 바로가기">
-              {libraryViewItems.map((item) => {
-                const count =
-                  item.id === "recent"
-                    ? recentWorkIds.length
-                    : item.id === "purchased"
-                      ? purchasedWorkIds.length
-                      : item.id === "scrapped"
-                        ? scrappedWorkIds.length
-                        : readerWorks.length;
-
-                return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={readerLibraryView === item.id ? "active" : ""}
-                    onClick={() => openReaderLibrary(item.id)}
-                  >
-                    <strong>{item.label}</strong>
-                    <span>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <article className="app-continue-card">
-              {(() => {
-                const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
-                const progress = workProgress[continueWork.id];
-
-                return (
-                  <>
-                    <img src={continueWork.coverImage} alt="" />
-                    <div>
-                      <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : "추천 이어보기"}</span>
-                      <strong>{continueWork.title}</strong>
-                      <p>{continueWork.format} · {continueWork.genre}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedWork(continueWork);
-                        setReviewWorkId(continueWork.id);
-                      }}
-                    >
-                      <Play size={15} /> 보기
-                    </button>
-                  </>
-                );
-              })()}
-            </article>
-
-            <div className="app-filter-strip" aria-label="앱 장르 빠른 선택">
-              {[...readerFormatFilters.slice(0, 5), ...readerGenreFilters.slice(0, 6)].map((filter) => (
-                <button
-                  key={filter}
-                  type="button"
-                  className={(filter === "전체" ? readerFilters.length === 0 : readerFilters.includes(filter)) ? "active" : ""}
-                  onClick={() => toggleReaderFilter(filter)}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <div className="discover-hero">
-            <div>
-              <p className="kicker">Multi Content Library</p>
-              <h2>소설, 웹툰, 만화, 애니메이션, 오디오드라마를 장르별로 골라보세요</h2>
-              <p>독자는 웹툰 플랫폼처럼 원하는 장르와 콘텐츠 형식을 고르고, 창작팀은 하나의 IP를 글·그림·소리·영상으로 확장해 유통할 수 있습니다.</p>
-            </div>
-            <div className="featured-work">
-              <span><Flame size={15} /> 실시간 인기</span>
-              <strong>{readerWorks[0].title}</strong>
-              <p>{readerWorks[0].tagline}</p>
-              <button onClick={() => openWorkPayment(readerWorks[0].id)}><Coins size={17} /> {formatCoins(salePrices[readerWorks[0].id] ?? readerWorks[0].priceCoins)} 열람</button>
-            </div>
-          </div>
-
-          <section className="content-format-grid" aria-label="콘텐츠 형식별 협업 모델">
-            {contentFormatCards.map((item, index) => (
-              <article className="content-format-card" key={item.title}>
-                <div className={`content-3d-stack stack-${index + 1}`} aria-hidden="true">
-                  <i />
-                  <b />
-                  <em />
-                </div>
-                <span>{item.label}</span>
-                <strong>{item.title}</strong>
-                <p>{item.text}</p>
-              </article>
-            ))}
-          </section>
-
-          <section className="ranking-section">
+        {activePage === "library" && <section className="section reader-subpage page-panel">
+          <section className="recommend-strip" id="reader-library">
             <div className="section-head">
               <div>
-                <p className="kicker">Ranking</p>
-                <h2>지금 가장 많이 보는 작품과 장르별 TOP 차트</h2>
-              </div>
-              <p className="section-description">
-                <span>감상 수, 평점, 회차 활동성을 합산해 만든 데모 랭킹입니다.</span>
-                <span>카드 클릭 시 작품 상세와 댓글/리뷰로 바로 연결됩니다.</span>
-              </p>
-            </div>
-            <div className="ranking-layout">
-              <article className="overall-ranking-card">
-                <div className="ranking-card-head">
-                  <span>전체 차트</span>
-                  <small>오늘의 인기 순위</small>
-                </div>
-                {rankedReaderWorks.slice(0, 8).map((work, index) => (
-                  <button
-                    className={index < 3 ? "podium" : ""}
-                    key={work.id}
-                    onClick={() => {
-                      setSelectedWork(work);
-                      setReviewWorkId(work.id);
-                    }}
-                  >
-                    <b>{index + 1}</b>
-                    <img src={work.coverImage} alt="" />
-                    <div>
-                      <strong>{work.title}</strong>
-                      <small>{work.format} · {work.genre} · ★ {work.rating}</small>
-                    </div>
-                    <em>{index === 0 ? "HOT" : index % 3 === 0 ? "NEW" : `▲ ${index + 1}`}</em>
-                  </button>
-                ))}
-              </article>
-
-              <div className="genre-ranking-grid">
-                {genreRankings.map((ranking) => (
-                  <article key={ranking.genre}>
-                    <span>{ranking.genre}</span>
-                    {ranking.works.map((work, index) => (
-                      <button
-                        key={work.id}
-                        onClick={() => {
-                          setSelectedWork(work);
-                          setReviewWorkId(work.id);
-                        }}
-                      >
-                        <b>{index + 1}</b>
-                        <div>
-                          <strong>{work.title}</strong>
-                          <small>{work.format} · {work.listeners} · ★ {work.rating}</small>
-                        </div>
-                      </button>
-                    ))}
-                  </article>
-                ))}
+                <h1>내 서재</h1>
               </div>
             </div>
-          </section>
-          </>}
-          {(classicDiscover || activePage === "library") && <section className="recommend-strip" id="reader-library">
-            <div className="section-head">
-              <div>
-                {classicDiscover ? <>
-                  <p className="kicker">Recommended</p>
-                  <h2>{readerFilters.length ? readerFilters.join(" · ") + " 추천작" : "전체 추천작"}</h2>
-                </> : <h1>내 서재</h1>}
-              </div>
-              {classicDiscover && <p>선택한 장르와 검색어에 맞춰 독자용 작품 카드가 바뀝니다.</p>}
-            </div>
-            {classicDiscover &&
-              <div className="library-shelf">
-              <article>
-                <div>
-                  <span>Continue</span>
-                  <strong>최근 본 작품</strong>
-                  <p>{recentWorks.length > 0 ? `${recentWorks.length}개 작품 이어보기 가능` : "작품 상세를 열면 자동 저장돼요"}</p>
-                </div>
-                <div className="library-cover-stack recent-stack">
-                  {(recentWorks.length > 0 ? recentWorks : readerWorks.slice(1, 4)).slice(0, 3).map((work) => (
-                    <img src={work.coverImage} alt="" key={work.id} />
-                  ))}
-                </div>
-                <button onClick={() => openReaderLibrary("recent")}>
-                  최근 본 작품 보기
-                </button>
-              </article>
-              <article>
-                <div>
-                  <span>Purchased</span>
-                  <strong>결제한 작품</strong>
-                  <p>{purchasedWorks.length > 0 ? `${purchasedWorks.length}개 열람권 보유` : "아직 결제한 작품이 없어요"}</p>
-                </div>
-                <div className="library-cover-stack">
-                  {(purchasedWorks.length > 0 ? purchasedWorks : readerWorks.slice(0, 3)).slice(0, 3).map((work) => (
-                    <img src={work.coverImage} alt="" key={work.id} />
-                  ))}
-                </div>
-                <button onClick={() => openReaderLibrary("purchased")}>
-                  결제한 작품만 보기
-                </button>
-              </article>
-              <article>
-                <div>
-                  <span>Scrap</span>
-                  <strong>스크랩 보관함</strong>
-                  <p>{scrappedWorks.length > 0 ? `${scrappedWorks.length}개 작품 저장됨` : "하트를 누르면 여기에 저장돼요"}</p>
-                </div>
-                <div className="library-cover-stack heart-stack">
-                  {(scrappedWorks.length > 0 ? scrappedWorks : readerWorks.slice(3, 6)).slice(0, 3).map((work) => (
-                    <img src={work.coverImage} alt="" key={work.id} />
-                  ))}
-                </div>
-                <button onClick={() => openReaderLibrary("scrapped")}>
-                  스크랩만 보기
-                </button>
-              </article>
-            </div>}
             <div className="reader-toolbar recommend-toolbar">
               <div className="library-tabs" aria-label="내 작품 보관함 필터">
-                {libraryViewItems.filter(item => classicDiscover || item.id !== "all").map((item) => {
+                {libraryViewItems.filter(item => item.id !== "all").map((item) => {
                   const count =
                     item.id === "recent"
                       ? recentWorkIds.length
@@ -6957,12 +6170,11 @@ export function App() {
                       key={item.id}
                       className={readerLibraryView === item.id ? "active" : ""}
                       onClick={() => {
-                        if ((item.id === "purchased" || item.id === "scrapped") && !token) {
-                          setAuthMode("login");
-                          return;
-                        }
+                      if ((item.id === "purchased" || item.id === "scrapped") && !token) {
+                        setAuthMode("login");
+                        return;
+                      }
                         setReaderLibraryView(item.id);
-                        if (classicDiscover) selectPage("discover", item.id);
                       }}
                     >
                       {item.id === "recent" && <RefreshCw size={15} />}
@@ -7097,21 +6309,21 @@ export function App() {
               <div className="empty-matching">
                 <BookOpen size={24} />
                 <strong>조건에 맞는 작품이 없어요</strong>
-                {classicDiscover ? <p>다른 장르를 누르거나 검색어를 바꿔보세요.</p> :
-                  <button type="button" onClick={() => navigate("discover")}>작품 둘러보기</button>}
+                <button type="button" onClick={() => navigate("discover")}>작품 둘러보기</button>
               </div>
             )}
-          </section>}
-          {(classicDiscover || activePage === "creators") && <section className="creator-discovery-strip">
+          </section>
+
+        </section>}
+
+        {activePage === "creators" && <section className="section reader-subpage page-panel">
+          <section className="creator-discovery-strip">
             <div className="section-head">
               <div>
 
-                {classicDiscover ? <>
-                  <p className="kicker">Creator Search</p>
-                  <h2>작품에 참여한 작가, 성우, 그림 작가를 찾아보세요</h2>
-                </> : <h1>창작자 찾기</h1>}
+                <h1>창작자 찾기</h1>
               </div>
-              <p>{classicDiscover ? "이름, 직군, 작품명, 장르를 검색해서 창작자 프로필을 열고 후원이나 구독으로 연결할 수 있습니다." : "이름, 직군, 작품명으로 참여 창작자를 검색하세요."}</p>
+              <p>이름, 직군, 작품명으로 참여 창작자를 검색하세요.</p>
             </div>
             <div className="creator-search-toolbar">
               <label className="matching-search">
@@ -7149,7 +6361,8 @@ export function App() {
                 );
               })}
             </div>
-          </section>}
+          </section>
+
         </section>}
 
         {studioWindow && creatorOnlyPages.has(activePage) && !isStudioMemberView && (
@@ -9277,20 +8490,12 @@ export function App() {
 
       <footer className="site-footer">
         <div className="footer-brand">
-          {classicWindow ? <>
-            <span className="footer-logo"><img src="/logo.png" alt="" /></span>
-            <div><strong>Creator Universe</strong><p>대한민국</p></div>
-          </> : <>
-            <strong>Creator Universe</strong>
-            <small className="footer-copy">© 2026 Creator Universe Inc.</small>
-          </>}
+          <strong>Creator Universe</strong>
+          <small className="footer-copy">© 2026 Creator Universe Inc.</small>
         </div>
-        {classicWindow && <p className="footer-copy">Copyright © 2026 Creator Universe Inc. 모든 권리 보유.</p>}
         <nav className="footer-links" aria-label="하단 링크">
-          {classicWindow ? <a href="/">현재 작품 홈</a> : <>
-            <a href="/classic/">개편 전 홈페이지</a>
-            <button className="cu-footer-link" onClick={() => navigate("home")}>서비스 소개 · 접근성 설정</button>
-          </>}
+          <a href="/classic/">개편 전 홈페이지</a>
+          <a href="/classic/?view=intro">서비스 소개 · 접근성 설정</a>
           <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
           <a href="/terms.html" target="_blank" rel="noreferrer">약관</a>
           <a href="/refund-policy.html" target="_blank" rel="noreferrer">판매 및 환불</a>
@@ -9301,15 +8506,8 @@ export function App() {
       </footer>
 
       <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
-        {classicWindow ? <>
-          <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
-          {isStudioMemberView
-            ? <button onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
-            : <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>}
-        </> : <>
         <button className={activePage === (studioWindow ? "studio" : "discover") ? "active" : ""} onClick={() => navigate(studioWindow ? "studio" : "discover")}><BookOpen size={18} />{studioWindow ? "스튜디오" : "작품"}</button>
         <button className={activePage === (studioWindow ? "matching" : "ranking") ? "active" : ""} onClick={() => navigate(studioWindow ? "matching" : "ranking")}><Trophy size={18} />{studioWindow ? "매칭" : "랭킹"}</button>
-        </>}
         <button
           className="mobile-plus-tab"
           type="button"
@@ -9749,7 +8947,7 @@ export function App() {
           work={paymentMode === "content" ? pendingPurchaseWork : null}
           wallet={wallet}
           isLoggedIn={Boolean(token && user)}
-          isPaymentReturn={isPaymentReturn}
+          returnId={isPaymentReturn ? providerReturn?.id ?? null : undefined}
           onClose={() => { setIsPaymentOpen(false); setIsPaymentReturn(false); }}
           token={token} userId={user?.id} salePrice={salePrices[pendingPurchaseWorkId]}
           onBalance={balance => { setWallet(balance); if (token) void loadData(token).catch(() => {}); }}

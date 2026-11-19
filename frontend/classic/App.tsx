@@ -1,0 +1,9188 @@
+import { API_URL, cleanDisplayText, getFriendlyError, request } from "../src/api";
+import { AuthModal, PaymentModal, PurchasedAudio, formatCoins, formatDuration, type AuthView, type User } from "../src/AccountDialogs";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { detectMatchingRoles, detectMatchingExcludedRoles, detectMatchingLimit, resolveMatchingContext, rankMatchingCreators, type MatchSignal } from "../../shared/creator-matching";
+import "./intro.css";
+import {
+  Bell,
+  BookOpen,
+  Bot,
+  ChevronDown,
+  CheckCircle2,
+  Coins,
+  CreditCard,
+  Flame,
+  Globe2,
+  Heart,
+  Headphones,
+  Home,
+  LogIn,
+  LogOut,
+  Maximize2,
+  Menu,
+  MessageCircle,
+  Minimize2,
+  Moon,
+  Play,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Search,
+  Send,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Split,
+  Star,
+  Sun,
+  UserRound,
+  Users,
+  UserPlus,
+  Wallet,
+  X,
+} from "lucide-react";
+
+const PROJECT_ID = "project-midnight-signal";
+const STANDARD_PLATFORM_FEE_RATE = 0.13;
+const PARTNER_PLATFORM_FEE_RATE = 0.08;
+
+type CreatorChatMessage = {
+  from: "me" | "creator";
+  text: string;
+  time: string;
+  createdAt: string;
+  matchRequestId?: string;
+  matchProposal?: MatchProposalPayload | null;
+};
+
+type ChatThread = {
+  otherUser: {
+    id: string;
+    username: string;
+    displayName: string;
+    userType: string;
+    primaryRole: string | null;
+    responseRate: number | null;
+    headline: string;
+  };
+  messages: Array<{
+    id: string;
+    senderId: string;
+    receiverUserId: string;
+    body: string;
+    createdAt: string;
+    from: "me" | "creator";
+    matchRequestId?: string;
+    matchProposal?: MatchProposalPayload | null;
+  }>;
+};
+
+type MatchProposalPayload = {
+  id: string;
+  projectTitle: string;
+  projectType: string;
+  memberRole: string;
+  sharePercentage: number;
+  message: string;
+  requesterName?: string;
+  targetName?: string;
+  status: "PENDING" | "ACCEPTED" | "DECLINED";
+};
+
+type MatchRequestRecord = {
+  id: string;
+  direction: "sent" | "received";
+  partnerUserId: string;
+  partnerName: string;
+  partnerUsername: string;
+  partnerRole: string;
+  proposal: MatchProposalPayload;
+  createdAt: string;
+  acceptedAt: string | null;
+};
+
+type Creator = {
+  id: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  primaryRole: string;
+  headline: string;
+  bio: string;
+  skills: string[];
+  availabilityNote?: string;
+  responseRate: number;
+  followerCount: number;
+  completedProjects: number;
+  portfolioSummary?: string;
+  portfolioItems?: Array<{
+    title: string;
+    category: string;
+    description: string;
+    tags: string[];
+  }>;
+  voiceDemo?: {
+    title: string;
+    durationSeconds: number;
+    waveform: number[];
+  } | null;
+};
+
+type AiMatchRecommendation = {
+  rank: number;
+  score: number;
+  matchRate: number;
+  matchSignals?: MatchSignal[];
+  reason: string;
+  reasonDetails?: string[];
+  matchedKeywords: string[];
+  suggestedMessage?: string;
+  creator: Creator;
+};
+
+type AiMatchingResponse = {
+  provider?: "local" | "gemini";
+  providerNote?: string;
+  assistantMessage: string;
+  projectBrief: {
+    summary: string;
+    tone: string;
+    topics: string[];
+    neededRoles: string[];
+  };
+  recommendations: AiMatchRecommendation[];
+  followUpSuggestions: string[];
+};
+
+type AiChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+const AI_MATCH_MESSAGES_STORAGE_KEY = "creator-universe-ai-match-messages";
+
+function readStoredAiMessages() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(AI_MATCH_MESSAGES_STORAGE_KEY) || "[]");
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter(
+        (item): item is AiChatMessage =>
+          item &&
+          (item.role === "user" || item.role === "assistant") &&
+          typeof item.content === "string" &&
+          item.content.trim().length > 0,
+      )
+      .slice(-30);
+  } catch {
+    return [];
+  }
+}
+
+type SettlementDashboard = {
+  grossAmount: number;
+  platformFeeAmount: number;
+  netAmount: number;
+  appliedFeeRate: number;
+  members: Array<{
+    userId: string;
+    displayName: string;
+    username: string;
+    memberRole: string;
+    sharePercentage: number;
+    expectedSettlement: number;
+  }>;
+  mySettlement: {
+    sharePercentage: number;
+    amount: number;
+  };
+};
+
+type SettlementMemberConfig = {
+  userId: string;
+  displayName: string;
+  username: string;
+  memberRole: string;
+  sharePercentage: number;
+};
+
+type SettlementConfig = {
+  platformFeeRate: number;
+  members: SettlementMemberConfig[];
+};
+
+type Project = {
+  title: string;
+  synopsis?: string;
+  priceCoins: number;
+  hasAccess: boolean;
+  appliedFeeRate: number;
+};
+
+type PolicyTabId = "privacy" | "terms" | "refund" | "legal" | "sitemap";
+
+type WalletTransaction = {
+  id: string;
+  type: "CHARGE" | "SPEND" | "SETTLEMENT" | "REFUND" | "BONUS";
+  title: string;
+  description: string;
+  amount: number;
+  status: "완료" | "대기" | "환불 가능" | "실패";
+  createdAt: string;
+  projectTitle?: string;
+};
+
+type WalletDetail = {
+  balance: number;
+  monthlySpend: number;
+  monthlyEarned: number;
+  refundableCoins: number;
+  bonusCoins: number;
+  autoChargeEnabled: boolean;
+  nextChargeDate: string;
+  paymentMethod: string;
+  payoutAccount: string;
+  transactions: WalletTransaction[];
+};
+
+type AdminUserRef = {
+  id: string;
+  username: string;
+  displayName: string;
+  role: "CREATOR" | "READER" | "ADMIN";
+};
+
+type AdminModerationDashboard = {
+  summary: {
+    users: number;
+    creators: number;
+    openTickets: number;
+    openReports: number;
+  };
+  playReviewChecklist: Array<{
+    title: string;
+    status: string;
+    detail: string;
+  }>;
+  tickets: Array<{
+    id: string;
+    category: string;
+    body: string;
+    status: string;
+    createdAt: string;
+    user: AdminUserRef;
+  }>;
+  reports: Array<{
+    id: string;
+    reason: string;
+    context?: string | null;
+    status: string;
+    createdAt: string;
+    reporter: AdminUserRef;
+    targetUser?: AdminUserRef | null;
+  }>;
+  transactions: Array<{
+    id: string;
+    transactionType: string;
+    status: string;
+    grossAmount: string | number;
+    coinAmount?: number | null;
+    createdAt: string;
+    buyer: AdminUserRef;
+    project: { id: string; title: string; slug: string };
+  }>;
+  matchRequests: Array<{
+    id: string;
+    projectTitle: string;
+    projectType: string;
+    sharePercentage: string | number;
+    status: string;
+    createdAt: string;
+    requester: AdminUserRef;
+    targetUser: AdminUserRef;
+  }>;
+};
+
+type PremiumSubscriptionState = {
+  isActive: boolean;
+  nextBillingDate: string;
+  startedAt?: string;
+  cancelledAt?: string;
+};
+
+type ContentReview = {
+  id: string;
+  workId: string;
+  authorName: string;
+  rating: number;
+  body: string;
+  createdAt: string;
+};
+
+const roleLabels: Record<string, string> = {
+  WRITER: "글",
+  ILLUSTRATOR: "그림",
+  VOICE_ACTOR: "목소리",
+  SOUND_DIRECTOR: "BGM",
+  PRODUCER: "프로듀서",
+  EDITOR: "에디터",
+};
+
+const roleFilterItems = ["ALL", "WRITER", "ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"];
+
+const defaultSettlementMembers: SettlementMemberConfig[] = [
+  { userId: "writer-demo", displayName: "작가", username: "writer", memberRole: "WRITER", sharePercentage: 30 },
+  { userId: "illust-demo", displayName: "일러스트", username: "illust", memberRole: "ILLUSTRATOR", sharePercentage: 30 },
+  { userId: "voice-demo", displayName: "성우", username: "voice", memberRole: "VOICE_ACTOR", sharePercentage: 40 },
+];
+
+const genreFilters = [
+  "전체",
+  "미스터리",
+  "판타지",
+  "로맨스",
+  "도시괴담",
+  "네온",
+  "키비주얼",
+  "캐릭터",
+  "내레이션",
+  "감정연기",
+  "ASMR",
+  "BGM",
+  "3D",
+  "앰비언트",
+];
+
+const matchingContentFilters = ["전체", "소설", "웹툰", "만화", "애니메이션", "오디오드라마", "믹스미디어"];
+const matchingGenreFilters = ["로맨스", "판타지", "미스터리", "스릴러", "일상", "BL", "힐링", "ASMR", "BGM"];
+const aiStarterPrompts = [
+  {
+    label: "작품 톤 분석",
+    helper: "장르와 분위기부터 잡기",
+    prompt: "비 오는 도시괴담 느낌의 미스터리 웹소설이야. 낮은 톤 성우와 네온 감성 일러스트가 필요해. 누구랑 하면 좋을까?",
+  },
+  {
+    label: "후보 비교",
+    helper: "1순위와 백업 후보 비교",
+    prompt: "1순위랑 2순위를 비교해서 누가 더 먼저 연락하기 좋은지 알려줘.",
+  },
+  {
+    label: "그림 작가만",
+    helper: "글 작가 제외하고 찾기",
+    prompt: "글 작가 말고 웹툰 콘티와 표지까지 가능한 그림 작가만 추천해줘.",
+  },
+  {
+    label: "사운드 찾기",
+    helper: "BGM·효과음 후보 확인",
+    prompt: "어두운 미스터리 오디오드라마에 맞는 사운드 디자이너나 BGM 담당이 있을까?",
+  },
+  {
+    label: "DM 작성",
+    helper: "바로 보낼 문구 만들기",
+    prompt: "추천 후보에게 보낼 첫 DM을 자연스럽고 부담 없게 써줘.",
+  },
+  {
+    label: "지분 제안",
+    helper: "정산 조건까지 정리",
+    prompt: "13% 수수료와 30:30:40 지분 기준으로 협업 제안 문구를 만들어줘.",
+  },
+];
+
+const readerFormatFilters = ["전체", "소설", "웹툰", "만화", "애니메이션", "오디오드라마", "믹스미디어"];
+const readerGenreFilters = ["로맨스", "판타지", "미스터리", "스릴러", "일상", "BL", "힐링"];
+const libraryViewItems = [
+  { id: "all", label: "전체 작품" },
+  { id: "recent", label: "최근 본 작품" },
+  { id: "purchased", label: "결제한 작품" },
+  { id: "scrapped", label: "스크랩" },
+] as const;
+
+const readerWorks = [
+  {
+    id: "midnight-signal",
+    title: "미드나잇 시그널",
+    coverImage: "/covers/midnight-signal.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-haruka", "user-ion"],
+    format: "오디오드라마",
+    genre: "미스터리",
+    subGenre: "오디오드라마 · 도시괴담",
+    tagline: "비 오는 도시의 라디오 주파수에서 사라진 목소리를 추적하는 이야기.",
+    tags: ["미스터리", "스릴러", "보이스드라마", "고대비"],
+    priceCoins: 1000,
+    rating: 4.9,
+    listeners: "12.4만",
+    episodes: 8,
+    badge: "오늘의 추천",
+    tone: "mystery",
+  },
+  {
+    id: "starlight-contract",
+    title: "별빛 계약 연애",
+    coverImage: "/covers/starlight-contract.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-haruka"],
+    format: "웹소설",
+    genre: "로맨스",
+    subGenre: "웹소설 · 로맨스 판타지",
+    tagline: "작가와 일러스트레이터가 만든 연재형 웹소설. 인기 회차는 성우 더빙판으로 확장됩니다.",
+    tags: ["소설", "웹소설", "로맨스", "판타지", "삽화"],
+    priceCoins: 700,
+    rating: 4.8,
+    listeners: "8.7만",
+    episodes: 12,
+    badge: "로맨스 급상승",
+    tone: "romance",
+  },
+  {
+    id: "dragon-archive",
+    title: "용의 기록 보관소",
+    coverImage: "/covers/dragon-archive.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-ion"],
+    format: "웹툰",
+    genre: "판타지",
+    subGenre: "웹툰 · 정통 판타지",
+    tagline: "그림 작가와 스토리 작가가 공동 제작한 세로 스크롤 웹툰. BGM 버전도 함께 준비 중입니다.",
+    tags: ["웹툰", "판타지", "모험", "세계관", "BGM강점"],
+    priceCoins: 900,
+    rating: 4.7,
+    listeners: "6.1만",
+    episodes: 15,
+    badge: "세계관 추천",
+    tone: "fantasy",
+  },
+  {
+    id: "after-school-ghost",
+    title: "방과 후 괴담부",
+    coverImage: "/covers/after-school-ghost.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-haruka", "user-ion"],
+    format: "만화",
+    genre: "스릴러",
+    subGenre: "출판만화 · 학원 스릴러",
+    tagline: "콘티, 펜선, 채색, 효과음 팀이 함께 만든 에피소드형 만화. 오디오 코멘터리도 지원합니다.",
+    tags: ["만화", "스릴러", "미스터리", "학원물", "콘티"],
+    priceCoins: 800,
+    rating: 4.6,
+    listeners: "5.9만",
+    episodes: 10,
+    badge: "입체음향",
+    tone: "thriller",
+  },
+  {
+    id: "cafe-orbit",
+    title: "궤도 카페의 하루",
+    coverImage: "/covers/cafe-orbit.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-ion"],
+    format: "믹스미디어",
+    genre: "힐링",
+    subGenre: "일러스트 에세이 · ASMR",
+    tagline: "짧은 글, 배경 일러스트, ASMR 사운드가 함께 제공되는 감성형 협업 콘텐츠.",
+    tags: ["믹스미디어", "힐링", "일상", "ASMR", "앰비언트"],
+    priceCoins: 500,
+    rating: 4.9,
+    listeners: "4.8만",
+    episodes: 6,
+    badge: "잠들기 전 추천",
+    tone: "healing",
+  },
+  {
+    id: "blue-hour-roommate",
+    title: "블루아워 룸메이트",
+    coverImage: "/covers/blue-hour-roommate.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-haruka"],
+    format: "웹소설",
+    genre: "BL",
+    subGenre: "웹소설 · 청춘 BL",
+    tagline: "작가의 본편 연재와 일러스트레이터의 삽화, 성우 보이스 특전이 함께 열리는 팬덤형 작품.",
+    tags: ["소설", "웹소설", "BL", "청춘", "로맨스", "보이스특전"],
+    priceCoins: 700,
+    rating: 4.8,
+    listeners: "7.2만",
+    episodes: 9,
+    badge: "팬덤 추천",
+    tone: "blue",
+  },
+  {
+    id: "painted-planet",
+    title: "채색 행성의 아이들",
+    coverImage: "/covers/painted-planet.svg",
+    participantUserIds: ["user-renka", "user-yurino"],
+    format: "웹툰",
+    genre: "일상",
+    subGenre: "웹툰 · 성장 드라마",
+    tagline: "인디 일러스트 팀과 작가가 함께 만드는 컬러풀 성장 웹툰. 팬 후원으로 보이스 예고편을 제작합니다.",
+    tags: ["웹툰", "일상", "성장", "컬러", "팬후원"],
+    priceCoins: 600,
+    rating: 4.7,
+    listeners: "3.6만",
+    episodes: 14,
+    badge: "신규 웹툰",
+    tone: "comic",
+  },
+  {
+    id: "paper-moon-diary",
+    title: "종이달 관찰일지",
+    coverImage: "/covers/paper-moon-diary.svg",
+    participantUserIds: ["user-yurino", "user-renka", "user-ion"],
+    format: "소설",
+    genre: "미스터리",
+    subGenre: "연재소설 · 서정 미스터리",
+    tagline: "챕터마다 삽화와 BGM 큐시트가 붙는 연재소설. 추후 오디오북으로 확장 가능한 IP입니다.",
+    tags: ["소설", "미스터리", "삽화", "BGM", "오디오북확장"],
+    priceCoins: 400,
+    rating: 4.8,
+    listeners: "2.9만",
+    episodes: 20,
+    badge: "작가 추천",
+    tone: "novel",
+  },
+  {
+    id: "neon-pulse-zero",
+    title: "네온 펄스 제로",
+    coverImage: "/covers/neon-pulse-zero.svg",
+    participantUserIds: ["user-renka", "user-haruka", "user-ion"],
+    format: "애니메이션",
+    genre: "판타지",
+    subGenre: "숏폼 애니메이션 · SF 판타지",
+    tagline: "웹툰 원작을 90초 파일럿 애니메이션으로 확장한 작품. 작가, 애니메이터, 성우, BGM 팀이 함께 제작합니다.",
+    tags: ["애니메이션", "판타지", "SF", "파일럿", "성우더빙", "BGM"],
+    priceCoins: 1200,
+    rating: 4.9,
+    listeners: "4.1만",
+    episodes: 4,
+    badge: "애니 파일럿",
+    tone: "animation",
+  },
+];
+
+type ReaderWork = (typeof readerWorks)[number];
+
+const audioWaveBars = [18, 30, 44, 26, 52, 34, 62, 28, 48, 38, 58, 24, 46, 32, 54, 22, 40, 30];
+
+function hasAudioExperience(work: ReaderWork) {
+  return (
+    work.format === "오디오드라마" ||
+    work.format === "믹스미디어" ||
+    work.tags.some((tag) => ["보이스드라마", "보이스특전", "BGM", "ASMR", "앰비언트", "오디오북확장", "성우더빙"].includes(tag))
+  );
+}
+
+function getAudioExperienceLabel(work: ReaderWork) {
+  if (work.format === "오디오드라마") {
+    return "오디오드라마";
+  }
+  if (work.tags.includes("보이스특전") || work.tags.includes("성우더빙")) {
+    return "보이스 특전";
+  }
+  if (work.tags.includes("BGM") || work.tags.includes("앰비언트") || work.tags.includes("ASMR")) {
+    return "사운드 특전";
+  }
+  return "오디오 확장";
+}
+
+const contentFormatCards = [
+  {
+    title: "웹소설",
+    label: "Story First",
+    text: "작가가 원작을 연재하고 일러스트, 표지, 보이스 특전으로 확장합니다.",
+  },
+  {
+    title: "웹툰·만화",
+    label: "Visual IP",
+    text: "콘티, 펜선, 채색, 배경, 효과음 팀이 에피소드 단위로 협업합니다.",
+  },
+  {
+    title: "오디오드라마",
+    label: "Voice Expansion",
+    text: "성우, BGM, 사운드 디자이너가 기존 IP를 배리어프리 감상 경험으로 넓힙니다.",
+  },
+  {
+    title: "애니메이션",
+    label: "Motion IP",
+    text: "웹툰과 소설 IP를 숏폼 파일럿, 티저, 오프닝 영상으로 확장합니다.",
+  },
+  {
+    title: "믹스미디어",
+    label: "Fan Package",
+    text: "글, 이미지, 음성, ASMR, 비하인드 콘텐츠를 묶어 팬덤형 상품으로 판매합니다.",
+  },
+];
+
+const creatorFanPosts = [
+  {
+    id: "post-yurino-rough",
+    creatorUserId: "user-yurino",
+    title: "미드나잇 시그널 미공개 대사 노트",
+    type: "작업노트",
+    access: "구독자 전용",
+    priceCoins: 300,
+    description: "본편에서 삭제된 독백과 작가 코멘터리를 묶은 팬 전용 포스트입니다.",
+    tone: "mystery",
+  },
+  {
+    id: "post-yurino-short",
+    creatorUserId: "user-yurino",
+    title: "종이달 관찰일지 외전 4컷 대본",
+    type: "짧은 글",
+    access: "코인 열람",
+    priceCoins: 500,
+    description: "후원자 요청으로 제작한 짧은 외전 대본과 캐릭터 설정 메모입니다.",
+    tone: "novel",
+  },
+  {
+    id: "post-renka-illust",
+    creatorUserId: "user-renka",
+    title: "렌카의 네온 키비주얼 PSD 비하인드",
+    type: "일러스트",
+    access: "구독자 전용",
+    priceCoins: 700,
+    description: "레이어 구성, 러프, 컬러 팔레트까지 확인할 수 있는 작업 비하인드입니다.",
+    tone: "comic",
+  },
+  {
+    id: "post-renka-sticker",
+    creatorUserId: "user-renka",
+    title: "채색 행성 SD 캐릭터 짤 모음",
+    type: "이미지팩",
+    access: "코인 열람",
+    priceCoins: 400,
+    description: "프로필 배너와 댓글 리액션에 쓸 수 있는 팬아트 이미지팩입니다.",
+    tone: "romance",
+  },
+  {
+    id: "post-haruka-voice",
+    creatorUserId: "user-haruka",
+    title: "하루카 보이스 샘플: 비 오는 밤",
+    type: "보이스",
+    access: "구독자 전용",
+    priceCoins: 600,
+    description: "성우가 직접 녹음한 30초 감정 연기 샘플과 녹음 코멘터리입니다.",
+    tone: "blue",
+  },
+  {
+    id: "post-ion-bgm",
+    creatorUserId: "user-ion",
+    title: "궤도 카페 앰비언트 루프",
+    type: "BGM",
+    access: "무료 공개",
+    priceCoins: 0,
+    description: "작품 분위기를 먼저 체험할 수 있는 20초 무료 앰비언트 미리듣기입니다.",
+    tone: "healing",
+  },
+];
+
+const creatorMembershipPlans = [
+  {
+    name: "Fan Light",
+    price: 900,
+    benefits: ["후원자 전용 글/이미지 열람", "신작 알림", "월간 제작 노트"],
+  },
+  {
+    name: "Studio Fan",
+    price: 2900,
+    benefits: ["비공개 러프/짤 이미지팩", "보이스/BGM 특전", "댓글 우선 답변"],
+  },
+  {
+    name: "Producer",
+    price: 5900,
+    benefits: ["크레딧 닉네임 표기", "월 1회 Q&A", "파일럿 선공개"],
+  },
+];
+
+const universePremiumBenefits = [
+  "작품 페이지 내 배너 광고 제거",
+  "매월 1,000 보너스 코인 지급",
+  "프리미엄 작품 선공개와 고화질 이미지 보기",
+  "오디오 백그라운드 재생과 오프라인 저장 데모",
+];
+
+type PageId = "home" | "intro" | "discover" | "studio" | "matching" | "wallet" | "settlement" | "support" | "admin";
+type LibraryViewId = (typeof libraryViewItems)[number]["id"];
+type NotificationTone = "match" | "wallet" | "content" | "studio" | "settlement" | "premium" | "marketing";
+type AppMode = "reader" | "creator";
+
+type WorkProgressEntry = {
+  episodeNumber: number;
+  percent: number;
+  updatedAt: string;
+};
+
+type StudioDraftState = {
+  title: string;
+  format: string;
+  genre: string;
+  synopsis: string;
+  episodeTitle: string;
+  accessType: string;
+  priceCoins: number;
+  publishMode: string;
+  scheduledAt: string;
+  previewText: string;
+  uploadMemo: string;
+};
+
+type StudioUploadKind = "audio" | "image" | "document";
+
+type UploadedAsset = {
+  id: string;
+  kind: StudioUploadKind;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  publicPath: string;
+  url: string;
+};
+
+type StudioFanPostDraftState = {
+  title: string;
+  postType: string;
+  accessType: string;
+  tierName: string;
+  priceCoins: number;
+  summary: string;
+  releaseNote: string;
+};
+
+type StudioAccessibilityAuditState = {
+  transcriptSync: number;
+  contrastMode: string;
+  screenReader: string;
+  audioLevel: string;
+  keyboardFlow: string;
+  altTextStatus: string;
+  qaMemo: string;
+};
+
+type NotificationPreferences = {
+  newEpisode: boolean;
+  settlement: boolean;
+  marketing: boolean;
+};
+
+type AccessibilityPreferences = {
+  highContrast: boolean;
+  largeText: boolean;
+  reducedMotion: boolean;
+};
+
+type AccessibilityPreferenceKey = keyof AccessibilityPreferences;
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  time: string;
+  page: PageId;
+  tone: NotificationTone;
+  actionLabel: string;
+  libraryView?: LibraryViewId;
+  openAccount?: boolean;
+};
+
+const navItems: Array<{ id: PageId; label: string; helper: string }> = [
+  { id: "home", label: "홈", helper: "시작 화면" },
+  { id: "intro", label: "서비스 소개", helper: "이용 안내" },
+  { id: "discover", label: "작품", helper: "장르 탐색" },
+  { id: "studio", label: "스튜디오", helper: "작품 관리" },
+  { id: "matching", label: "매칭", helper: "팀원 찾기" },
+  { id: "wallet", label: "지갑", helper: "코인 관리" },
+  { id: "settlement", label: "정산", helper: "수익 분배" },
+  { id: "support", label: "고객센터", helper: "문의/신고" },
+  { id: "admin", label: "운영", helper: "관리 콘솔" },
+];
+
+type ClassicRoute = { page: PageId; collection: LibraryViewId };
+
+function readClassicRoute(): ClassicRoute {
+  const params = new URLSearchParams(window.location.search);
+  const page = navItems.find(item => item.id === params.get("view"))?.id ?? "home";
+  const collection = page === "discover" ? libraryViewItems.find(item => item.id === params.get("collection"))?.id : undefined;
+  return { page, collection: collection ?? "all" };
+}
+
+const marketingAnnouncements = [
+  {
+    id: "marketing-spring-coin",
+    title: "신규 창작팀 응원 코인 이벤트",
+    body: "이번 주 첫 후원 시 보너스 코인과 추천 작품 알림을 받을 수 있어요.",
+    actionLabel: "이벤트 보기",
+  },
+  {
+    id: "marketing-premium-preview",
+    title: "프리미엄 멤버십 선공개 혜택",
+    body: "광고 없는 감상과 월 1,000 보너스 코인을 묶은 구독 혜택을 확인해보세요.",
+    actionLabel: "구독 보기",
+  },
+];
+
+const newEpisodeAlertMap: Record<string, { title: string; episodeLabel: string; publishedAt: string }> = {
+  "midnight-signal": { title: "9화. 끊어진 주파수", episodeLabel: "신규 오디오드라마 회차", publishedAt: "오늘" },
+  "starlight-contract": { title: "13화. 별빛 아래의 계약서", episodeLabel: "신규 웹소설 회차", publishedAt: "오늘" },
+  "dragon-archive": { title: "16화. 용의 문서고", episodeLabel: "신규 웹툰 회차", publishedAt: "어제" },
+  "cafe-orbit": { title: "7화. 새벽 라떼 ASMR", episodeLabel: "신규 믹스미디어 회차", publishedAt: "오늘" },
+  "blue-hour-roommate": { title: "10화. 룸메이트의 고백", episodeLabel: "신규 보이스 특전", publishedAt: "오늘" },
+  "neon-pulse-zero": { title: "5화. 파일럿 컷 공개", episodeLabel: "신규 애니메이션 회차", publishedAt: "오늘" },
+};
+
+const protectedPages = new Set<PageId>(["studio", "matching", "wallet", "settlement", "admin"]);
+const creatorOnlyPages = new Set<PageId>(["studio", "matching", "settlement"]);
+const adminOnlyPages = new Set<PageId>(["admin"]);
+
+const walletFallback: WalletDetail = {
+  balance: 0,
+  monthlySpend: 0,
+  monthlyEarned: 0,
+  refundableCoins: 0,
+  bonusCoins: 0,
+  autoChargeEnabled: false,
+  nextChargeDate: "-",
+  paymentMethod: "등록된 대표 결제 수단 없음",
+  payoutAccount: "정산 계좌 등록 필요",
+  transactions: [],
+};
+
+const introSlides = [
+  {
+    eyebrow: "Creator Collaboration",
+    title: "흩어진 창작자를 하나의 오디오 스튜디오로",
+    description:
+      "작가, 일러스트레이터, 성우, BGM 크리에이터가 포트폴리오를 보고 팀을 만들고 작품 단위로 협업하는 서브컬처 창작 허브입니다.",
+    stat: "4 Roles",
+    statLabel: "글 · 그림 · 목소리 · BGM",
+    visualTitle: "Creator Universe Studio",
+    visualLabel: "Collaboration Hub",
+    mobileChipTitle: "Role Match",
+    mobileChipText: "팀원 포트폴리오",
+    visualCards: {
+      work: ["작품 IP", "웹툰 · 소설 · 오디오"],
+      match: ["팀 매칭", "글 · 그림 · 목소리"],
+      voice: ["보이스 UX", "대본 · 음성 싱크"],
+      settle: ["수익 설계", "30 · 30 · 40"],
+    },
+    tone: "pink",
+  },
+  {
+    eyebrow: "Smart Settlement",
+    title: "돈 문제는 시스템이 맡고, 팀은 창작에 집중",
+    description:
+      "프로젝트 생성 시 합의한 30:30:40 지분율을 저장하고, 독자 결제 즉시 수수료 차감 후 팀원 지갑으로 자동 분배합니다.",
+    stat: "1/N",
+    statLabel: "자동 정산 분배",
+    visualTitle: "Smart Split Engine",
+    visualLabel: "Auto Settlement",
+    mobileChipTitle: "Split Pay",
+    mobileChipText: "수익 자동 분배",
+    visualCards: {
+      work: ["결제 로그", "코인 · 열람권"],
+      match: ["팀 동의", "지분율 확정"],
+      voice: ["정산 원장", "투명한 기록"],
+      settle: ["자동 정산", "13% · 8%"],
+    },
+    tone: "cyan",
+  },
+  {
+    eyebrow: "Barrier-free Audio",
+    title: "시각장애인도 함께 즐기는 몰입형 콘텐츠",
+    description:
+      "고대비 오디오 감상, 대본-음성 싱크, 보이스 퍼스트 UX로 서브컬처 콘텐츠 접근성을 넓히는 ESG형 플랫폼입니다.",
+    stat: "Voice",
+    statLabel: "First UX",
+    visualTitle: "Barrier-free Access",
+    visualLabel: "Accessible Audio",
+    mobileChipTitle: "Voice First",
+    mobileChipText: "접근성 오디오",
+    visualCards: {
+      work: ["접근성 IP", "텍스트 · 오디오"],
+      match: ["성우 협업", "감정 연기"],
+      voice: ["대본 싱크", "고대비 감상"],
+      settle: ["팬 확장", "누구나 감상"],
+    },
+    tone: "violet",
+  },
+];
+
+const featureCards = [
+  {
+    icon: <Users size={24} />,
+    title: "다자간 매칭",
+    text: "창작자 직군별 포트폴리오와 음성 샘플을 확인하고 프로젝트 팀을 빠르게 구성합니다.",
+  },
+  {
+    icon: <Split size={24} />,
+    title: "스마트 자동 정산",
+    text: "수익 분배율, 수수료율, 결제 트랜잭션을 연결해 협업에서 가장 민감한 정산 갈등을 줄입니다.",
+  },
+  {
+    icon: <Headphones size={24} />,
+    title: "몰입형 오디오 감상",
+    text: "대본이 노래방 가사처럼 강조되고 오디오 진행률과 함께 흘러가는 배리어프리 감상 환경입니다.",
+  },
+  {
+    icon: <Globe2 size={24} />,
+    title: "글로벌 협업 확장",
+    text: "AI 번역, 로컬라이징, 해외 성우 협업까지 확장 가능한 오디오 IP 유통 구조를 지향합니다.",
+  },
+];
+
+const roadmapItems = [
+  "1주차: 시장 분석, 유저 시나리오, 정산 ERD 설계",
+  "2주차: 보이스 퍼스트 UX와 창작자 대시보드 디자인",
+  "3주차: 오디오 스트리밍, 자동 정산, 결제 MVP 개발",
+];
+
+const audienceSegments = [
+  {
+    title: "초기 창작팀",
+    label: "Team Building",
+    text: "외주비를 선불로 감당하기 어려운 작가와 일러스트레이터가 수익 공유형 팀을 만들 수 있습니다.",
+  },
+  {
+    title: "성우 지망생",
+    label: "Voice Portfolio",
+    text: "작품 단위 포트폴리오와 음성 샘플을 쌓아 팬덤과 실전 경험을 동시에 확보합니다.",
+  },
+  {
+    title: "시각장애인 독자",
+    label: "Accessible Fan",
+    text: "기계음이 아닌 감정 연기 기반 오디오 콘텐츠로 트렌디한 서브컬처를 즐길 수 있습니다.",
+  },
+];
+
+const onboardingGuides = [
+  {
+    audience: "독자",
+    icon: <BookOpen size={22} />,
+    title: "취향 작품을 찾고 이어보기",
+    text: "소설, 웹툰, 만화, 오디오드라마를 장르별로 탐색하고 코인으로 열람권을 구매합니다.",
+    steps: ["장르 탐색", "코인 열람", "스크랩 저장"],
+    page: "discover" as PageId,
+    cta: "작품 보러가기",
+  },
+  {
+    audience: "창작자",
+    icon: <Rocket size={22} />,
+    title: "내 프로필을 올리고 팀원 찾기",
+    text: "대표 작업, 가능 장르, 포트폴리오를 등록하면 다른 창작자가 협업 제안을 보낼 수 있습니다.",
+    steps: ["프로필 등록", "포트폴리오 공개", "제안 받기"],
+    page: "studio" as PageId,
+    cta: "창작자 등록",
+  },
+  {
+    audience: "매칭",
+    icon: <Users size={22} />,
+    title: "역할과 지분을 맞춰 팀 만들기",
+    text: "글, 그림, 목소리, BGM 팀원을 찾고 수익 지분 제안까지 한 흐름으로 보냅니다.",
+    steps: ["팀원 탐색", "지분 제안", "채팅 협의"],
+    page: "matching" as PageId,
+    cta: "팀원 찾기",
+  },
+  {
+    audience: "팀장",
+    icon: <Split size={22} />,
+    title: "수익 지분을 정하고 자동 정산",
+    text: "팀원이 제안을 수락하면 프로젝트 팀에 합류하고, 합의한 지분율대로 정산 미리보기를 확인합니다.",
+    steps: ["지분 제안", "팀원 수락", "정산 확인"],
+    page: "settlement" as PageId,
+    cta: "정산 보기",
+  },
+];
+
+const trustSignals = [
+  {
+    icon: <ShieldCheck size={22} />,
+    title: "정산 원장 기록",
+    label: "Settlement Ledger",
+    text: "결제 ID, 적용 수수료, 팀원별 분배액을 거래 단위로 남겨 창작팀이 같은 기준을 확인합니다.",
+  },
+  {
+    icon: <CreditCard size={22} />,
+    title: "코인·열람권 보호",
+    label: "Coin Safety",
+    text: "충전, 사용, 열람권 지급 내역을 지갑에 분리 기록해 결제 오류나 중복 차감을 빠르게 추적합니다.",
+  },
+  {
+    icon: <Bell size={22} />,
+    title: "알림과 신고 동선",
+    label: "Trust Support",
+    text: "새 회차, 스크랩 작품 업데이트, 매칭 제안, 신고 접수 상태를 사용자에게 바로 알려줍니다.",
+  },
+];
+
+const accessibilityControls: Array<{
+  key: AccessibilityPreferenceKey;
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}> = [
+  {
+    key: "highContrast",
+    icon: <Sun size={22} />,
+    title: "고대비 모드",
+    text: "배경과 글자 대비를 높여 저시력 사용자도 주요 정보를 더 또렷하게 볼 수 있게 합니다.",
+  },
+  {
+    key: "largeText",
+    icon: <BookOpen size={22} />,
+    title: "큰 글자",
+    text: "작품 설명, 카드, 버튼의 기본 글자 크기를 살짝 키워 모바일 감상 피로도를 줄입니다.",
+  },
+  {
+    key: "reducedMotion",
+    icon: <RefreshCw size={22} />,
+    title: "모션 줄이기",
+    text: "슬라이드와 장식 애니메이션을 줄여 어지러움 없이 핵심 기능에 집중할 수 있게 합니다.",
+  },
+];
+
+const serviceFlow = [
+  {
+    title: "포트폴리오 발견",
+    metric: "Creator",
+    detail: "작가, 그림, 성우, BGM 창작자의 작업물과 응답률을 먼저 확인합니다.",
+  },
+  {
+    title: "프로젝트 팀 구성",
+    metric: "Team",
+    detail: "채팅과 매칭 제안으로 협업 조건을 맞추고 수락한 멤버가 팀에 합류합니다.",
+  },
+  {
+    title: "지분율 합의 등록",
+    metric: "Share",
+    detail: "팀장이 30:30:40처럼 수익 분배율을 저장하면 모든 정산 계산의 기준이 됩니다.",
+  },
+  {
+    title: "코인 결제 발생",
+    metric: "Coin",
+    detail: "독자가 작품을 구매하면 거래 원장이 생성되고 열람권이 즉시 발급됩니다.",
+  },
+  {
+    title: "수수료 차감",
+    metric: "13% / 8%",
+    detail: "일반 13%, 파트너 8%의 고정 플랫폼 수수료를 제외한 금액만 분배됩니다.",
+  },
+  {
+    title: "지갑 자동 정산",
+    metric: "Wallet",
+    detail: "남은 금액은 팀원별 지분율대로 각자의 지갑에 자동 반영됩니다.",
+  },
+];
+
+const partnerPlans = [
+  {
+    name: "Starter",
+    fee: `${Math.round(STANDARD_PLATFORM_FEE_RATE * 100)}%`,
+    target: "일반 창작팀",
+    perks: ["초기 매칭 수수료 0원", "기본 정산 대시보드", "오디오 감상 기능 배포"],
+  },
+  {
+    name: "Universe Partner",
+    fee: `${Math.round(PARTNER_PLATFORM_FEE_RATE * 100)}%`,
+    target: "우수 협업팀",
+    perks: ["파트너 수수료 감면", "홈 추천 노출", "팬덤 커뮤니티 확장"],
+  },
+];
+
+const growthTimeline = [
+  { year: "MVP", title: "교내 창작자 베타", text: "웹소설·성우·일러스트 창작자를 대상으로 매칭과 정산 흐름을 검증합니다." },
+  { year: "Beta", title: "배리어프리 현장 테스트", text: "복지기관과 연계해 화면 낭독, 고대비 감상 모드, 제스처 접근성을 개선합니다." },
+  { year: "Scale", title: "글로벌 오디오 IP 확장", text: "AI 번역과 로컬라이징으로 한국 IP와 해외 성우 협업을 연결합니다." },
+];
+
+function formatBytes(bytes = 0) {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("ko-KR")}KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("파일을 읽을 수 없습니다.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function getUploadMimeType(file: File) {
+  if (file.type) {
+    return file.type;
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  const fallbackMimeTypes: Record<string, string> = {
+    md: "text/markdown",
+    txt: "text/plain",
+    json: "application/json",
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    m4a: "audio/x-m4a",
+    ogg: "audio/ogg",
+    webm: "audio/webm",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+  };
+
+  return extension ? fallbackMimeTypes[extension] ?? "application/octet-stream" : "application/octet-stream";
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatDateOnly(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function parseAudienceCount(value: string) {
+  const normalized = value.replace(",", "").trim();
+  if (normalized.endsWith("만")) {
+    return Number(normalized.replace("만", "")) * 10000;
+  }
+  return Number(normalized.replace(/[^\d.]/g, "")) || 0;
+}
+
+function getWorkRankScore(work: ReaderWork) {
+  return parseAudienceCount(work.listeners) + work.rating * 1000 + work.episodes * 120;
+}
+
+function readStoredIds(key: string, fallback: string[] = []) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getUserLibraryStorageKey(
+  userId: string,
+  key: "scrapped-works" | "recent-works" | "read-notifications" | "work-progress" | "followed-creators",
+) {
+  return `creator-universe-user-${userId}-${key}`;
+}
+
+function readWorkProgress(key: string): Record<string, WorkProgressEntry> {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<Record<string, WorkProgressEntry>>((acc, [workId, value]) => {
+      if (!value || typeof value !== "object") {
+        return acc;
+      }
+
+      const item = value as Partial<WorkProgressEntry>;
+      const episodeNumber = Number(item.episodeNumber);
+      const percent = Number(item.percent);
+      if (!Number.isFinite(episodeNumber) || !Number.isFinite(percent)) {
+        return acc;
+      }
+
+      acc[workId] = {
+        episodeNumber: Math.max(1, Math.floor(episodeNumber)),
+        percent: Math.max(0, Math.min(100, Math.floor(percent))),
+        updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : new Date().toISOString(),
+      };
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  newEpisode: true,
+  settlement: true,
+  marketing: false,
+};
+
+const defaultAccessibilityPreferences: AccessibilityPreferences = {
+  highContrast: false,
+  largeText: false,
+  reducedMotion: false,
+};
+
+function readNotificationPreferences(): NotificationPreferences {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("creator-universe-notification-preferences") || "null");
+    return {
+      ...defaultNotificationPreferences,
+      ...(parsed && typeof parsed === "object" ? parsed : {}),
+    };
+  } catch {
+    return defaultNotificationPreferences;
+  }
+}
+
+function readAccessibilityPreferences(): AccessibilityPreferences {
+  const defaults = {
+    ...defaultAccessibilityPreferences,
+    reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  };
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem("creator-universe-accessibility-preferences") || "null");
+    return {
+      highContrast: typeof parsed?.highContrast === "boolean" ? parsed.highContrast : defaults.highContrast,
+      largeText: typeof parsed?.largeText === "boolean" ? parsed.largeText : defaults.largeText,
+      reducedMotion: typeof parsed?.reducedMotion === "boolean" ? parsed.reducedMotion : defaults.reducedMotion,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+const premiumStorageKey = "creator-universe-premium-subscriptions";
+
+function getNextPremiumBillingDate(base = new Date()) {
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + 1);
+  return next.toISOString();
+}
+
+function createInactivePremiumSubscription(): PremiumSubscriptionState {
+  return {
+    isActive: false,
+    nextBillingDate: getNextPremiumBillingDate(),
+  };
+}
+
+function readPremiumSubscriptionRecord() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(premiumStorageKey) || "{}");
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, PremiumSubscriptionState>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readUserPremiumSubscription(userId: string) {
+  return readPremiumSubscriptionRecord()[userId] ?? createInactivePremiumSubscription();
+}
+
+function writeUserPremiumSubscription(userId: string, subscription: PremiumSubscriptionState) {
+  const record = readPremiumSubscriptionRecord();
+  record[userId] = subscription;
+  localStorage.setItem(premiumStorageKey, JSON.stringify(record));
+}
+
+function getWalletTypeLabel(type: WalletTransaction["type"]) {
+  const labels: Record<WalletTransaction["type"], string> = {
+    CHARGE: "충전",
+    SPEND: "사용",
+    SETTLEMENT: "정산입금",
+    REFUND: "환불",
+    BONUS: "보너스",
+  };
+
+  return labels[type];
+}
+
+function formatChatTime(createdAt: string) {
+  return new Date(createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function normalizeCreator(creator: Creator): Creator {
+  const roleLabel = roleLabels[creator.primaryRole] || "창작자";
+
+  return {
+    ...creator,
+    username: cleanDisplayText(creator.username, creator.id || "creator"),
+    displayName: cleanDisplayText(creator.displayName, `${roleLabel} 크리에이터`),
+    headline: cleanDisplayText(creator.headline, `${roleLabel} 포트폴리오를 준비 중입니다.`),
+    bio: cleanDisplayText(creator.bio, "프로젝트 협업을 위한 창작자 프로필입니다."),
+    availabilityNote: cleanDisplayText(creator.availabilityNote, "협업 가능"),
+    portfolioSummary: cleanDisplayText(creator.portfolioSummary, `${roleLabel} 작업 샘플을 확인해보세요.`),
+    skills: creator.skills?.length ? creator.skills.map((skill) => cleanDisplayText(skill, roleLabel)) : [roleLabel],
+    portfolioItems: creator.portfolioItems?.map((item, index) => ({
+      ...item,
+      title: cleanDisplayText(item.title, `${roleLabel} 포트폴리오 ${index + 1}`),
+      category: cleanDisplayText(item.category, `${roleLabel} 샘플`),
+      description: cleanDisplayText(item.description, "작품 제작과 협업에 활용할 수 있는 포트폴리오입니다."),
+      tags: item.tags?.length ? item.tags.map((tag) => cleanDisplayText(tag, roleLabel)) : [roleLabel],
+    })),
+    voiceDemo: creator.voiceDemo
+      ? {
+          ...creator.voiceDemo,
+          title: cleanDisplayText(creator.voiceDemo.title, "보이스 샘플"),
+        }
+      : creator.voiceDemo,
+  };
+}
+
+function normalizeChatMessageText(text: string, fallback = "협업 상담 메시지입니다.") {
+  return cleanDisplayText(text, fallback);
+}
+
+function normalizeContentReview(review: ContentReview): ContentReview {
+  return {
+    ...review,
+    authorName: cleanDisplayText(review.authorName, "독자"),
+    body: cleanDisplayText(review.body, "작품을 응원하는 리뷰입니다."),
+  };
+}
+
+function getSettlementMemberFallback(memberRole: string, index: number) {
+  const roleLabel = roleLabels[memberRole] || "팀원";
+  return `${roleLabel} 팀원 ${index + 1}`;
+}
+
+function normalizeSettlementMember(member: SettlementMemberConfig, index: number): SettlementMemberConfig {
+  const fallbackName = getSettlementMemberFallback(member.memberRole, index);
+  const fallbackUsername = `member-${index + 1}`;
+
+  return {
+    ...member,
+    displayName: cleanDisplayText(member.displayName, fallbackName),
+    username: cleanDisplayText(member.username, fallbackUsername),
+  };
+}
+
+function getWorkEpisodes(work: ReaderWork) {
+  const episodeCount = Math.max(1, Math.min(work.episodes, 12));
+  const episodeTitles = [
+    "프롤로그: 세계관의 문이 열리다",
+    "첫 번째 신호",
+    "낯선 동료의 제안",
+    "감춰진 장면의 목소리",
+    "비밀 파일럿 공개",
+    "팬덤이 움직이는 밤",
+    "반전의 크레딧",
+    "다음 시즌을 향해",
+  ];
+
+  return Array.from({ length: episodeCount }, (_, index) => {
+    const episodeNumber = index + 1;
+    const isFree = episodeNumber === 1;
+    return {
+      id: `${work.id}-episode-${episodeNumber}`,
+      episodeNumber,
+      title: episodeTitles[index] ?? `${episodeNumber}화. ${work.genre} 에피소드`,
+      summary:
+        episodeNumber === 1
+          ? "작품의 분위기와 협업팀의 색깔을 무료로 확인할 수 있는 첫 회차입니다."
+          : `${work.format} 형식에 맞춰 제작된 ${work.genre} 회차입니다. 구매 후 전체 내용을 감상할 수 있습니다.`,
+      priceCoins: isFree ? 0 : work.priceCoins,
+      readingTime: work.format === "오디오드라마" ? `${8 + index}분` : `${5 + Math.min(index, 6)}분`,
+      publishedAt: `2026.05.${String(Math.min(episodeNumber + 2, 28)).padStart(2, "0")}`,
+      isFree,
+    };
+  });
+}
+
+function mapChatThreads(threads: ChatThread[]) {
+  return threads.reduce<Record<string, CreatorChatMessage[]>>((acc, thread) => {
+    acc[thread.otherUser.id] = thread.messages.map((message) => {
+      const normalizedProposal = message.matchProposal
+        ? {
+            ...message.matchProposal,
+            projectTitle: cleanDisplayText(message.matchProposal.projectTitle, "크리에이터 유니버스 협업 프로젝트"),
+            projectType: cleanDisplayText(message.matchProposal.projectType, "멀티 콘텐츠 협업"),
+            message: cleanDisplayText(message.matchProposal.message, "수익 지분 조건을 확인하고 팀 합류 여부를 결정해 주세요."),
+            requesterName: cleanDisplayText(message.matchProposal.requesterName, "제안한 창작자"),
+            targetName: cleanDisplayText(message.matchProposal.targetName, "초대받은 창작자"),
+          }
+        : message.matchProposal;
+      const proposalText = normalizedProposal
+        ? `${normalizedProposal.requesterName}님이 '${normalizedProposal.projectTitle}' 프로젝트에 ${normalizedProposal.sharePercentage}% 수익 지분 조건으로 매칭을 제안했습니다.`
+        : null;
+
+      return {
+        from: message.from,
+        text: proposalText ?? normalizeChatMessageText(message.body),
+        time: formatChatTime(message.createdAt),
+        createdAt: message.createdAt,
+        matchRequestId: message.matchRequestId,
+        matchProposal: normalizedProposal,
+      };
+    });
+    return acc;
+  }, {});
+}
+
+function buildSettlementConfig(settlement: SettlementDashboard | null): SettlementConfig {
+  return {
+    platformFeeRate: Math.round((settlement?.appliedFeeRate ?? STANDARD_PLATFORM_FEE_RATE) * 100),
+    members: settlement?.members.length
+      ? settlement.members.map((member, index) => normalizeSettlementMember({
+          userId: member.userId,
+          displayName: member.displayName,
+          username: member.username,
+          memberRole: member.memberRole,
+          sharePercentage: member.sharePercentage,
+        }, index))
+      : defaultSettlementMembers,
+  };
+}
+
+function getCreatorPortfolio(creator: Creator) {
+  if (creator.portfolioItems?.length) {
+    return creator.portfolioItems;
+  }
+
+  const fallback: Record<string, Creator["portfolioItems"]> = {
+    WRITER: [
+      {
+        title: "비 오는 골목의 라디오",
+        category: "미스터리 · 감성 웹소설",
+        description: "사라진 성우의 녹음 파일을 따라가는 도시괴담풍 오디오 드라마 각색 샘플입니다.",
+        tags: ["미스터리", "감정선", "대사"],
+      },
+      {
+        title: "유리성의 마지막 독백",
+        category: "판타지 · 독백극",
+        description: "성우 연기에 맞춰 호흡을 짧게 나누고 장면 전환을 선명하게 만든 대본 포트폴리오입니다.",
+        tags: ["판타지", "독백", "각색"],
+      },
+    ],
+    ILLUSTRATOR: [
+      {
+        title: "Neon Alley Key Visual",
+        category: "오디오 드라마 키비주얼",
+        description: "비 오는 네온 거리와 캐릭터 실루엣을 활용한 표지형 일러스트 작업입니다.",
+        tags: ["키비주얼", "네온", "배경"],
+      },
+      {
+        title: "Signal Character Sheet",
+        category: "캐릭터 시트",
+        description: "성우 톤과 장면 분위기에 맞춰 표정, 의상, 컬러 팔레트를 정리한 캐릭터 설정화입니다.",
+        tags: ["캐릭터", "표정", "컨셉"],
+      },
+    ],
+    VOICE_ACTOR: [
+      {
+        title: "차분한 밤의 내레이션",
+        category: "내레이션 · 저음톤",
+        description: "저시력자도 장면을 상상할 수 있도록 공간감과 감정선을 또렷하게 전달하는 샘플입니다.",
+        tags: ["내레이션", "저음", "감정"],
+      },
+      {
+        title: "추격 장면 감정 연기",
+        category: "드라마 연기",
+        description: "호흡, 떨림, 속도 변화를 활용한 긴박한 장면 연기 포트폴리오입니다.",
+        tags: ["연기", "긴장감", "호흡"],
+      },
+    ],
+    SOUND_DIRECTOR: [
+      {
+        title: "Rain Alley Ambience",
+        category: "앰비언트 · 3D 오디오",
+        description: "빗소리, 간판 전기음, 발걸음이 공간 안에서 움직이도록 설계한 사운드스케이프입니다.",
+        tags: ["앰비언트", "3D", "폴리"],
+      },
+      {
+        title: "Opening Theme Loop",
+        category: "BGM · 루프",
+        description: "웹소설 오프닝에 어울리는 45초 루프형 시그널 BGM입니다.",
+        tags: ["BGM", "루프", "신스"],
+      },
+    ],
+  };
+
+  return fallback[creator.primaryRole] || [];
+}
+
+const aiRoleKeywords: Record<string, string[]> = {
+  WRITER: ["글", "작가", "소설", "웹소설", "웹작가", "스토리작가", "원작자", "대본", "시나리오", "시놉시스", "스토리", "각색", "콘티", "라이트노벨"],
+  ILLUSTRATOR: ["그림", "일러스트", "웹툰", "만화", "캐릭터", "표지", "키비주얼", "채색", "작화", "애니메이터", "애니메이션", "원화", "동화", "작감", "캐릭터디자인"],
+  VOICE_ACTOR: ["목소리", "성우", "보이스", "더빙", "내레이션", "나레이션", "연기", "오디오", "대사", "보이스액터"],
+  SOUND_DIRECTOR: ["bgm", "사운드", "음악", "효과음", "믹싱", "앰비언트", "asmr", "입체음향", "작곡", "음향", "폴리"],
+};
+
+const aiRolePhraseKeywords: Record<string, string[]> = {
+  WRITER: ["글 작가", "글작가", "소설 작가", "웹소설 작가", "스토리 작가", "플롯 작가", "세계관 작가", "대본 작가", "시나리오 작가", "원작 작가", "각색 작가", "글 담당", "원고 담당"],
+  ILLUSTRATOR: [
+    "그림 작가",
+    "그림작가",
+    "일러스트 작가",
+    "일러스트레이터",
+    "웹툰 작가",
+    "만화 작가",
+    "콘티 작가",
+    "작화가",
+    "작화 담당",
+    "그림 담당",
+    "배경 작가",
+    "배경 일러스트",
+    "표지 작가",
+    "썸네일 작가",
+    "키비주얼 작가",
+    "캐릭터 디자이너",
+    "캐릭터디자이너",
+    "원화가",
+    "애니메이터",
+    "SD 캐릭터",
+    "라이브2D",
+  ],
+  VOICE_ACTOR: ["성우", "목소리 담당", "보이스 배우", "더빙 성우", "내레이션 성우", "나레이션 성우", "보이스액터", "남성 성우", "여성 성우", "저음 성우", "감정 연기"],
+  SOUND_DIRECTOR: ["사운드 디자이너", "사운드디자이너", "음향 감독", "음향 담당", "BGM 담당", "브금 담당", "OST 담당", "테마곡 담당", "작곡가", "효과음 담당", "음향효과", "믹싱 엔지니어", "폴리 아티스트"],
+};
+
+const aiRoleExclusionPhrases = ["말고", "제외", "빼고", "필요 없어", "필요없", "나중", "후순위", "아니고"];
+
+const aiGenreKeywords: Record<string, string[]> = {
+  로맨스: ["로맨스", "연애", "청춘", "짝사랑", "설렘", "감정선"],
+  판타지: ["판타지", "마법", "용", "세계관", "모험", "이세계"],
+  미스터리: ["미스터리", "추리", "괴담", "도시괴담", "사건", "비밀"],
+  스릴러: ["스릴러", "공포", "긴장", "추격", "서스펜스"],
+  일상: ["일상", "성장", "학교", "카페", "생활", "잔잔"],
+  힐링: ["힐링", "따뜻", "감성", "위로", "잔잔", "asmr"],
+  웹툰: ["웹툰", "세로스크롤", "콘티", "작화", "채색"],
+  소설: ["소설", "웹소설", "문장", "대본", "챕터"],
+  오디오: ["오디오", "성우", "보이스", "대본 싱크", "입체음향", "사운드"],
+  애니메이션: ["애니메이션", "애니", "숏폼", "파일럿", "콘티", "원화", "동화", "연출", "작감", "캐릭터디자인"],
+};
+
+function normalizeAiText(value: string) {
+  return value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+function getAiRoleDetectionSource(value: string) {
+  const markers = ["지금은", "이번엔", "이번에는", "현재는", "이번 질문은", "다음은"];
+  const source = value.toLowerCase();
+  const markerIndex = markers.reduce((latestIndex, marker) => {
+    const index = source.lastIndexOf(marker);
+
+    return index > latestIndex ? index : latestIndex;
+  }, -1);
+
+  return markerIndex >= 0 ? value.slice(markerIndex) : value;
+}
+
+function isLowSignalAiText(value: string) {
+  const source = normalizeAiText(value);
+
+  return (
+    /^[?？!！\s]+$/.test(value) ||
+    ["뭐야", "무슨 말", "무슨 뜻", "뭔소리", "뭔 소리", "이게 뭐", "이상", "고장", "안돼", "안 되", "이해 안", "모르겠", "왜 이래", "왜 그래"].some((keyword) =>
+      source.includes(normalizeAiText(keyword)),
+    ) ||
+    (source.length <= 4 && ["왜", "뭐", "응", "아니"].some((keyword) => source.includes(keyword)))
+  );
+}
+
+function isAiMatchingRequestText(value: string) {
+  const source = normalizeAiText(value);
+
+  return ["찾아줘", "추천", "골라", "누구", "맞는", "어울리는", "필요", "섭외", "팀원", "소설", "웹소설", "웹툰", "만화", "애니", "애니메이션", "오디오드라마", "장르", "아이디어", "작가", "성우", "그림", "일러스트", "애니메이터", "프로듀서", "bgm", "사운드"].some((keyword) =>
+    source.includes(normalizeAiText(keyword)),
+  );
+}
+
+type LocalAiKnowledgeIntent = "uploadGuide" | "paymentGuide" | "releaseGuide" | "ideaCoach" | "platformGuide" | "generalQuestion";
+
+function localAiIncludesAny(source: string, keywords: string[]) {
+  return keywords.some((keyword) => source.includes(normalizeAiText(keyword)));
+}
+
+function getLocalAiKnowledgeIntent(value: string): LocalAiKnowledgeIntent | null {
+  const source = normalizeAiText(value);
+  const isMatchingRequest = isAiMatchingRequestText(value);
+
+  if (localAiIncludesAny(source, ["업로드", "올려", "파일", "이미지", "오디오 파일", "작품 파일", "첨부", "저장공간", "스토리지", "용량"])) {
+    return "uploadGuide";
+  }
+
+  if (localAiIncludesAny(source, ["코인", "결제", "충전", "환불", "구독", "프리미엄", "열람권", "구매", "지갑", "광고 제거"])) {
+    return "paymentGuide";
+  }
+
+  if (localAiIncludesAny(source, ["구글플레이", "플레이스토어", "앱 출시", "앱 배포", "안드로이드", "aab", "apk", "번들", "버전코드", "테스터", "심사"])) {
+    return "releaseGuide";
+  }
+
+  if (
+    localAiIncludesAny(source, ["기획", "기획서", "사업계획", "수익모델", "경쟁사", "차별화", "발표", "피드백", "평가", "어때", "로드맵", "시장성", "esg", "문제점", "개선"]) &&
+    !localAiIncludesAny(source, ["찾아줘", "추천", "어울리는", "맞는", "섭외"])
+  ) {
+    return "ideaCoach";
+  }
+
+  if (localAiIncludesAny(source, ["사용법", "어디", "메뉴", "기능", "독자", "창작자", "스튜디오", "마이페이지", "회원가입", "로그인", "알림", "고객센터", "신고", "스크랩", "이어보기"])) {
+    return "platformGuide";
+  }
+
+  if (!isMatchingRequest && source.length >= 8) {
+    return "generalQuestion";
+  }
+
+  return null;
+}
+
+function buildAiPromptKeywords(prompt: string, filters: string[]) {
+  const source = normalizeAiText([prompt, ...filters].join(" "));
+  const rawTokens = source.split(" ").filter((token) => token.length >= 2);
+  const genreTokens = Object.entries(aiGenreKeywords)
+    .filter(([genre, aliases]) => source.includes(normalizeAiText(genre)) || aliases.some((alias) => source.includes(normalizeAiText(alias))))
+    .flatMap(([genre, aliases]) => [genre, ...aliases]);
+  const roleTokens = Object.values(aiRoleKeywords)
+    .flat()
+    .filter((keyword) => source.includes(normalizeAiText(keyword)));
+
+  return Array.from(new Set([...rawTokens, ...genreTokens, ...roleTokens, ...filters])).slice(0, 36);
+}
+
+function getAiRoleAliases(role: string) {
+  return Array.from(new Set([roleLabels[role], ...(aiRolePhraseKeywords[role] ?? []), ...(aiRoleKeywords[role] ?? [])]))
+    .map((alias) => normalizeAiText(alias))
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+}
+
+function detectExcludedAiRoles(prompt: string) {
+  return detectMatchingExcludedRoles(prompt);
+}
+
+function detectExplicitAiRoles(prompt: string) {
+  return detectMatchingRoles(prompt);
+}
+
+function detectAiRequestedLimit(prompt: string) {
+  return detectMatchingLimit(prompt);
+}
+
+function buildLocalAiRecommendations(
+  sourceCreators: Creator[], prompt: string, preferredRoles: string[], filters: string[],
+  requestedLimit = 3, messages: AiChatMessage[] = [],
+): AiMatchRecommendation[] {
+  return rankMatchingCreators(sourceCreators, resolveMatchingContext({
+    projectDescription: prompt, preferredRoles, genres: filters, limit: requestedLimit, messages,
+  }));
+}
+
+function buildLocalRankedRecommendationBlock(recommendations: AiMatchRecommendation[]) {
+  return recommendations
+    .slice(0, 3)
+    .map((item) => {
+      const roleText = roleLabels[item.creator.primaryRole];
+      const details = item.reasonDetails?.length
+        ? item.reasonDetails.slice(0, 2)
+        : ["작품 키워드와 공개 포트폴리오의 접점, 응답률, 협업 지표를 함께 보고 골랐습니다."];
+      const keywordText = item.matchedKeywords.length > 0 ? item.matchedKeywords.slice(0, 4).join(", ") : "공개 포트폴리오와 협업 지표";
+
+      return `${item.rank}순위. ${item.creator.displayName}님 (${roleText})\n- 왜 ${item.rank}순위냐면: ${item.reason}\n- 근거: ${details.join(" ")}\n- 맞는 키워드: ${keywordText}`;
+    })
+    .join("\n\n");
+}
+
+function buildLocalKnowledgeAiMessage(intent: LocalAiKnowledgeIntent, prompt: string, memoryLine: string) {
+  const remembered = memoryLine ? `\n\n${memoryLine}` : "";
+  const shortQuestion = prompt.length > 80 ? `${prompt.slice(0, 80)}...` : prompt;
+
+  if (intent === "uploadGuide") {
+    return `가능해요. 작품 업로드는 “작품 정보 저장 → 파일 업로드 → 공개 범위 설정 → 참여자 연결 → 검수 후 공개” 흐름으로 잡는 게 좋아요.${remembered}\n\n1. 제목, 형식, 장르, 소개문, 대표 이미지를 먼저 저장합니다.\n2. 소설 원고, 웹툰 이미지, 오디오, 애니메이션 파일을 작품에 연결합니다.\n3. 무료 미리보기, 코인 열람, 구독자 전용을 나눕니다.\n4. 참여한 작가, 그림, 성우, BGM 담당자를 크레딧과 정산 비율에 묶습니다.\n5. 큰 파일은 DB에 직접 넣지 말고 파일 저장소에 올린 뒤 URL과 권한만 DB에 저장하는 구조가 안전합니다.`;
+  }
+
+  if (intent === "paymentGuide") {
+    return `코인/결제는 사용자에게는 단순하게, 내부에는 거래 원장을 꼼꼼하게 남기는 구조가 좋아요.${remembered}\n\n1. 코인 충전 성공 시 지갑 잔액을 늘리고 CHARGE 내역을 기록합니다.\n2. 작품 열람 시 코인을 차감하고 열람권을 발급합니다.\n3. 플랫폼 수수료 일반 13%, 파트너 8%를 차감한 뒤 팀원 지분율대로 자동 정산합니다.\n4. 환불/중복 결제/열람권 미지급은 거래 ID로 추적합니다.\n5. 프리미엄은 재결제일, 구독 상태, 해지 버튼을 항상 보여주는 게 좋습니다.`;
+  }
+
+  if (intent === "releaseGuide") {
+    return `앱 출시 기준으로 보면, 구글 플레이에서는 버전 코드, 테스트 트랙, 개인정보처리방침 URL, 데이터 수집 항목에서 자주 막혀요.${remembered}\n\n1. 새 versionCode로 AAB를 빌드합니다.\n2. 내부 테스트 트랙에 국가/지역과 테스터를 지정합니다.\n3. 개인정보처리방침 URL이 실제 접속 가능해야 합니다.\n4. 앱 권한과 12세 이상 이용 등급을 입력합니다.\n5. 출시 전 휴대폰에서 회원가입, 로그인, 코인 충전, 작품 열람, 마이페이지 스크롤을 꼭 확인하세요.`;
+  }
+
+  if (intent === "ideaCoach") {
+    return `기획 코치 관점으로 보면, 이 서비스는 “창작자 협업 + 콘텐츠 유통 + 자동 정산 + 접근성 확장”을 한 문장으로 잡을수록 강해져요.${remembered}\n\n1. 문제: 창작자는 팀을 구하기 어렵고 수익 분배에서 갈등이 생깁니다.\n2. 해결: 프로젝트 단위 매칭과 자동 정산으로 협업 부담을 줄입니다.\n3. 확장: 소설, 웹툰, 만화, 애니메이션, 오디오드라마를 하나의 IP로 묶습니다.\n4. 차별화: 단순 게시 플랫폼이 아니라 팀 구성부터 정산까지 이어지는 제작형 플랫폼입니다.\n5. 발표에서는 “팀을 만들고, 작품을 팔고, 수익이 자동으로 나뉜다” 흐름을 먼저 보여주는 게 좋아요.`;
+  }
+
+  if (intent === "platformGuide") {
+    return `서비스 사용법은 독자 모드와 창작자 모드로 나눠 보면 쉬워요.${remembered}\n\n독자는 작품에서 장르와 형식을 고르고, 스크랩하거나 코인으로 열람한 뒤 마이페이지에서 결제 작품과 이어보기를 확인합니다.\n\n창작자는 스튜디오에서 프로필과 포트폴리오를 등록하고, 매칭에서 팀원을 찾거나 제안을 받은 뒤 작품 업로드와 정산을 관리합니다.\n\n앱에서는 독자가 자주 쓰는 기능은 하단 탭에 두고, 창작자 전용 기능은 스튜디오 안에 묶는 편이 덜 복잡합니다.`;
+  }
+
+  return `좋아요. 이건 매칭 질문이 아니라 일반 대화/상담으로 보고 답할게요.${remembered}\n\n질문: “${shortQuestion}”\n\n제가 지금 할 수 있는 방식은 세 가지예요.\n\n1. 기획 관점: 장단점, 우선순위, 발표용 문장으로 정리합니다.\n2. 제품 관점: 앱 화면, 사용자 동선, 필요한 기능으로 쪼갭니다.\n3. 실행 관점: 지금 바로 만들 수 있는 작업 순서로 바꿉니다.\n\n실시간 외부 정보가 필요한 질문은 제가 꾸며내지 않고 확인 필요라고 말할게요. 지금 질문은 먼저 핵심을 한 문장으로 잡고, 기능/디자인/사업성 중 하나로 나눠 이어가면 좋습니다.`;
+}
+
+function buildLocalKnowledgeFollowUps(intent: LocalAiKnowledgeIntent) {
+  if (intent === "uploadGuide") {
+    return ["작품 업로드 화면 구성도 짜줘", "오디오 파일 저장 구조를 설명해줘", "무료/유료 공개 설정을 어떻게 나눌까?"];
+  }
+
+  if (intent === "paymentGuide") {
+    return ["코인 충전 오류를 줄이는 구조를 알려줘", "프리미엄 구독 화면 문구를 써줘", "실제 결제사 붙이는 순서를 알려줘"];
+  }
+
+  if (intent === "releaseGuide") {
+    return ["구글 플레이 출시 체크리스트를 만들어줘", "AAB 버전 코드 실수 방지법 알려줘", "테스터 배포 순서를 정리해줘"];
+  }
+
+  if (intent === "ideaCoach") {
+    return ["기획 발표용 한 문장으로 줄여줘", "경쟁사 대비 차별점을 정리해줘", "MVP 우선순위를 다시 짜줘"];
+  }
+
+  return ["독자 입장에서 더 쉽게 설명해줘", "창작자 입장에서 필요한 기능을 정리해줘", "바로 만들 작업 순서로 바꿔줘"];
+}
+
+function buildLocalAiMatchingResponse(
+  sourceCreators: Creator[],
+  prompt: string,
+  preferredRoles: string[],
+  filters: string[],
+  messages: AiChatMessage[] = [],
+): AiMatchingResponse {
+  const userMessages = messages.filter((message) => message.role === "user").map((message) => message.content.trim()).filter(Boolean);
+  const previousUserMessages = userMessages.filter((message, index) => index !== userMessages.length - 1);
+  const context = resolveMatchingContext({ projectDescription: prompt, preferredRoles, genres: filters, messages });
+  const conversationPrompt = context.source;
+  const explicitRoles = context.roles;
+  const recommendations = buildLocalAiRecommendations(sourceCreators, prompt, preferredRoles, filters, context.limit, messages);
+  const topics = context.topics;
+  const neededRoles = context.roles.map(roleId => roleLabels[roleId]).filter(Boolean);
+  const tone = topics.includes("미스터리")
+    ? "어두운 미스터리 무드"
+    : topics.includes("로맨스")
+      ? "감정선 중심의 로맨스 무드"
+      : topics.includes("힐링")
+        ? "잔잔하고 따뜻한 힐링 무드"
+        : "멀티 콘텐츠로 확장하기 좋은 분위기";
+  const summary = neededRoles.length ? `${tone}에 맞는 ${neededRoles.join(", ")} 후보를 비교했어요.` : `${tone}로 읽었어요. 필요한 직군을 알려주면 더 정확하게 좁힐 수 있어요.`;
+  const topRecommendation = recommendations[0];
+  const secondRecommendation = recommendations[1];
+  const topCreator = topRecommendation?.creator.displayName;
+  const topReasonDetails = topRecommendation?.reasonDetails?.length
+    ? topRecommendation.reasonDetails
+    : topRecommendation
+      ? [topRecommendation.reason, "작품 키워드와 공개 포트폴리오의 접점이 가장 뚜렷합니다."]
+      : [];
+  const normalizedPrompt = normalizeAiText(prompt);
+  const wantsMatchingRequest = isAiMatchingRequestText(prompt);
+  const wantsGreeting = ["안녕", "하이", "hello", "처음", "시작"].some((keyword) => normalizedPrompt.includes(normalizeAiText(keyword))) && !wantsMatchingRequest;
+  const wantsSmallTalk =
+    ["고마워", "감사", "좋아", "오케이", "ㅇㅋ", "알겠", "괜찮", "재밌", "대박", "너 뭐", "뭐해", "도와줘"].some((keyword) => normalizedPrompt.includes(normalizeAiText(keyword))) &&
+    !wantsMatchingRequest;
+  const wantsConfusion = isLowSignalAiText(prompt);
+  const wantsMessage = ["메시지", "dm", "디엠", "문구", "제안"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsCompare = ["비교", "누가 더", "1순위", "2순위"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsWhy = ["왜", "이유", "근거"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsShort = ["짧게", "간단", "요약", "한줄", "한 줄"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsNext = ["다음", "진행", "순서", "어떻게", "액션"].some((keyword) => normalizedPrompt.includes(keyword));
+  const wantsRefine = ["다른", "말고", "바꿔", "다시", "별로", "조건"].some((keyword) => normalizedPrompt.includes(keyword));
+  const contextPrefix = previousUserMessages.length > 0 ? "앞에서 말한 조건까지 이어서 보면, " : "";
+  const memoryLine = previousUserMessages.length > 0
+    ? `기억하고 있는 조건: ${previousUserMessages.slice(-2).map((message) => (message.length > 42 ? `${message.slice(0, 42)}...` : message)).join(" / ")}`
+    : "";
+  const knowledgeIntent = getLocalAiKnowledgeIntent(prompt);
+  const knowledgeMessage = knowledgeIntent ? buildLocalKnowledgeAiMessage(knowledgeIntent, prompt, memoryLine) : null;
+  const assistantMessage = knowledgeMessage ?? (topRecommendation
+    ? wantsGreeting
+      ? `안녕하세요. 저는 작품 톤, 필요한 직군, 공개 포트폴리오를 같이 보면서 팀원을 골라주는 AI 매칭 매니저예요.\n\n일상적으로 물어봐도 괜찮고, “이 아이디어에 맞는 작가 찾아줘”, “미스터리 애니메이션에 어울리는 성우 추천해줘”처럼 말하면 1·2·3순위와 각각의 이유까지 정리해드릴게요.`
+      : wantsSmallTalk
+        ? `좋아요. 편하게 이야기해도 돼요.\n\n저는 잡담을 받아주다가도, 작품 얘기가 나오면 바로 매칭 기준으로 바꿔서 도와드릴 수 있어요. 예를 들면 “일상 힐링 웹툰인데 작가랑 애니메이터 찾아줘”라고 말하면 후보 1·2·3순위와 추천 이유를 같이 보여드릴게요.`
+        : wantsConfusion
+      ? `제가 방금 너무 압축해서 말했네요. 쉽게 풀면 이 뜻이에요.\n\n1. 지금 대화에서 읽은 작품 방향은 “${tone}”입니다.\n2. 필요한 역할은 ${neededRoles.join(", ")} 쪽으로 잡혔어요.\n3. 그래서 공개 포트폴리오와 겹치는 후보 중 ${topCreator}님을 먼저 추천했습니다.\n\n${recommendations.length <= 1 ? "현재 공개 매칭 프로필이 적어서 같은 후보가 반복 추천되는 것처럼 보일 수 있어요. 후보가 늘어나면 비교 답변도 더 다양해집니다." : `${secondRecommendation ? `${secondRecommendation.creator.displayName}님과 비교해서` : "다른 후보와 비교해서"} 다시 좁힐 수도 있어요.`}\n\n원하면 “왜 ${topCreator}이야?”, “다른 사람으로 다시 골라줘”, “성우 말고 그림부터 추천해줘”처럼 물어보면 그 기준으로 다시 계산할게요.`
+      : wantsShort
+      ? `${topCreator}님을 1순위로 추천해요. ${topRecommendation.reason}`
+      : wantsMessage
+        ? `${contextPrefix}${topCreator}님에게는 이렇게 시작하면 자연스러워요.\n\n“안녕하세요, ${topCreator}님. 포트폴리오를 보고 제 작품 분위기와 잘 맞을 것 같아 연락드려요. ${topRecommendation.suggestedMessage} 괜찮으시다면 작품 톤과 작업 범위를 짧게 이야기해보고 싶습니다.”`
+        : wantsCompare && secondRecommendation
+          ? `${contextPrefix}비교하면 ${topCreator}님은 빠른 협업 시작에 유리해요. ${topRecommendation.reason}\n\n${secondRecommendation.creator.displayName}님은 ${secondRecommendation.reason} 그래서 1순위는 ${topCreator}님, 백업 후보는 ${secondRecommendation.creator.displayName}님으로 두는 흐름이 좋아 보여요.`
+          : wantsWhy
+            ? `${contextPrefix}${topCreator}님을 먼저 추천한 이유는 세 가지예요.\n\n1. ${topRecommendation.reason}\n2. ${topReasonDetails[0] ?? "작품 키워드와 포트폴리오 접점이 뚜렷합니다."}\n3. 응답률과 완료 프로젝트를 봤을 때 상담이 이어질 가능성이 높습니다.`
+            : wantsNext
+              ? `${contextPrefix}다음은 3단계로 가면 좋아요.\n\n1. ${topCreator}님에게 짧은 DM을 보냅니다.\n2. 답장이 오면 작업 범위와 일정을 맞춥니다.\n3. 마지막에 13% 수수료 차감 후 자동 정산 지분율을 공유합니다.`
+              : wantsRefine
+                ? `${contextPrefix}조건을 바꿔서 다시 보면 ${topCreator}님을 유지하되${secondRecommendation ? `, ${secondRecommendation.creator.displayName}님을 비교 후보로 같이 두는 게 좋아요.` : " 후보군을 조금 더 넓히는 게 좋아요."} 제외할 직군이나 더 원하는 분위기를 말해주면 다시 좁혀볼게요.`
+                : `${contextPrefix}좋아요. 이 작품은 ${summary}\n\n추천 순위는 이렇게 볼게요.\n\n${buildLocalRankedRecommendationBlock(recommendations)}\n\n정리하면, 1순위는 작품 키워드와 포트폴리오 접점이 가장 강한 후보이고, 2·3순위는 팀 밸런스를 보완하거나 백업으로 연락하기 좋은 후보입니다.`
+    : (() => {
+        const requestedRoleText = explicitRoles.map((roleId) => roleLabels[roleId]).filter(Boolean).join(", ");
+        return requestedRoleText
+          ? `요청한 ${requestedRoleText} 직군의 공개 프로필이 아직 부족해요.\n\n지금 조건은 ${summary} 팀원 찾기에 해당 직군 프로필이 더 등록되면 추천 정확도가 올라갑니다. 우선 프로필 등록을 유도하거나, 장르와 작업 범위를 더 적어주면 다시 좁혀볼게요.`
+          : `지금 조건은 ${summary} 다만 아직 추천할 공개 프로필이 부족해요. 필요한 직군이나 장르를 조금 더 좁혀주면 다시 찾아볼게요.`;
+      })());
+
+  return {
+    assistantMessage,
+    projectBrief: {
+      summary,
+      tone,
+      topics: topics.length > 0 ? topics : filters.slice(0, 5),
+      neededRoles,
+    },
+    recommendations,
+    followUpSuggestions: (knowledgeIntent
+      ? buildLocalKnowledgeFollowUps(knowledgeIntent)
+      : wantsGreeting || wantsSmallTalk
+      ? [
+          "이 아이디어 장르에 맞는 작가를 찾아줘",
+          "애니메이션에 어울리는 성우를 추천해줘",
+          "1·2·3순위 이유까지 자세히 알려줘",
+        ]
+      : wantsConfusion
+      ? [
+          "방금 추천을 더 쉽게 풀어줘",
+          topCreator ? `왜 ${topCreator}님인지 점수 기준으로 설명해줘` : "추천 기준을 점수로 설명해줘",
+          "다른 후보로 다시 골라줘",
+        ]
+      : [
+          "이 중에서 먼저 연락할 사람을 골라줘",
+          "추천 후보에게 보낼 첫 메시지를 써줘",
+          "1순위와 2순위를 비교해줘",
+          "수익 지분 제안 문구도 만들어줘",
+        ]
+    ).slice(0, 3),
+  };
+}
+
+function isApiConnectionError(error: unknown) {
+  const message = getFriendlyError(error);
+  return message.includes("백엔드 서버에 연결") || message.includes("API 응답을 읽을 수 없습니다");
+}
+
+function getRejectedMessage(result: PromiseSettledResult<unknown>) {
+  return result.status === "rejected" ? getFriendlyError(result.reason) : "";
+}
+
+function getActiveAuthToken(currentToken: string | null) {
+  return currentToken || localStorage.getItem("creator-universe-token");
+}
+
+function MatchProposalModal({
+  creator,
+  project,
+  share,
+  message,
+  isSubmitting,
+  onShareChange,
+  onMessageChange,
+  onClose,
+  onSubmit,
+}: {
+  creator: Creator;
+  project: Project | null;
+  share: number;
+  message: string;
+  isSubmitting: boolean;
+  onShareChange: (value: number) => void;
+  onMessageChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  const projectTitle = project?.title || "Creator Universe Pilot";
+  const currentRole = roleLabels[creator.primaryRole] || creator.primaryRole;
+
+  return (
+    <div className="modal-backdrop match-proposal-backdrop" role="dialog" aria-modal="true">
+      <div className="match-proposal-modal">
+        <div className="modal-header">
+          <div>
+            <p className="kicker">Collaboration Offer</p>
+            <h2>수익 지분을 제안하고 매칭 보내기</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="매칭 제안 닫기">
+            <X size={19} />
+          </button>
+        </div>
+
+        <section className="match-proposal-hero">
+          <div className="match-proposal-avatar">{creator.displayName.slice(0, 1)}</div>
+          <div>
+            <span>{currentRole} · @{creator.username}</span>
+            <strong>{creator.displayName}</strong>
+            <p>{creator.headline}</p>
+          </div>
+        </section>
+
+        <section className="match-proposal-editor">
+          <div className="proposal-project-card">
+            <span>제안 프로젝트</span>
+            <strong>{projectTitle}</strong>
+            <p>{matchingContentFilters.filter((item) => item !== "전체").slice(0, 3).join(" · ")} 협업 제안으로 전달됩니다.</p>
+          </div>
+
+          <label className="share-proposal-control">
+            <span>제안 수익 지분</span>
+            <strong>{share}%</strong>
+            <input
+              type="range"
+              min={5}
+              max={60}
+              step={5}
+              value={share}
+              onChange={(event) => onShareChange(Number(event.target.value))}
+            />
+          </label>
+
+          <div className="proposal-split-preview">
+            <div>
+              <span>{creator.displayName}</span>
+              <b>{share}%</b>
+            </div>
+            <div>
+              <span>기존 팀원 자동 보정</span>
+              <b>{100 - share}%</b>
+            </div>
+          </div>
+
+          <label className="proposal-message-box">
+            <span>채팅으로 함께 보낼 제안 메시지</span>
+            <textarea
+              value={message}
+              onChange={(event) => onMessageChange(event.target.value)}
+              placeholder="예: 미스터리 웹툰 파일럿의 성우/사운드 파트를 맡아주셨으면 합니다. 수익 지분 25%로 제안드려요."
+            />
+          </label>
+        </section>
+
+        <button className="primary-button match-proposal-submit" onClick={onSubmit} disabled={isSubmitting}>
+          <Send size={18} />
+          {isSubmitting ? "제안 전송 중" : "채팅으로 매칭 제안 보내기"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function MatchProposalBubble({
+  proposal,
+  canAccept,
+  onAccept,
+  onDecline,
+}: {
+  proposal: MatchProposalPayload;
+  canAccept: boolean;
+  onAccept: () => void;
+  onDecline?: () => void;
+}) {
+  const roleLabel = roleLabels[proposal.memberRole] || proposal.memberRole;
+
+  return (
+    <div className={`match-proposal-bubble ${proposal.status.toLowerCase()}`}>
+      <strong>{proposal.projectTitle}</strong>
+      <p>{proposal.message}</p>
+      <div>
+        <b>{roleLabel}</b>
+        <b>{proposal.sharePercentage}%</b>
+        <b>{proposal.projectType}</b>
+      </div>
+      {proposal.status === "ACCEPTED" ? (
+        <em>수락 완료 · 팀원으로 합류됨</em>
+      ) : proposal.status === "DECLINED" ? (
+        <em>거절됨 · 제안 종료</em>
+      ) : canAccept ? (
+        <div className="match-proposal-actions">
+          <button type="button" onClick={onAccept}>
+            <CheckCircle2 size={16} /> 조건 보고 수락하기
+          </button>
+          {onDecline && (
+            <button className="decline" type="button" onClick={onDecline}>
+              <X size={16} /> 거절
+            </button>
+          )}
+        </div>
+      ) : (
+        <em>상대방 수락 대기 중</em>
+      )}
+    </div>
+  );
+}
+
+function CreatorDetailModal({
+  creator,
+  token,
+  onClose,
+  onLoginRequired,
+  onActionComplete,
+  isFollowing,
+  onToggleFollow,
+}: {
+  creator: Creator;
+  token: string | null;
+  onClose: () => void;
+  onLoginRequired: () => void;
+  onActionComplete: (message: string) => Promise<void>;
+  isFollowing: boolean;
+  onToggleFollow: () => void;
+}) {
+  const portfolio = getCreatorPortfolio(creator);
+  const creatorWorks = readerWorks.filter((work) => work.participantUserIds.includes(creator.userId));
+  const creatorPosts = creatorFanPosts.filter((post) => post.creatorUserId === creator.userId);
+  const featuredWork = creatorWorks[0];
+  const featuredPortfolio = portfolio[0];
+  const recentPost = creatorPosts[0];
+  const paidPostCount = creatorPosts.filter((post) => post.priceCoins > 0 || post.access.includes("구독")).length;
+  const visibleFollowerCount = creator.followerCount;
+  const lowestMembershipPlan = creatorMembershipPlans.reduce(
+    (lowest, plan) => (plan.price < lowest.price ? plan : lowest),
+    creatorMembershipPlans[0],
+  );
+  const [profileTab, setProfileTab] = useState<"portfolio" | "fanclub" | "works">("portfolio");
+  const [donationAmount, setDonationAmount] = useState(1000);
+  const [donationMessage, setDonationMessage] = useState("");
+  const [creatorActionMessage, setCreatorActionMessage] = useState("");
+  const [isCreatorActionPending, setIsCreatorActionPending] = useState(false);
+
+  async function runCreatorAction(action: () => Promise<void>) {
+    if (!token) {
+      onLoginRequired();
+      return;
+    }
+    setIsCreatorActionPending(true);
+    setCreatorActionMessage("");
+    try {
+      await action();
+    } catch (error) {
+      setCreatorActionMessage(error instanceof Error ? error.message : "요청 처리 중 오류가 발생했습니다.");
+    } finally {
+      setIsCreatorActionPending(false);
+    }
+  }
+
+  function submitDonation() {
+    void runCreatorAction(async () => {
+      await request(`/api/creators/${creator.userId}/donations`, token, {
+        method: "POST",
+        body: JSON.stringify({ amount: donationAmount, message: donationMessage }),
+      });
+      setCreatorActionMessage(`${creator.displayName}님에게 ${formatCoins(donationAmount)} 후원을 보냈습니다.`);
+      await onActionComplete("후원이 완료되었습니다. 지갑 내역을 갱신했습니다.");
+    });
+  }
+
+  function submitSubscription(plan: (typeof creatorMembershipPlans)[number]) {
+    void runCreatorAction(async () => {
+      await request(`/api/creators/${creator.userId}/subscriptions`, token, {
+        method: "POST",
+        body: JSON.stringify({ tierName: plan.name, priceCoins: plan.price }),
+      });
+      setCreatorActionMessage(`${plan.name} 구독이 시작되었습니다.`);
+      await onActionComplete("창작자 구독이 완료되었습니다.");
+    });
+  }
+
+  function unlockFanPost(post: (typeof creatorFanPosts)[number]) {
+    void runCreatorAction(async () => {
+      await request(`/api/fan-posts/${post.id}/unlock`, token, {
+        method: "POST",
+        body: JSON.stringify({ priceCoins: post.priceCoins, creatorUserId: post.creatorUserId }),
+      });
+      setCreatorActionMessage(`${post.title} 열람권이 열렸습니다.`);
+      await onActionComplete("유료 포스트 열람권이 발급되었습니다.");
+    });
+  }
+
+  function reportCreator() {
+    void runCreatorAction(async () => {
+      await request("/api/reports", token, {
+        method: "POST",
+        body: JSON.stringify({
+          targetUserId: creator.userId,
+          reason: `${creator.displayName} 사용자 응대 신고`,
+          context: "창작자 프로필에서 접수된 사용자 신고입니다.",
+        }),
+      });
+      setCreatorActionMessage("신고가 접수되었습니다. 운영팀이 확인합니다.");
+      await onActionComplete("신고가 접수되었습니다.");
+    });
+  }
+
+  return (
+    <div className="modal-backdrop creator-detail-backdrop" role="dialog" aria-modal="true">
+      <div className="creator-detail-modal">
+        <div className="creator-detail-hero">
+          <div className={`creator-detail-art ${creator.primaryRole.toLowerCase()}`}>
+            <span>{roleLabels[creator.primaryRole]}</span>
+            <strong>{creator.displayName}</strong>
+            <p>@{creator.username}</p>
+          </div>
+          <div className="creator-detail-copy">
+            <div className="modal-header">
+              <div>
+                <p className="kicker">Creator Portfolio</p>
+                <h2>{creator.displayName} 포트폴리오</h2>
+              </div>
+              <div className="creator-detail-actions">
+                <button
+                  className={`creator-follow-button ${isFollowing ? "active" : ""}`}
+                  type="button"
+                  onClick={onToggleFollow}
+                >
+                  <Heart size={16} fill={isFollowing ? "currentColor" : "none"} />
+                  {isFollowing ? "팔로잉" : "팔로우"}
+                </button>
+                <button className="icon-button" onClick={onClose} aria-label="포트폴리오 닫기">
+                  <X size={19} />
+                </button>
+              </div>
+            </div>
+            <p className="detail-headline">{creator.headline}</p>
+            <p>{creator.portfolioSummary || creator.bio}</p>
+            <div className="detail-stats">
+              <div><strong>{creator.responseRate}%</strong><span>응답률</span></div>
+              <div><strong>{creator.completedProjects}</strong><span>완료 프로젝트</span></div>
+              <div><strong>{visibleFollowerCount.toLocaleString("ko-KR")}</strong><span>팔로워</span></div>
+            </div>
+          </div>
+        </div>
+
+        {creator.voiceDemo && (
+          <div className="detail-audio">
+            <button aria-label="보이스 샘플 재생"><Play size={18} /></button>
+            <div>
+              <strong>{creator.voiceDemo.title}</strong>
+              <div className="wave-player compact-wave">
+                <div>{creator.voiceDemo.waveform.map((height, index) => <i key={index} style={{ height }} />)}</div>
+              </div>
+            </div>
+            <span>{formatDuration(creator.voiceDemo.durationSeconds)}</span>
+          </div>
+        )}
+
+        <section className="creator-storefront-strip" aria-label="창작자 대표 활동 요약">
+          <article className="creator-storefront-card primary">
+            <span>대표작</span>
+            <strong>{featuredWork?.title || featuredPortfolio?.title || "새 프로젝트 준비 중"}</strong>
+            <p>
+              {featuredWork
+                ? `${featuredWork.format} · ${featuredWork.genre} · ${featuredWork.episodes}화`
+                : featuredPortfolio?.category || "포트폴리오와 팬 포스트가 곧 공개됩니다."}
+            </p>
+            <button type="button" onClick={() => setProfileTab(featuredWork ? "works" : "portfolio")}>
+              {featuredWork ? "참여 작품 보기" : "포트폴리오 보기"}
+            </button>
+          </article>
+
+          <article className="creator-storefront-card">
+            <span>최근 업로드</span>
+            <strong>{recentPost?.title || "아직 업로드 전"}</strong>
+            <p>{recentPost ? `${recentPost.type} · ${recentPost.access}` : "새 팬 포스트가 올라오면 구독자에게 먼저 알려요."}</p>
+            <button type="button" onClick={() => setProfileTab("fanclub")}>팬 포스트 보기</button>
+          </article>
+
+          <article className="creator-storefront-card">
+            <span>유료 포스트</span>
+            <strong>{paidPostCount}개</strong>
+            <p>러프, 이미지팩, 보이스 샘플을 코인으로 열람할 수 있습니다.</p>
+            <button type="button" onClick={() => setProfileTab("fanclub")}>유료 콘텐츠 보기</button>
+          </article>
+
+          <article className="creator-storefront-card support">
+            <span>후원/구독</span>
+            <strong>{formatCoins(lowestMembershipPlan.price)}부터</strong>
+            <p>월 구독과 자유 후원으로 창작자의 다음 작품을 응원합니다.</p>
+            <button type="button" onClick={() => setProfileTab("fanclub")}>후원하러 가기</button>
+          </article>
+        </section>
+
+        <div className="creator-profile-tabs" aria-label="창작자 프로필 탭">
+          <button className={profileTab === "portfolio" ? "active" : ""} onClick={() => setProfileTab("portfolio")}>포트폴리오</button>
+          <button className={profileTab === "fanclub" ? "active" : ""} onClick={() => setProfileTab("fanclub")}>팬클럽/유료 포스트</button>
+          <button className={profileTab === "works" ? "active" : ""} onClick={() => setProfileTab("works")}>참여 작품</button>
+        </div>
+
+        {profileTab === "portfolio" && (
+          <div className="portfolio-list">
+            {portfolio.map((item) => (
+              <article key={item.title} className="portfolio-item">
+                <span>{item.category}</span>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+                <div className="chips">{item.tags.map((tag) => <em key={tag}>{tag}</em>)}</div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {profileTab === "fanclub" && (
+          <>
+            <section className="fanclub-overview">
+              <article>
+                <span>무료 포트폴리오</span>
+                <strong>{portfolio.length}개</strong>
+                <p>작업 샘플과 협업 스타일을 먼저 확인합니다.</p>
+              </article>
+              <article>
+                <span>유료 포스트</span>
+                <strong>{creatorPosts.filter((post) => post.priceCoins > 0).length}개</strong>
+                <p>러프, 보이스, 이미지팩을 코인으로 열람합니다.</p>
+              </article>
+              <article>
+                <span>멤버십</span>
+                <strong>{creatorMembershipPlans.length}단계</strong>
+                <p>월 구독으로 한정 콘텐츠와 우선 답변을 받습니다.</p>
+              </article>
+            </section>
+
+            <section className="creator-support-panel">
+              <div>
+                <p className="kicker">Creator Fan Club</p>
+                <h3>{creator.displayName} 후원/구독</h3>
+                <p>창작자가 러프, 이미지팩, 보이스, 제작노트를 올리고 팬이 코인 후원 또는 월 구독으로 응원하는 공간입니다. 결제 내역은 지갑 원장에 기록되고 창작자 지갑으로 자동 입금됩니다.</p>
+              </div>
+              <div className="support-actions support-donation-box">
+                <div className="donation-quick-amounts" aria-label="후원 금액 빠른 선택">
+                  {[500, 1000, 3000, 5000].map((amount) => (
+                    <button
+                      key={amount}
+                      className={donationAmount === amount ? "active" : ""}
+                      type="button"
+                      onClick={() => setDonationAmount(amount)}
+                    >
+                      {formatCoins(amount)}
+                    </button>
+                  ))}
+                </div>
+                <label>
+                  <span>후원 코인 직접 입력</span>
+                  <input
+                    type="number"
+                    min={100}
+                    step={100}
+                    value={donationAmount}
+                    onChange={(event) => setDonationAmount(Number(event.target.value))}
+                  />
+                </label>
+                <textarea
+                  value={donationMessage}
+                  onChange={(event) => setDonationMessage(event.target.value)}
+                  placeholder="창작자에게 보낼 응원 메시지"
+                />
+                <button onClick={submitDonation} disabled={isCreatorActionPending}><Coins size={17} /> 원하는 코인으로 후원</button>
+                <button className="report-creator-button" onClick={reportCreator} disabled={isCreatorActionPending}>불친절/문제 사용자 신고</button>
+              </div>
+            </section>
+            {creatorActionMessage && <p className="creator-action-message">{creatorActionMessage}</p>}
+
+            <section className="membership-tier-grid">
+              {creatorMembershipPlans.map((plan) => (
+                <article key={plan.name}>
+                  <span>{plan.name}</span>
+                  <strong>{formatCoins(plan.price)} / 월</strong>
+                  <small>다음 결제일: 구독 시작 후 1개월</small>
+                  {plan.benefits.map((benefit) => <p key={benefit}>{benefit}</p>)}
+                  <button onClick={() => submitSubscription(plan)} disabled={isCreatorActionPending}>이 티어 구독</button>
+                </article>
+              ))}
+            </section>
+
+            <section className="creator-paid-feed">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">Fan Posts</p>
+                  <h3>창작자 전용 포스트</h3>
+                </div>
+              </div>
+              <div>
+                {creatorPosts.length > 0 ? creatorPosts.map((post) => (
+                  <article className={post.tone} key={post.id}>
+                    <div className="paid-post-preview">
+                      <span>{post.type}</span>
+                    </div>
+                    <div>
+                      <span>{post.access}</span>
+                      <strong>{post.title}</strong>
+                      <p>{post.description}</p>
+                      <div className="paid-post-meta">
+                        <em>{post.priceCoins > 0 ? formatCoins(post.priceCoins) : "무료"}</em>
+                        <em>{post.type}</em>
+                      </div>
+                      <button onClick={() => unlockFanPost(post)} disabled={isCreatorActionPending}>{post.priceCoins > 0 ? `${formatCoins(post.priceCoins)} 열람` : "무료 보기"}</button>
+                    </div>
+                  </article>
+                )) : (
+                  <div className="empty-matching">
+                    <Sparkles size={24} />
+                    <strong>아직 공개된 팬 포스트가 없어요</strong>
+                    <p>이 창작자가 새 포스트를 올리면 구독자에게 먼저 알림이 갑니다.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {profileTab === "works" && creatorWorks.length > 0 && (
+          <section className="creator-related-works">
+            <div className="section-head compact-head">
+              <div>
+                <p className="kicker">Participated Works</p>
+                <h3>참여 작품</h3>
+              </div>
+            </div>
+            <div>
+              {creatorWorks.map((work) => (
+                <article key={work.id}>
+                  <img src={work.coverImage} alt="" />
+                  <div>
+                    <span>{work.format} · {work.genre}</span>
+                    <strong>{work.title}</strong>
+                    <p>{work.tagline}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WorkDetailModal({
+  work,
+  rank,
+  reviews,
+  creators,
+  isPurchased, token, salePrice,
+  progress,
+  reviewRating,
+  reviewBody,
+  onClose,
+  onOpenCreator,
+  onOpenPayment,
+  onOpenEpisode,
+  onRatingChange,
+  onReviewBodyChange,
+  onSubmitReview,
+}: {
+  work: ReaderWork;
+  rank: number;
+  reviews: ContentReview[];
+  creators: Creator[];
+  isPurchased: boolean;
+  token: string | null;
+  salePrice?: number;
+  progress?: WorkProgressEntry;
+  reviewRating: number;
+  reviewBody: string;
+  onClose: () => void;
+  onOpenCreator: (creator: Creator) => void;
+  onOpenPayment: () => void;
+  onOpenEpisode: (episodeNumber: number) => void;
+  onRatingChange: (rating: number) => void;
+  onReviewBodyChange: (body: string) => void;
+  onSubmitReview: () => void;
+}) {
+  const participants = work.participantUserIds
+    .map((userId) => creators.find((creator) => creator.userId === userId))
+    .filter(Boolean) as Creator[];
+  const audioAvailable = hasAudioExperience(work);
+  const audioLabel = getAudioExperienceLabel(work);
+  const episodes = getWorkEpisodes(work);
+  const currentEpisodeNumber = Math.min(progress?.episodeNumber ?? 1, episodes.length);
+  const progressPercent = progress?.percent ?? (isPurchased ? 12 : 0);
+  const currentEpisode = episodes.find((episode) => episode.episodeNumber === currentEpisodeNumber) ?? episodes[0];
+  const relatedWorks = readerWorks
+    .filter((candidate) => candidate.id !== work.id && (candidate.genre === work.genre || candidate.format === work.format || candidate.tags.some((tag) => work.tags.includes(tag))))
+    .slice(0, 3);
+
+  return (
+    <div className="modal-backdrop work-detail-backdrop" role="dialog" aria-modal="true">
+      <div className="work-detail-modal">
+        <div className={`work-detail-hero ${work.tone}`}>
+          <img src={work.coverImage} alt={`${work.title} 커버`} />
+          <div>
+            <div className="modal-header">
+              <div>
+                <p className="kicker">Work Detail</p>
+                <h2>{work.title}</h2>
+              </div>
+              <button className="icon-button" onClick={onClose} aria-label="작품 상세 닫기">
+                <X size={19} />
+              </button>
+            </div>
+            <span className="work-rank-badge"><Flame size={16} /> 전체 #{rank} · {work.genre} 인기작</span>
+            <p>{work.tagline}</p>
+            <div className="work-detail-meta">
+              <b>{work.format}</b>
+              <b>{work.subGenre}</b>
+              <b><Star size={15} /> {work.rating}</b>
+              <b>{work.listeners} 감상</b>
+              <b>{work.episodes}화</b>
+            </div>
+            <div className="reader-actions">
+              {isPurchased ? (
+                <button className="ghost-button compact purchased-badge"><CheckCircle2 size={16} /> 열람권 보유</button>
+              ) : (
+                <button className="primary-button compact" disabled={salePrice === undefined} onClick={onOpenPayment}><Coins size={16} /> {salePrice === undefined ? "판매 준비 중" : formatCoins(salePrice) + " 구매"}</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <section className="work-progress-panel">
+          <div>
+            <p className="kicker">Continue Watching</p>
+            <h3>{isPurchased || currentEpisode.isFree ? `${currentEpisode.episodeNumber}화 이어보기` : "무료 회차부터 시작하기"}</h3>
+            <p>
+              {progress
+                ? `${formatDateTime(progress.updatedAt)}에 ${progress.percent}%까지 감상했어요.`
+                : "작품을 열면 최근 본 작품과 회차 진행률이 자동으로 저장됩니다."}
+            </p>
+          </div>
+          <div className="work-progress-card">
+            <div className="work-progress-bar" aria-label="작품 감상 진행률">
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+            <div>
+              <strong>{progressPercent}%</strong>
+              <span>{currentEpisode.title}</span>
+            </div>
+            <button type="button" onClick={() => onOpenEpisode(currentEpisode.episodeNumber)}>
+              <Play size={16} /> 이어보기
+            </button>
+          </div>
+        </section>
+
+        <section className="work-notice-panel">
+          <div>
+            <span>작품 공지</span>
+            <strong>{work.format} 연재 안내</strong>
+            <p>
+              1화는 무료로 공개됩니다. 구매 후에는 모든 유료 회차와 참여 창작자 크레딧, 리뷰 작성 기능을 같은 상세 화면에서 이용할 수 있어요.
+            </p>
+          </div>
+          <div>
+            <span>열람 상태</span>
+            <strong>{isPurchased ? "전체 열람 가능" : "1화 무료 · 유료 회차 잠금"}</strong>
+            <p>{isPurchased ? "이미 구매한 작품입니다. 회차 목록에서 바로 감상하세요." : "마음에 들면 열람권을 구매해 이어볼 수 있습니다."}</p>
+          </div>
+        </section>
+
+        {isPurchased && token && audioAvailable ? <PurchasedAudio key={work.id} workId={work.id} token={token} /> : audioAvailable && (
+          <section className="work-audio-panel">
+            <div className="work-audio-copy">
+              <p className="kicker">Audio Experience</p>
+              <h3>{audioLabel}으로 작품을 먼저 체험하세요</h3>
+              <p>
+                구매 전에는 30초 샘플을 제공하고, 구매 후에는 에피소드 전체 감상과 고대비 대본 미리보기를 같은 상세 화면에서 이어볼 수 있게 설계했습니다.
+              </p>
+              <div className="audio-feature-tags">
+                <span><Headphones size={14} /> 30초 샘플</span>
+                <span><CheckCircle2 size={14} /> 대본 동기화</span>
+                <span><Globe2 size={14} /> 접근성 모드</span>
+              </div>
+            </div>
+            <div className="audio-player-card">
+              <div className="audio-player-head">
+                <button aria-label="오디오 샘플 재생"><Play size={18} /></button>
+                <div>
+                  <strong>{isPurchased ? "전체 에피소드 감상 가능" : "무료 샘플 00:30"}</strong>
+                  <span>{work.title} · {audioLabel}</span>
+                </div>
+              </div>
+              <div className="audio-waveform" aria-hidden="true">
+                {audioWaveBars.map((height, index) => <i key={index} style={{ height }} />)}
+              </div>
+              <div className="audio-progress-line"><span style={{ width: isPurchased ? "64%" : "28%" }} /></div>
+              <div className="audio-transcript-card">
+                <span>대본 미리보기</span>
+                <p>“이 장면의 목소리는 낮게 시작해, 도시의 소음 위로 천천히 떠오릅니다.”</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="work-detail-section episode-section">
+          <div className="section-head compact-head">
+            <div>
+              <p className="kicker">Episode List</p>
+              <h3>회차 목록</h3>
+            </div>
+            <p>무료 회차와 구매 후 열리는 회차를 구분해서 보여줍니다.</p>
+          </div>
+          <div className="episode-access-summary">
+            <article>
+              <span>무료 시작</span>
+              <strong>1화 무료</strong>
+              <p>처음 보는 독자도 바로 분위기를 확인할 수 있어요.</p>
+            </article>
+            <article>
+              <span>열람권</span>
+              <strong>{isPurchased ? "구매 완료" : salePrice === undefined ? "판매 준비 중" : `${formatCoins(salePrice)} 전체 열람`}</strong>
+              <p>{isPurchased ? "모든 유료 회차가 열려 있습니다." : "구매하면 잠긴 회차를 이어서 볼 수 있습니다."}</p>
+            </article>
+            <article>
+              <span>진행률</span>
+              <strong>{progressPercent}%</strong>
+              <p>{progress ? `${currentEpisodeNumber}화까지 감상 기록이 있어요.` : "감상하면 자동으로 이어보기가 저장됩니다."}</p>
+            </article>
+          </div>
+          <div className="episode-list">
+            {episodes.map((episode) => {
+              const unlocked = episode.isFree || isPurchased;
+              return (
+                <article className={`${unlocked ? "unlocked" : "locked"} ${episode.episodeNumber === currentEpisodeNumber ? "current" : ""}`} key={episode.id}>
+                  <div className="episode-number">
+                    <span>{episode.episodeNumber}</span>
+                    <small>{episode.isFree ? "FREE" : unlocked ? "OPEN" : "LOCK"}</small>
+                  </div>
+                  <div>
+                    <strong>{episode.title}</strong>
+                    <p>{episode.summary}</p>
+                    <div className="episode-meta">
+                      <span>{episode.publishedAt}</span>
+                      <span>{episode.readingTime}</span>
+                      <span>{episode.isFree ? "무료" : salePrice === undefined ? "판매 준비 중" : "열람권 포함"}</span>
+                    </div>
+                  </div>
+                  <button type="button" disabled={!unlocked && salePrice === undefined} onClick={() => (unlocked ? onOpenEpisode(episode.episodeNumber) : onOpenPayment())}>
+                    {unlocked ? <Play size={16} /> : <Coins size={16} />}
+                    {unlocked ? (episode.episodeNumber === currentEpisodeNumber ? "이어보기" : "감상하기") : salePrice === undefined ? "판매 준비 중" : "구매 필요"}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="work-detail-section">
+          <div className="section-head compact-head">
+            <div>
+              <p className="kicker">Production Team</p>
+              <h3>이 작품에 참여한 창작자</h3>
+            </div>
+          </div>
+          <div className="work-detail-creators">
+            {participants.map((creator) => (
+              <button key={creator.id} onClick={() => onOpenCreator(creator)}>
+                <i>{creator.displayName.slice(0, 1)}</i>
+                <span>{roleLabels[creator.primaryRole]}</span>
+                <strong>{creator.displayName}</strong>
+                <small>{creator.headline}</small>
+              </button>
+            ))}
+          </div>
+          <div className="production-credit-strip">
+            <article><span>기획/원작</span><strong>{participants.find((creator) => creator.primaryRole === "WRITER")?.displayName ?? "창작팀"}</strong></article>
+            <article><span>비주얼</span><strong>{participants.find((creator) => creator.primaryRole === "ILLUSTRATOR")?.displayName ?? "아트팀"}</strong></article>
+            <article><span>보이스/BGM</span><strong>{participants.find((creator) => ["VOICE_ACTOR", "SOUND_DIRECTOR"].includes(creator.primaryRole))?.displayName ?? "사운드팀"}</strong></article>
+          </div>
+        </section>
+
+        <section className="work-detail-section">
+          <div className="section-head compact-head">
+            <div>
+              <p className="kicker">Comments & Reviews</p>
+              <h3>작품 댓글/리뷰</h3>
+            </div>
+            <p>작품 상세 안에서만 리뷰가 보이도록 분리했습니다.</p>
+          </div>
+          <div className="review-form work-review-form">
+            <select value={reviewRating} onChange={(event) => onRatingChange(Number(event.target.value))} aria-label="리뷰 평점">
+              {[5, 4, 3, 2, 1].map((rating) => <option key={rating} value={rating}>{rating}점</option>)}
+            </select>
+            <textarea value={reviewBody} onChange={(event) => onReviewBodyChange(event.target.value)} placeholder={`${work.title} 감상평이나 응원 댓글을 남겨보세요.`} />
+            <button onClick={onSubmitReview}><Star size={17} /> 리뷰 등록</button>
+          </div>
+          <div className="review-list work-review-list">
+            {reviews.length > 0 ? reviews.map((review) => (
+              <div key={review.id}>
+                <span>{"★".repeat(review.rating)} · {formatDateTime(review.createdAt)}</span>
+                <strong>{review.authorName}</strong>
+                <p>{review.body}</p>
+              </div>
+            )) : (
+              <div>
+                <span>첫 리뷰 대기 중</span>
+                <strong>아직 등록된 댓글이 없어요</strong>
+                <p>작품을 감상한 뒤 첫 응원 댓글을 남겨보세요.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {relatedWorks.length > 0 && (
+          <section className="work-detail-section related-work-section">
+            <div className="section-head compact-head">
+              <div>
+                <p className="kicker">Related Works</p>
+                <h3>이 작품을 좋아한다면</h3>
+              </div>
+              <p>같은 장르나 형식의 추천 작품입니다.</p>
+            </div>
+            <div className="related-work-grid">
+              {relatedWorks.map((related) => (
+                <article className={related.tone} key={related.id}>
+                  <img src={related.coverImage} alt="" />
+                  <div>
+                    <span>{related.format} · {related.genre}</span>
+                    <strong>{related.title}</strong>
+                    <p>{related.tagline}</p>
+                    <div>
+                      <b><Star size={13} /> {related.rating}</b>
+                      <b>{related.episodes}화</b>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const policySections: Array<{
+  id: PolicyTabId;
+  label: string;
+  title: string;
+  summary: string;
+  items: string[];
+  url: string;
+}> = [
+  {
+    id: "privacy",
+    label: "개인정보 처리방침",
+    title: "개인정보 처리방침",
+    summary: "크리에이터 유니버스는 만 12세 이상 이용 가능한 웹앱 서비스로, 창작자 매칭과 콘텐츠 열람, 코인 결제, 자동 정산, 고객지원에 필요한 개인정보만 최소한으로 처리합니다.",
+    items: [
+      "수집 항목: 이메일, 아이디, 닉네임, 비밀번호 해시, 콘텐츠 구매/스크랩, 코인 거래, 창작자 프로필, 매칭/채팅, 문의/신고, 서비스 이용 로그",
+      "이용 목적: 회원 인증, 콘텐츠 열람권 발급, 코인 충전/사용, 팀 정산, 매칭 제안 처리, 고객지원, 부정 이용 방지, 접근성 품질 개선",
+      "이용 연령: 만 12세 이상 이용 가능하며, 만 12세 미만 이용자는 서비스를 이용할 수 없습니다.",
+      "제공/위탁: 개인정보를 판매하지 않으며, 결제 처리, 클라우드 인프라, 이메일/알림 발송 등 운영에 필요한 범위에서만 처리 위탁합니다.",
+      "보관/삭제: 회원 탈퇴 또는 계정 삭제 요청 시 삭제하되, 결제·정산·환불·분쟁 대응 등 법령상 필요한 기록은 정해진 기간 보관할 수 있습니다.",
+      "문의: privacy@creator-universe.app 으로 개인정보 열람, 정정, 삭제, 처리정지를 요청할 수 있습니다.",
+    ],
+    url: "/privacy-policy.html",
+  },
+  {
+    id: "terms",
+    label: "약관",
+    title: "서비스 이용약관",
+    summary: "회원은 크리에이터 유니버스에서 창작자 매칭, 콘텐츠 발행/열람, 코인 결제, 팬 구독, 자동 정산 기능을 약관에 따라 이용합니다.",
+    items: [
+      "회원은 타인의 저작권, 초상권, 음성권, 개인정보, 명예를 침해하지 않는 콘텐츠와 프로필만 등록해야 합니다.",
+      "창작팀은 프로젝트별 지분율, 역할, 공개 범위, 수익 분배 조건을 사전에 합의하고 시스템에 등록해야 합니다.",
+      "플랫폼 수수료는 일반 13%, 공식 파트너 8%로 고정 적용됩니다.",
+      "부정 결제, 무단 복제, 계정 공유, 스팸성 매칭, 괴롭힘 등 서비스 신뢰를 해치는 행위는 제한될 수 있습니다.",
+      "서비스는 MVP/베타 성격의 기능을 포함할 수 있으며, 정식 결제·정산 연동 전 일부 기능은 데모 데이터로 제공될 수 있습니다.",
+    ],
+    url: "/terms.html",
+  },
+  {
+    id: "refund",
+    label: "판매 및 환불",
+    title: "판매 및 환불 정책",
+    summary: "코인과 콘텐츠 열람권은 디지털 상품 특성을 고려해 사용 여부와 결제 상태에 따라 환불 기준을 다르게 적용합니다.",
+    items: [
+      "미사용 코인은 결제 수단별 승인 취소 가능 기간 내 환불 요청이 가능합니다.",
+      "콘텐츠를 재생하거나 열람권을 사용한 경우 단순 변심 환불이 제한될 수 있습니다.",
+      "중복 결제, 시스템 오류, 접근권 미지급은 확인 후 우선 환불 또는 재지급 처리합니다.",
+      "환불 완료 시 해당 거래의 자동 정산분은 다음 주 단위 정산에 차감 또는 보정됩니다.",
+    ],
+    url: "/refund-policy.html",
+  },
+  {
+    id: "legal",
+    label: "법적 고지",
+    title: "법적 고지",
+    summary: "크리에이터 유니버스의 브랜드, UI, 정산 구조, 소프트웨어, 콘텐츠 데이터와 창작자의 작품 권리는 보호 대상입니다.",
+    items: [
+      "게시된 작품, 대본, 이미지, 음성, BGM의 권리는 원 권리자와 창작팀에게 있습니다.",
+      "플랫폼은 창작자 간 계약과 분쟁을 줄이기 위한 정산 기록과 거래 로그를 제공합니다.",
+      "AI 번역, 로컬라이징, 접근성 기능은 보조 수단이며 최종 검수 책임은 창작팀에 있습니다.",
+      "법령 또는 권리 침해 신고가 접수된 콘텐츠는 임시 비공개 처리될 수 있습니다.",
+    ],
+    url: "/legal-notice.html",
+  },
+  {
+    id: "sitemap",
+    label: "사이트 맵",
+    title: "사이트 맵",
+    summary: "서비스 소개부터 작품 탐색, 팀 매칭, 지갑, 정산, 고객센터까지 MVP 핵심 화면으로 이동할 수 있습니다.",
+    items: [
+      "홈: 플랫폼 소개, ESG 미션, 파트너 시스템, 로드맵",
+      "작품: 장르별 추천 오디오 콘텐츠와 코인 결제",
+      "매칭: 글, 그림, 목소리, BGM 창작자 포트폴리오 탐색",
+      "지갑/정산/고객센터: 로그인 후 이용 가능한 결제 내역, 수익 분배, 문의/신고 화면",
+    ],
+    url: "/sitemap.html",
+  },
+];
+
+function PolicyModal({ initialTab, onClose }: { initialTab: PolicyTabId; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<PolicyTabId>(initialTab);
+  const currentPolicy = policySections.find((section) => section.id === activeTab) || policySections[0];
+
+  return (
+    <div className="modal-backdrop policy-backdrop" role="dialog" aria-modal="true">
+      <div className="policy-modal">
+        <div className="modal-header">
+          <div>
+            <p className="kicker">Creator Universe Policy</p>
+            <h2>{currentPolicy.title}</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="정책창 닫기">
+            <X size={19} />
+          </button>
+        </div>
+
+        <div className="policy-tabs">
+          {policySections.map((section) => (
+            <button
+              key={section.id}
+              className={activeTab === section.id ? "active" : ""}
+              onClick={() => setActiveTab(section.id)}
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+
+        <section className="policy-content">
+          <span>대한민국 기준 정책 · Creator Universe 웹앱 공통 적용</span>
+          <h3>{currentPolicy.title}</h3>
+          <p>{currentPolicy.summary}</p>
+          <div>
+            {currentPolicy.items.map((item) => (
+              <article key={item}>
+                <CheckCircle2 size={18} />
+                <p>{item}</p>
+              </article>
+            ))}
+          </div>
+          <a className="policy-page-link" href={currentPolicy.url} target="_blank" rel="noreferrer">
+            전체 {currentPolicy.label} 페이지 열기
+          </a>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function AccountModal({
+  user,
+  wallet,
+  purchasedWorkIds,
+  scrappedWorkIds,
+  recentWorkIds,
+  workProgress,
+  premiumSubscription,
+  notificationPreferences,
+  isCreatorAccount,
+  onClose,
+  onLogout,
+  onDeleteAccount,
+  onOpenPayment,
+  onStartPremium,
+  onCancelPremium,
+  onUpgradeToCreator,
+  onToggleNotificationPreference,
+  onNavigate,
+  onOpenLibrary,
+}: {
+  user: User;
+  wallet: number | null;
+  purchasedWorkIds: string[];
+  scrappedWorkIds: string[];
+  recentWorkIds: string[];
+  workProgress: Record<string, WorkProgressEntry>;
+  premiumSubscription: PremiumSubscriptionState;
+  notificationPreferences: NotificationPreferences;
+  isCreatorAccount: boolean;
+  onClose: () => void;
+  onLogout: () => void;
+  onDeleteAccount: () => void;
+  onOpenPayment: () => void;
+  onStartPremium: () => void;
+  onCancelPremium: () => void;
+  onUpgradeToCreator: () => void;
+  onToggleNotificationPreference: (key: keyof NotificationPreferences) => void;
+  onNavigate: (page: PageId) => void;
+  onOpenLibrary: (view: (typeof libraryViewItems)[number]["id"]) => void;
+}) {
+  const purchasedWorks = readerWorks.filter((work) => purchasedWorkIds.includes(work.id));
+  const scrappedWorks = readerWorks.filter((work) => scrappedWorkIds.includes(work.id));
+  const recentWorks = recentWorkIds
+    .map((workId) => readerWorks.find((work) => work.id === workId))
+    .filter(Boolean) as ReaderWork[];
+  const walletBalance = wallet ?? 0;
+  const walletUsageHint = walletBalance > 0
+    ? `지금 바로 ${Math.min(walletBalance, 1000).toLocaleString("ko-KR")}코인 작품을 열람할 수 있어요.`
+    : "첫 충전 후 작품 열람, 창작자 후원, 프리미엄 구독을 시작할 수 있어요.";
+  const latestWalletWork = purchasedWorks[0] ?? recentWorks[0] ?? scrappedWorks[0];
+
+  return (
+    <div className="modal-backdrop account-backdrop" role="dialog" aria-modal="true">
+      <div className="account-modal">
+        <div className="modal-header">
+          <div>
+            <p className="kicker">My Universe</p>
+            <h2>내 계정</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="계정창 닫기">
+            <X size={19} />
+          </button>
+        </div>
+
+        <section className="account-hero-card">
+          <div className="account-avatar">{user.displayName.slice(0, 1)}</div>
+          <div>
+            <strong>{user.displayName}</strong>
+            <span>@{user.username} · {user.email}</span>
+          </div>
+          <button className="ghost-button compact" onClick={onOpenPayment}><Coins size={16} /> 코인 충전</button>
+        </section>
+
+        <section className="app-account-dashboard" aria-label="앱 내 계정 요약">
+          <div className="app-account-balance">
+            <span>My Universe</span>
+            <strong>{formatCoins(walletBalance)}</strong>
+            <p>{premiumSubscription.isActive ? `프리미엄 미리보기 이용 중` : "코인 충전 체험, 작품 보관함, 구독 관리를 여기서 바로 시작하세요."}</p>
+          </div>
+
+          <div className="app-account-quick-grid">
+            <button type="button" onClick={() => { onClose(); onNavigate("wallet"); }}>
+              <Wallet size={17} />
+              <span>지갑</span>
+              <b>{formatCoins(walletBalance)}</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onOpenLibrary("purchased"); }}>
+              <BookOpen size={17} />
+              <span>결제 작품</span>
+              <b>{purchasedWorks.length}개</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onOpenLibrary("scrapped"); }}>
+              <Heart size={17} />
+              <span>스크랩</span>
+              <b>{scrappedWorks.length}개</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onOpenLibrary("recent"); }}>
+              <RefreshCw size={17} />
+              <span>이어보기</span>
+              <b>{recentWorks.length}개</b>
+            </button>
+          </div>
+
+          <div className="app-account-premium">
+            <div>
+              <span>Premium</span>
+              <strong>{premiumSubscription.isActive ? "체험 중" : "프리미엄 미리보기"}</strong>
+              <p>{premiumSubscription.isActive ? "이 기기에서 체험 상태를 관리합니다." : "체험을 시작해도 정기결제나 코인 차감은 발생하지 않습니다."}</p>
+            </div>
+            <button type="button" onClick={premiumSubscription.isActive ? onCancelPremium : onStartPremium}>
+              {premiumSubscription.isActive ? "체험 종료" : "체험"}
+            </button>
+          </div>
+
+          <div className="app-account-notice">
+            <button type="button" onClick={() => onToggleNotificationPreference("newEpisode")}>
+              <Bell size={16} />
+              <span>신작 알림</span>
+              <b>{notificationPreferences.newEpisode ? "ON" : "OFF"}</b>
+            </button>
+            <button type="button" onClick={() => { onClose(); onNavigate("support"); }}>
+              <ShieldCheck size={16} />
+              <span>도움센터</span>
+              <b>문의/신고</b>
+            </button>
+          </div>
+
+          <div className="app-account-danger">
+            <button type="button" onClick={onLogout}><LogOut size={16} /> 로그아웃</button>
+            <button type="button" onClick={onDeleteAccount}><X size={16} /> 계정 탈퇴</button>
+          </div>
+        </section>
+
+        <div className="account-grid">
+          <section className="account-panel wallet-account-panel">
+            <div className="account-panel-head">
+              <Wallet size={20} />
+              <strong>내 지갑</strong>
+            </div>
+            <div className="account-wallet">
+              <div className="account-wallet-main">
+                <div>
+                  <span>보유 코인</span>
+                  <b>{wallet === null ? "로그인 필요" : formatCoins(walletBalance)}</b>
+                </div>
+                <button type="button" onClick={onOpenPayment}><Coins size={15} /> 충전</button>
+              </div>
+              <div className="wallet-balance-meter" aria-hidden="true">
+                <span style={{ width: `${Math.min(100, Math.max(8, walletBalance / 100))}%` }} />
+              </div>
+              <small>{walletUsageHint}</small>
+            </div>
+            <div className="wallet-mini-grid">
+              <div><span>결제 작품</span><b>{purchasedWorks.length}</b></div>
+              <div><span>스크랩</span><b>{scrappedWorks.length}</b></div>
+              <div><span>이어보기</span><b>{recentWorks.length}</b></div>
+            </div>
+            <div className="wallet-account-feed">
+              <article>
+                <span>최근 활동</span>
+                <strong>{latestWalletWork ? latestWalletWork.title : "아직 작품 활동이 없어요"}</strong>
+              </article>
+              <article>
+                <span>사용 가능</span>
+                <strong>작품 구매 · 후원 · 프리미엄 구독</strong>
+              </article>
+              <article>
+                <span>{isCreatorAccount ? "정산 연결" : "독자 지갑"}</span>
+                <strong>{isCreatorAccount ? "창작팀 수익은 지갑으로 자동 입금" : "작품 구매와 프리미엄 구독에 사용"}</strong>
+              </article>
+            </div>
+            <div className="account-quick-actions">
+              <button onClick={() => { onClose(); onNavigate("wallet"); }}><Wallet size={15} /> 지갑 내역</button>
+              {isCreatorAccount ? (
+                <button onClick={() => { onClose(); onNavigate("settlement"); }}><Split size={15} /> 정산 보기</button>
+              ) : (
+                <button onClick={() => { onClose(); onOpenLibrary("purchased"); }}><BookOpen size={15} /> 결제 작품</button>
+              )}
+            </div>
+          </section>
+
+          <section className="account-panel premium-account-panel">
+            <div className="account-panel-head">
+              <Sparkles size={20} />
+              <strong>크리에이터 유니버스 프리미엄</strong>
+            </div>
+            <div className={`premium-status-pill ${premiumSubscription.isActive ? "active" : ""}`}>
+              {premiumSubscription.isActive ? "체험 중" : "체험 가능"}
+            </div>
+            <div className="premium-mini-price">
+              <span>월 구독</span>
+              <b>7,900 코인</b>
+            </div>
+            <div className="premium-billing-card">
+              <strong>구독 미리보기</strong>
+              <small>프리미엄은 체험 화면입니다. 이용료와 정기결제가 발생하지 않습니다.</small>
+            </div>
+            <div className="premium-benefit-strip" aria-label="프리미엄 핵심 혜택">
+              <span><Coins size={14} /> 매월 1,000 보너스</span>
+              <span><Bell size={14} /> 신작 우선 알림</span>
+              <span><ShieldCheck size={14} /> 광고 없는 감상</span>
+            </div>
+            {universePremiumBenefits.slice(0, 3).map((benefit) => (
+              <p key={benefit}><CheckCircle2 size={15} /> {benefit}</p>
+            ))}
+            {premiumSubscription.isActive ? (
+              <button className="premium-cancel-button" onClick={onCancelPremium}>체험 종료</button>
+            ) : (
+              <button onClick={onStartPremium}>프리미엄 체험 시작</button>
+            )}
+            <button className="premium-manage-button" onClick={onOpenPayment}>코인 충전 체험</button>
+          </section>
+
+          <section className="account-panel">
+            <div className="account-panel-head">
+              <Settings size={20} />
+              <strong>내 정보 변경</strong>
+            </div>
+            <label>닉네임<input defaultValue={user.displayName} /></label>
+            <label>이메일<input defaultValue={user.email} /></label>
+            <button>변경사항 저장</button>
+          </section>
+
+          <section className="account-panel account-summary-panel">
+            <div className="account-panel-head">
+              <UserRound size={20} />
+              <strong>계정 요약</strong>
+            </div>
+            <p>내 활동을 빠르게 확인하고 바로 이동할 수 있는 개인 허브입니다.</p>
+            <div className="account-summary-grid">
+              <div><span>보관함</span><b>{purchasedWorks.length + scrappedWorks.length + recentWorks.length}</b></div>
+              <div><span>알림</span><b>{notificationPreferences.newEpisode ? "ON" : "OFF"}</b></div>
+              <div><span>프리미엄</span><b>{premiumSubscription.isActive ? "체험 중" : "체험 가능"}</b></div>
+            </div>
+            <div className="account-summary-actions">
+              <button onClick={() => { onClose(); onOpenLibrary("recent"); }}><RefreshCw size={15} /> 이어보기</button>
+              <button onClick={() => { onClose(); onNavigate("support"); }}><ShieldCheck size={15} /> 도움센터</button>
+            </div>
+          </section>
+
+          {!isCreatorAccount && (
+            <section className="account-panel reader-creator-upgrade-panel reader-only-guide-panel">
+              <div className="account-panel-head">
+                <BookOpen size={20} />
+                <strong>독자 전용 동선</strong>
+              </div>
+              <p>독자 계정은 작품 감상, 스크랩, 코인 지갑, 새 회차 알림을 중심으로 깔끔하게 보여줍니다.</p>
+              <div className="creator-upgrade-preview">
+                <span><BookOpen size={14} /> 작품 탐색</span>
+                <span><Heart size={14} /> 스크랩</span>
+                <span><Bell size={14} /> 신작 알림</span>
+              </div>
+              <button onClick={() => { onClose(); onOpenLibrary("scrapped"); }}>
+                <Heart size={16} /> 내 보관함 보기
+              </button>
+            </section>
+          )}
+
+          <section className="account-panel wide">
+            <div className="account-panel-head">
+              <BookOpen size={20} />
+              <strong>내가 결제한 작품</strong>
+            </div>
+            <div className="purchase-list">
+              {purchasedWorks.length > 0 ? purchasedWorks.map((work) => (
+                <article key={work.id}>
+                  <div>
+                    <span>{work.genre}</span>
+                    <strong>{work.title}</strong>
+                    <p>{work.subGenre} · {work.episodes}화</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("purchased"); }}>작품 보기</button>
+                </article>
+              )) : (
+                <article>
+                  <div>
+                    <span>아직 없음</span>
+                    <strong>결제한 작품이 없어요</strong>
+                    <p>작품 페이지에서 코인으로 열람권을 구매해보세요.</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("all"); }}>작품 찾기</button>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="account-panel wide">
+            <div className="account-panel-head">
+              <Heart size={20} />
+              <strong>스크랩한 작품</strong>
+            </div>
+            <div className="purchase-list">
+              {scrappedWorks.length > 0 ? scrappedWorks.slice(0, 4).map((work) => (
+                <article key={work.id}>
+                  <div>
+                    <span>{work.genre}</span>
+                    <strong>{work.title}</strong>
+                    <p>{work.subGenre} · {work.listeners} 감상</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("scrapped"); }}>보러가기</button>
+                </article>
+              )) : (
+                <article>
+                  <div>
+                    <span>빈 보관함</span>
+                    <strong>하트를 누르면 여기에 저장돼요</strong>
+                    <p>나중에 볼 작품을 스크랩해두세요.</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("all"); }}>스크랩하러 가기</button>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="account-panel wide recent-account-panel">
+            <div className="account-panel-head">
+              <RefreshCw size={20} />
+              <strong>최근 본 작품</strong>
+            </div>
+            <div className="recent-account-summary">
+              <div>
+                <span>이어보기 큐</span>
+                <b>{recentWorks.length}개</b>
+              </div>
+              <button onClick={() => { onClose(); onOpenLibrary("recent"); }}>최근 본 작품으로 이동</button>
+            </div>
+            <div className="purchase-list compact-purchase-list">
+              {recentWorks.length > 0 ? recentWorks.slice(0, 3).map((work) => (
+                <article key={work.id}>
+                  <div>
+                    <span>{work.format} · {work.genre}</span>
+                    <strong>{work.title}</strong>
+                    <p>
+                      {workProgress[work.id]
+                        ? `${workProgress[work.id].episodeNumber}화 · ${workProgress[work.id].percent}%까지 감상`
+                        : `${work.subGenre} · 마지막으로 열어본 작품`}
+                    </p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("recent"); }}>이어보기</button>
+                </article>
+              )) : (
+                <article>
+                  <div>
+                    <span>아직 없음</span>
+                    <strong>작품 상세를 열면 여기에 쌓여요</strong>
+                    <p>랭킹이나 추천작에서 상세/리뷰를 눌러 최근 본 작품을 만들어보세요.</p>
+                  </div>
+                  <button onClick={() => { onClose(); onOpenLibrary("all"); }}>작품 둘러보기</button>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="account-panel">
+            <div className="account-panel-head">
+              <Bell size={20} />
+              <strong>알림 설정</strong>
+            </div>
+            <p>스크랩하거나 최근 본 작품의 새 회차, 정산 완료, 이벤트 알림 수신 여부를 직접 설정합니다.</p>
+            <label className="account-check">
+              <input
+                type="checkbox"
+                checked={notificationPreferences.newEpisode}
+                onChange={() => onToggleNotificationPreference("newEpisode")}
+              />
+              새 회차 알림
+            </label>
+            {isCreatorAccount ? (
+              <label className="account-check">
+                <input
+                  type="checkbox"
+                  checked={notificationPreferences.settlement}
+                  onChange={() => onToggleNotificationPreference("settlement")}
+                />
+                정산 완료 알림
+              </label>
+            ) : (
+              <p className="account-role-note">독자 계정은 새 회차, 스크랩 작품 업데이트, 결제 알림을 중심으로 보여줍니다.</p>
+            )}
+            <label className="account-check">
+              <input
+                type="checkbox"
+                checked={notificationPreferences.marketing}
+                onChange={() => onToggleNotificationPreference("marketing")}
+              />
+              광고/이벤트 알림
+            </label>
+          </section>
+
+          <section className="account-panel danger">
+            <div className="account-panel-head">
+              <ShieldCheck size={20} />
+              <strong>보안과 로그아웃</strong>
+            </div>
+            <p>공용 PC에서는 감상 후 로그아웃을 권장합니다. 탈퇴 시 로그인 정보는 삭제되고 정산/결제 원장은 익명 계정으로 보존됩니다.</p>
+            <button onClick={onLogout}><LogOut size={16} /> 로그아웃</button>
+            <button className="delete-account-button" onClick={onDeleteAccount}><ShieldCheck size={16} /> 계정 탈퇴</button>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function App() {
+  const [token, setToken] = useState(() => localStorage.getItem("creator-universe-token"));
+  const [user, setUser] = useState<User | null>(null);
+  const [creators, setCreators] = useState<Creator[]>([]);
+  const [role, setRole] = useState("ALL");
+  const [matchingSearch, setMatchingSearch] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("전체");
+  const [matchingFilters, setMatchingFilters] = useState<string[]>([]);
+  const [aiMatchPrompt, setAiMatchPrompt] = useState("");
+  const [aiPreferredRoles, setAiPreferredRoles] = useState<string[]>(["ILLUSTRATOR", "VOICE_ACTOR", "SOUND_DIRECTOR"]);
+  const [aiMatchResults, setAiMatchResults] = useState<AiMatchRecommendation[]>([]);
+  const [aiMatchResponse, setAiMatchResponse] = useState<AiMatchingResponse | null>(null);
+  const [aiMatchMessages, setAiMatchMessages] = useState<AiChatMessage[]>(() => readStoredAiMessages());
+  const [isAiHistoryOpen, setIsAiHistoryOpen] = useState(false);
+  const [isAiMatching, setIsAiMatching] = useState(false);
+  const [aiMatchMessage, setAiMatchMessage] = useState("");
+  const [readerSearch, setReaderSearch] = useState("");
+  const [readerFilters, setReaderFilters] = useState<string[]>([]);
+  const [route, setRoute] = useState<ClassicRoute>(readClassicRoute);
+  const needsLibraryLogin = !user && (route.collection === "purchased" || route.collection === "scrapped");
+  const readerLibraryView = needsLibraryLogin ? "all" : route.collection;
+  const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
+  const [salePrices, setSalePrices] = useState<Record<string,number>>({});
+  useEffect(() => {
+    const controller = new AbortController();
+    request<{works: {workId: string; priceCoins: number}[]}>("/api/settlements/catalog", null, {signal: controller.signal})
+      .then(data => { if (!controller.signal.aborted) setSalePrices(Object.fromEntries(data.works.map(work => [work.workId, work.priceCoins]))); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  const [scrappedWorkIds, setScrappedWorkIds] = useState<string[]>([]);
+  const [followedCreatorIds, setFollowedCreatorIds] = useState<string[]>([]);
+  const [recentWorkIds, setRecentWorkIds] = useState(() => readStoredIds("creator-universe-recent-works"));
+  const [workProgress, setWorkProgress] = useState<Record<string, WorkProgressEntry>>(() => readWorkProgress("creator-universe-work-progress"));
+  const [libraryStorageOwner, setLibraryStorageOwner] = useState("anonymous");
+  const [pendingPurchaseWorkId, setPendingPurchaseWorkId] = useState(readerWorks[0].id);
+  const [paymentMode, setPaymentMode] = useState<"charge" | "content">("charge");
+  const [discoverCreatorSearch, setDiscoverCreatorSearch] = useState("");
+  const [discoverCreatorRole, setDiscoverCreatorRole] = useState("ALL");
+  const [project, setProject] = useState<Project | null>(null);
+  const [settlement, setSettlement] = useState<SettlementDashboard | null>(null);
+  const [settlementConfig, setSettlementConfig] = useState<SettlementConfig>(() => buildSettlementConfig(null));
+  const [settlementMessage, setSettlementMessage] = useState("");
+  const [wallet, setWallet] = useState<number | null>(null);
+  const [walletDetail, setWalletDetail] = useState<WalletDetail | null>(null);
+  const [walletFilter, setWalletFilter] = useState<"ALL" | WalletTransaction["type"]>("ALL");
+  const [contentReviews, setContentReviews] = useState<ContentReview[]>([]);
+  const [reviewWorkId, setReviewWorkId] = useState(readerWorks[0].id);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewBody, setReviewBody] = useState("");
+  const [supportCategory, setSupportCategory] = useState("PAYMENT");
+  const [supportBody, setSupportBody] = useState("");
+  const [reportTargetUserId, setReportTargetUserId] = useState("");
+  const [reportReason, setReportReason] = useState("");
+  const [communityMessage, setCommunityMessage] = useState("");
+  const [studioDraft, setStudioDraft] = useState<StudioDraftState>({
+    title: "네온 별자리 탐정단",
+    format: "웹툰",
+    genre: "판타지",
+    synopsis: "밤마다 별자리가 사라지는 도시에서 작가, 일러스트레이터, 성우가 함께 확장하는 미스터리 판타지 프로젝트입니다.",
+    episodeTitle: "1화. 별빛이 켜지는 골목",
+    accessType: "코인 열람",
+    priceCoins: 700,
+    publishMode: "예약 발행",
+    scheduledAt: "2026-05-15 20:00",
+    previewText: "무료 미리보기에서는 첫 장면의 분위기와 주인공의 목표가 선명하게 보이도록 구성합니다.",
+    uploadMemo: "원고, 콘티, 표지 이미지, 접근성 대본, 오디오 큐시트를 발행 전까지 연결합니다.",
+  });
+  const [studioEpisodeUploads, setStudioEpisodeUploads] = useState<Partial<Record<StudioUploadKind, UploadedAsset>>>({});
+  const [isStudioUploading, setIsStudioUploading] = useState(false);
+  const [studioUploadMessage, setStudioUploadMessage] = useState("");
+  const [studioFanPostDraft, setStudioFanPostDraft] = useState<StudioFanPostDraftState>({
+    title: "1화 러프 컷과 성우 코멘터리",
+    postType: "이미지팩",
+    accessType: "구독자 전용",
+    tierName: "Studio Fan",
+    priceCoins: 700,
+    summary: "본편 공개 전 러프 이미지, 캐릭터 표정 차이, 녹음 비하인드를 팬에게 먼저 공개합니다.",
+    releaseNote: "스포일러가 포함된 컷은 접어서 제공하고, 후원자 댓글에 다음 특전 투표를 연결합니다.",
+  });
+  const [studioAccessibilityAudit, setStudioAccessibilityAudit] = useState<StudioAccessibilityAuditState>({
+    transcriptSync: 94,
+    contrastMode: "고대비 통과",
+    screenReader: "검수 완료",
+    audioLevel: "권장 범위",
+    keyboardFlow: "전체 가능",
+    altTextStatus: "보강 필요",
+    qaMemo: "대본 하이라이트 싱크는 안정적입니다. 표지와 주요 컷의 대체 텍스트만 공개 전 보강하면 좋습니다.",
+  });
+  const [supportChatInput, setSupportChatInput] = useState("");
+  const [supportChatMessages, setSupportChatMessages] = useState([
+    { from: "bot", text: "안녕하세요. 크리에이터 유니버스 도움봇입니다. 결제, 정산, 접근성, 신고 중 어떤 도움이 필요하신가요?" },
+  ]);
+  const [adminDashboard, setAdminDashboard] = useState<AdminModerationDashboard | null>(null);
+  const [adminMessage, setAdminMessage] = useState("");
+  const [matchingActionMessage, setMatchingActionMessage] = useState("");
+  const [isCreatorProfileFormOpen, setIsCreatorProfileFormOpen] = useState(false);
+  const [isPublishingCreatorProfile, setIsPublishingCreatorProfile] = useState(false);
+  const [isDeletingCreatorProfile, setIsDeletingCreatorProfile] = useState(false);
+  const [matchProposalCreator, setMatchProposalCreator] = useState<Creator | null>(null);
+  const [matchProposalShare, setMatchProposalShare] = useState(20);
+  const [matchProposalMessage, setMatchProposalMessage] = useState("");
+  const [isMatchProposalSubmitting, setIsMatchProposalSubmitting] = useState(false);
+  const [matchInboxFilter, setMatchInboxFilter] = useState<"all" | "received" | "sent" | "pending" | "accepted">("all");
+  const [isMessengerOpen, setIsMessengerOpen] = useState(false);
+  const [isMessengerFullscreen, setIsMessengerFullscreen] = useState(false);
+  const [activeChatCreatorId, setActiveChatCreatorId] = useState<string | null>(null);
+  const [messengerInput, setMessengerInput] = useState("");
+  const [creatorChatThreads, setCreatorChatThreads] = useState<Record<string, CreatorChatMessage[]>>({});
+  const [matchRequests, setMatchRequests] = useState<MatchRequestRecord[]>([]);
+  const [theme, setTheme] = useState(() => localStorage.getItem("creator-universe-theme") || "light");
+  const [appMode, setAppMode] = useState<AppMode>(() => {
+    const storedMode = localStorage.getItem("creator-universe-app-mode");
+    return storedMode === "creator" ? "creator" : "reader";
+  });
+  const [premiumSubscription, setPremiumSubscription] = useState<PremiumSubscriptionState>(() => createInactivePremiumSubscription());
+  const [authMode, setAuthMode] = useState<AuthView | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const resumeCheckoutAfterLogin = useRef(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState(() => readStoredIds("creator-universe-read-notifications"));
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(() => readNotificationPreferences());
+  const [accessibilityPreferences, setAccessibilityPreferences] = useState<AccessibilityPreferences>(() => readAccessibilityPreferences());
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isSupportBotOpen, setIsSupportBotOpen] = useState(false);
+  const [isMobileQuickOpen, setIsMobileQuickOpen] = useState(false);
+  const [policyTab, setPolicyTab] = useState<PolicyTabId | null>(null);
+  const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
+  const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(null);
+  const [activeIntroSlide, setActiveIntroSlide] = useState(0);
+  const [activeFlowStep, setActiveFlowStep] = useState(0);
+  const [status, setStatus] = useState("백엔드 연결 중");
+  const [isBootLoading, setIsBootLoading] = useState(true);
+  const librarySectionRef = useRef<HTMLElement | null>(null);
+  const aiChatLogRef = useRef<HTMLDivElement | null>(null);
+  const aiRequestRef = useRef<AbortController | null>(null);
+
+  const accountRole = user?.role ?? "READER";
+  const isAdminAccount = accountRole === "ADMIN";
+  const isCreatorAccount = accountRole === "CREATOR" || accountRole === "ADMIN";
+  const isCreatorAppShell = Boolean(user && isCreatorAccount);
+  const needsLogin = protectedPages.has(route.page) && !user;
+  const needsCreator = creatorOnlyPages.has(route.page) && !isCreatorAccount;
+  const needsAdmin = adminOnlyPages.has(route.page) && !isAdminAccount;
+  const activePage = needsLogin || needsCreator || needsAdmin ? "home" : route.page;
+  function closeClassicLogin() {
+    resumeCheckoutAfterLogin.current = false;
+    setAuthMode(null);
+    if ((needsLogin || needsLibraryLogin) && !localStorage.getItem("creator-universe-token")) {
+      setActivePage(needsLibraryLogin ? "discover" : "home", "all", true);
+    }
+  }
+  function setActivePage(page: PageId, collection: LibraryViewId = "all", replace = false) {
+    const url = new URL(window.location.href);
+    if (page === "home") url.searchParams.delete("view");
+    else url.searchParams.set("view", page);
+    if (page === "discover" && collection !== "all") url.searchParams.set("collection", collection);
+    else url.searchParams.delete("collection");
+    url.hash = "";
+    if (url.href !== window.location.href) {
+      if (replace) window.history.replaceState(null, "", url);
+      else window.history.pushState(null, "", url);
+    }
+    setRoute({page, collection: page === "discover" ? collection : "all"});
+  }
+  useEffect(() => {
+    function restoreRoute() {
+      setRoute(readClassicRoute());
+      setAuthMode(null);
+      setIsPaymentOpen(false);
+      setIsMobileMenuOpen(false);
+      setIsMobileQuickOpen(false);
+      setIsAccountMenuOpen(false);
+      setIsNotificationOpen(false);
+      setIsAccountModalOpen(false);
+      setPolicyTab(null);
+      setSelectedWork(null);
+      setSelectedCreator(null);
+      setMatchProposalCreator(null);
+      setIsMessengerOpen(false);
+      setIsSupportBotOpen(false);
+      setIsAiHistoryOpen(false);
+    }
+    window.addEventListener("popstate", restoreRoute);
+    return () => window.removeEventListener("popstate", restoreRoute);
+  }, []);
+  useEffect(() => {
+    document.title = (navItems.find(item => item.id === route.page)?.label ?? "홈") + " | 크리에이터 유니버스 (개편 전)";
+  }, [route.page]);
+  useEffect(() => {
+    if ((needsLogin || needsLibraryLogin) && !token) setAuthMode("login");
+  }, [needsLogin, needsLibraryLogin, route.page, route.collection, token]);
+  const overlay = authMode ? "auth" : policyTab ? "policy" : isPaymentOpen ? "payment" :
+    matchProposalCreator ? "match-proposal" : selectedCreator ? "creator-detail" : selectedWork ? "work-detail" :
+    isAccountModalOpen ? "account" : isMobileQuickOpen ? "quick" : isMobileMenuOpen ? "menu" :
+    isNotificationOpen ? "notifications" : isAccountMenuOpen ? "account-menu" :
+    isMessengerOpen ? "messenger" : isSupportBotOpen ? "help" : isAiHistoryOpen ? "ai-history" : null;
+  useEffect(() => {
+    if (!overlay) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = document.querySelector<HTMLElement>(`.${overlay}-backdrop[role="dialog"]`);
+    const controls = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length > 0);
+    controls()[0]?.focus({preventScroll: true});
+    function keydown(event: KeyboardEvent) {
+      if (event.isComposing || event.keyCode === 229) return;
+      if (dialog && event.key === "Tab") {
+        const items = controls();
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      switch (overlay) {
+        case "auth": closeClassicLogin(); break;
+        case "policy": setPolicyTab(null); break;
+        case "payment": setIsPaymentOpen(false); break;
+        case "match-proposal": setMatchProposalCreator(null); break;
+        case "creator-detail": setSelectedCreator(null); break;
+        case "work-detail": setSelectedWork(null); break;
+        case "account": setIsAccountModalOpen(false); break;
+        case "quick": setIsMobileQuickOpen(false); break;
+        case "menu": setIsMobileMenuOpen(false); break;
+        case "notifications": setIsNotificationOpen(false); break;
+        case "account-menu": setIsAccountMenuOpen(false); break;
+        case "messenger": setIsMessengerOpen(false); break;
+        case "help": setIsSupportBotOpen(false); break;
+        case "ai-history": setIsAiHistoryOpen(false); break;
+      }
+    }
+    document.addEventListener("keydown", keydown);
+    return () => {
+      document.removeEventListener("keydown", keydown);
+      if (previous?.isConnected) previous.focus({preventScroll: true});
+    };
+  }, [overlay, needsLogin]);
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.filter((item) => {
+        if (item.id === "admin") {
+          return isAdminAccount;
+        }
+
+        if (!user) {
+          return ["home", "intro", "discover", "support"].includes(item.id);
+        }
+
+        if (isCreatorAccount) {
+          return true;
+        }
+
+        return !creatorOnlyPages.has(item.id);
+      }),
+    [isAdminAccount, isCreatorAccount, user],
+  );
+  const visibleOnboardingGuides = useMemo(
+    () =>
+      onboardingGuides.filter((guide) => {
+        if (!user) {
+          return appMode === "reader" ? guide.page === "discover" : creatorOnlyPages.has(guide.page);
+        }
+
+        if (isCreatorAccount) {
+          return appMode === "reader" ? guide.page === "discover" : creatorOnlyPages.has(guide.page);
+        }
+
+        return !creatorOnlyPages.has(guide.page);
+      }),
+    [appMode, isCreatorAccount, user],
+  );
+
+  const allPortfolioItems = useMemo(
+    () =>
+      creators.flatMap((creator) =>
+        getCreatorPortfolio(creator).map((item) => ({
+          ...item,
+          creator,
+        })),
+      ),
+    [creators],
+  );
+
+  const filteredCreators = useMemo(() => {
+    const normalizedSearch = matchingSearch.trim().toLowerCase();
+
+    return creators.filter((creator) => {
+      const portfolios = getCreatorPortfolio(creator);
+      const searchableText = [
+        creator.displayName,
+        creator.username,
+        roleLabels[creator.primaryRole],
+        creator.headline,
+        creator.bio,
+        creator.portfolioSummary,
+        ...creator.skills,
+        ...portfolios.flatMap((item) => [item.title, item.category, item.description, ...item.tags]),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesRole = role === "ALL" || creator.primaryRole === role;
+      const matchesGenre = matchingFilters.length === 0 || matchingFilters.every((filter) => searchableText.includes(filter.toLowerCase()));
+      const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+
+      return matchesRole && matchesGenre && matchesSearch;
+    });
+  }, [creators, matchingFilters, matchingSearch, role]);
+
+  const filteredPortfolioItems = useMemo(() => {
+    const normalizedSearch = matchingSearch.trim().toLowerCase();
+
+    return allPortfolioItems.filter((item) => {
+      const searchableText = [
+        item.title,
+        item.category,
+        item.description,
+        ...item.tags,
+        item.creator.displayName,
+        item.creator.username,
+        roleLabels[item.creator.primaryRole],
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesRole = role === "ALL" || item.creator.primaryRole === role;
+      const matchesGenre = matchingFilters.length === 0 || matchingFilters.every((filter) => searchableText.includes(filter.toLowerCase()));
+      const matchesSearch = !normalizedSearch || searchableText.includes(normalizedSearch);
+
+      return matchesRole && matchesGenre && matchesSearch;
+    });
+  }, [allPortfolioItems, matchingFilters, matchingSearch, role]);
+
+  const messengerCreators = useMemo(() => {
+    const creatorsWithThreads = creators.filter((creator) => creatorChatThreads[creator.userId]?.length);
+    const remainingCreators = creators.filter((creator) => !creatorChatThreads[creator.userId]?.length);
+    return [...creatorsWithThreads, ...remainingCreators].slice(0, 5);
+  }, [creatorChatThreads, creators]);
+
+  const activeChatCreator = useMemo(() => {
+    return creators.find((creator) => creator.userId === activeChatCreatorId) ?? messengerCreators[0] ?? null;
+  }, [activeChatCreatorId, creators, messengerCreators]);
+
+  const activeChatMessages = activeChatCreator ? creatorChatThreads[activeChatCreator.userId] ?? [] : [];
+  const pendingPurchaseWork = readerWorks.find((work) => work.id === pendingPurchaseWorkId) ?? readerWorks[0];
+  const currentFlowStep = serviceFlow[activeFlowStep] ?? serviceFlow[0];
+  const visibleAiMessages = isAiHistoryOpen ? aiMatchMessages : aiMatchMessages.slice(-6);
+  const hiddenAiMessageCount = Math.max(0, aiMatchMessages.length - visibleAiMessages.length);
+
+  const matchProposalInboxItems = useMemo(() => {
+    return matchRequests
+      .map((request) => ({
+        id: request.id,
+        proposal: request.proposal,
+        direction: request.direction,
+        partner: creators.find((creator) => creator.userId === request.partnerUserId) ?? null,
+        partnerName: request.partnerName,
+        partnerRole: request.partnerRole,
+        createdAt: request.createdAt,
+        time: formatChatTime(request.createdAt),
+        canAccept: request.direction === "received" && request.proposal.status === "PENDING",
+      }))
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+  }, [creators, matchRequests]);
+
+  const matchInboxCounts = useMemo(
+    () => ({
+      all: matchProposalInboxItems.length,
+      received: matchProposalInboxItems.filter((item) => item.direction === "received").length,
+      sent: matchProposalInboxItems.filter((item) => item.direction === "sent").length,
+      pending: matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length,
+      accepted: matchProposalInboxItems.filter((item) => item.proposal.status === "ACCEPTED").length,
+    }),
+    [matchProposalInboxItems],
+  );
+
+  const filteredMatchProposalInboxItems = useMemo(() => {
+    return matchProposalInboxItems.filter((item) => {
+      if (matchInboxFilter === "pending") {
+        return item.proposal.status === "PENDING";
+      }
+      if (matchInboxFilter === "accepted") {
+        return item.proposal.status === "ACCEPTED";
+      }
+      if (matchInboxFilter === "received" || matchInboxFilter === "sent") {
+        return item.direction === matchInboxFilter;
+      }
+      return true;
+    });
+  }, [matchInboxFilter, matchProposalInboxItems]);
+
+  const filteredReaderWorks = useMemo(() => {
+    const searchTokens = readerSearch
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return readerWorks.filter((work) => {
+      const searchableText = [work.title, work.format, work.genre, work.subGenre, work.tagline, ...work.tags].join(" ").toLowerCase();
+      const matchesFilters = readerFilters.length === 0 || readerFilters.every((filter) => searchableText.includes(filter.toLowerCase()));
+      const matchesSearch = searchTokens.length === 0 || searchTokens.every((token) => searchableText.includes(token));
+      const matchesLibrary =
+        readerLibraryView === "all" ||
+        (readerLibraryView === "recent" && recentWorkIds.includes(work.id)) ||
+        (readerLibraryView === "purchased" && purchasedWorkIds.includes(work.id)) ||
+        (readerLibraryView === "scrapped" && scrappedWorkIds.includes(work.id));
+
+      return matchesFilters && matchesSearch && matchesLibrary;
+    });
+  }, [purchasedWorkIds, readerFilters, readerLibraryView, readerSearch, recentWorkIds, scrappedWorkIds]);
+
+  const rankedReaderWorks = useMemo(
+    () => [...readerWorks].sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left)),
+    [],
+  );
+
+  const genreRankings = useMemo(
+    () =>
+      readerGenreFilters
+        .map((genre) => ({
+          genre,
+          works: readerWorks
+            .filter((work) => work.genre === genre || work.tags.includes(genre))
+            .sort((left, right) => getWorkRankScore(right) - getWorkRankScore(left))
+            .slice(0, 3),
+        }))
+        .filter((ranking) => ranking.works.length > 0),
+    [],
+  );
+
+  const purchasedWorks = useMemo(
+    () => readerWorks.filter((work) => purchasedWorkIds.includes(work.id)),
+    [purchasedWorkIds],
+  );
+
+  const scrappedWorks = useMemo(
+    () => readerWorks.filter((work) => scrappedWorkIds.includes(work.id)),
+    [scrappedWorkIds],
+  );
+
+  const recentWorks = useMemo(
+    () =>
+      recentWorkIds
+        .map((workId) => readerWorks.find((work) => work.id === workId))
+        .filter(Boolean) as ReaderWork[],
+    [recentWorkIds],
+  );
+
+  const followedNewEpisodeWorks = useMemo(() => {
+    const followedIds = Array.from(new Set([...scrappedWorkIds, ...recentWorkIds]));
+    return followedIds
+      .map((workId) => readerWorks.find((work) => work.id === workId))
+      .filter((work): work is ReaderWork => Boolean(work && newEpisodeAlertMap[work.id]))
+      .slice(0, 4);
+  }, [recentWorkIds, scrappedWorkIds]);
+
+  const discoverCreators = useMemo(() => {
+    const searchTokens = discoverCreatorSearch
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return creators.filter((creator) => {
+      const creatorWorks = readerWorks.filter((work) => work.participantUserIds.includes(creator.userId));
+      const searchableText = [
+        creator.displayName,
+        creator.username,
+        roleLabels[creator.primaryRole],
+        creator.headline,
+        creator.bio,
+        ...creator.skills,
+        ...creatorWorks.flatMap((work) => [work.title, work.format, work.genre, ...work.tags]),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesRole = discoverCreatorRole === "ALL" || creator.primaryRole === discoverCreatorRole;
+      const matchesSearch = searchTokens.length === 0 || searchTokens.every((token) => searchableText.includes(token));
+
+      return matchesRole && matchesSearch;
+    });
+  }, [creators, discoverCreatorRole, discoverCreatorSearch]);
+
+  const myCreatorProfile = useMemo(
+    () => creators.find((creator) => creator.userId === user?.id) ?? null,
+    [creators, user?.id],
+  );
+
+  const myStudioWorks = useMemo(() => {
+    if (!myCreatorProfile) {
+      return [];
+    }
+
+    return readerWorks.filter((work) => work.participantUserIds.includes(myCreatorProfile.userId));
+  }, [myCreatorProfile]);
+
+  const currentWalletDetail = useMemo<WalletDetail>(() => {
+    const source = walletDetail ?? walletFallback;
+    return {
+      ...source,
+      balance: wallet ?? source.balance,
+    };
+  }, [wallet, walletDetail]);
+
+  const filteredWalletTransactions = useMemo(() => {
+    return currentWalletDetail.transactions.filter((item) => walletFilter === "ALL" || item.type === walletFilter);
+  }, [currentWalletDetail.transactions, walletFilter]);
+
+  const notificationItems = useMemo<NotificationItem[]>(() => {
+    if (!token) {
+      return [];
+    }
+
+    const items: NotificationItem[] = [];
+    const pendingReceivedProposal = matchProposalInboxItems.find(
+      (item) => item.direction === "received" && item.proposal.status === "PENDING",
+    );
+    const acceptedProposal = matchProposalInboxItems.find((item) => item.proposal.status === "ACCEPTED");
+    const latestWalletTransaction = currentWalletDetail.transactions[0];
+    const latestPurchasedWork = purchasedWorks[0];
+    const latestScrappedWork = scrappedWorks[0];
+    const latestRecentWork = recentWorks[0];
+
+    if (isCreatorAccount && pendingReceivedProposal) {
+      const partnerName = pendingReceivedProposal.partner?.displayName ?? pendingReceivedProposal.proposal.requesterName ?? "창작자";
+      items.push({
+        id: `proposal-pending-${pendingReceivedProposal.proposal.id}`,
+        title: `${partnerName}님의 매칭 제안`,
+        body: `${pendingReceivedProposal.proposal.projectTitle} · 지분 ${pendingReceivedProposal.proposal.sharePercentage}% 조건을 확인해보세요.`,
+        time: pendingReceivedProposal.time,
+        page: "matching",
+        tone: "match",
+        actionLabel: "제안함 열기",
+      });
+    }
+
+    if (isCreatorAccount && acceptedProposal && notificationPreferences.settlement) {
+      items.push({
+        id: `proposal-accepted-${acceptedProposal.proposal.id}`,
+        title: "팀원 합류가 완료됐어요",
+        body: `${acceptedProposal.proposal.projectTitle} 제안이 수락되어 정산 팀원 목록에 반영됩니다.`,
+        time: acceptedProposal.time,
+        page: "settlement",
+        tone: "settlement",
+        actionLabel: "정산 보기",
+      });
+    }
+
+    if (notificationPreferences.newEpisode) {
+      followedNewEpisodeWorks.forEach((work) => {
+        const alert = newEpisodeAlertMap[work.id];
+        items.push({
+          id: `new-episode-${work.id}-${work.episodes + 1}`,
+          title: `${work.title} 새 회차가 공개됐어요`,
+          body: `${alert.title} · ${alert.episodeLabel}을 이어서 확인해보세요.`,
+          time: alert.publishedAt,
+          page: "discover",
+          tone: "content",
+          actionLabel: "새 회차 보기",
+          libraryView: recentWorkIds.includes(work.id) ? "recent" : "scrapped",
+        });
+      });
+    }
+
+    if (latestWalletTransaction) {
+      items.push({
+        id: `wallet-${latestWalletTransaction.id}`,
+        title: latestWalletTransaction.title,
+        body: `${getWalletTypeLabel(latestWalletTransaction.type)} ${formatCoins(Math.abs(latestWalletTransaction.amount))} · ${latestWalletTransaction.status}`,
+        time: formatDateTime(latestWalletTransaction.createdAt),
+        page: "wallet",
+        tone: "wallet",
+        actionLabel: "지갑 보기",
+      });
+    }
+
+    if (latestPurchasedWork) {
+      items.push({
+        id: `purchased-${latestPurchasedWork.id}`,
+        title: "결제한 작품을 이어볼 수 있어요",
+        body: `${latestPurchasedWork.title} 열람권이 보관함에 저장되어 있습니다.`,
+        time: "내 작품",
+        page: "discover",
+        tone: "content",
+        actionLabel: "보관함 이동",
+        libraryView: "purchased",
+      });
+    }
+
+    if (latestRecentWork && latestRecentWork.id !== latestPurchasedWork?.id) {
+      items.push({
+        id: `recent-${latestRecentWork.id}`,
+        title: "최근 본 작품을 이어볼까요?",
+        body: `${latestRecentWork.title} 상세를 마지막으로 확인했습니다.`,
+        time: "이어보기",
+        page: "discover",
+        tone: "content",
+        actionLabel: "최근 본 작품",
+        libraryView: "recent",
+      });
+    }
+
+    if (latestScrappedWork) {
+      items.push({
+        id: `scrapped-${latestScrappedWork.id}`,
+        title: "스크랩한 작품 업데이트 확인",
+        body: `${latestScrappedWork.title}처럼 저장한 작품을 한곳에서 다시 볼 수 있어요.`,
+        time: "스크랩",
+        page: "discover",
+        tone: "content",
+        actionLabel: "스크랩 보기",
+        libraryView: "scrapped",
+      });
+    }
+
+    if (premiumSubscription.isActive) {
+      items.push({
+        id: `premium-${premiumSubscription.nextBillingDate}`,
+        title: "프리미엄 체험이 활성화되어 있어요",
+        body: "프리미엄을 무료로 체험하고 있어요.",
+        time: "구독",
+        page: "home",
+        tone: "premium",
+        actionLabel: "구독 관리",
+        openAccount: true,
+      });
+    }
+
+    if (notificationPreferences.marketing) {
+      marketingAnnouncements.forEach((announcement) => {
+        items.push({
+          id: announcement.id,
+          title: announcement.title,
+          body: announcement.body,
+          time: "이벤트",
+          page: "home",
+          tone: "marketing",
+          actionLabel: announcement.actionLabel,
+          openAccount: announcement.id === "marketing-premium-preview",
+        });
+      });
+    }
+
+    if (isCreatorAccount && myCreatorProfile && !pendingReceivedProposal) {
+      items.push({
+        id: `studio-profile-${myCreatorProfile.id}`,
+        title: "창작자 프로필이 공개 중입니다",
+        body: "매칭 보드에서 내 프로필을 보고 팀원이 채팅이나 제안을 보낼 수 있어요.",
+        time: "스튜디오",
+        page: "studio",
+        tone: "studio",
+        actionLabel: "스튜디오 보기",
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        id: "welcome-notification",
+        title: "크리에이터 유니버스에 오신 걸 환영해요",
+        body: "작품 스크랩, 코인 충전, 매칭 제안이 생기면 이곳에서 바로 알려드릴게요.",
+        time: "처음 시작",
+        page: "discover",
+        tone: "content",
+        actionLabel: "작품 둘러보기",
+      });
+    }
+
+    return items.slice(0, 6);
+  }, [
+    currentWalletDetail.transactions,
+    followedNewEpisodeWorks,
+    isCreatorAccount,
+    matchProposalInboxItems,
+    myCreatorProfile,
+    notificationPreferences.marketing,
+    notificationPreferences.newEpisode,
+    notificationPreferences.settlement,
+    premiumSubscription.isActive,
+    premiumSubscription.nextBillingDate,
+    purchasedWorks,
+    recentWorkIds,
+    recentWorks,
+    scrappedWorks,
+    token,
+  ]);
+
+  const unreadNotificationCount = notificationItems.filter((item) => !readNotificationIds.includes(item.id)).length;
+
+  const settlementPreview = useMemo(() => {
+    const grossAmount = settlement?.grossAmount ?? 100000;
+    const platformFeeAmount = Math.floor(grossAmount * (settlementConfig.platformFeeRate / 100));
+    const distributableAmount = grossAmount - platformFeeAmount;
+    const shareTotal = settlementConfig.members.reduce((total, member) => total + Number(member.sharePercentage || 0), 0);
+    const members = settlementConfig.members.map((member) => ({
+      ...member,
+      expectedSettlement: Math.floor(distributableAmount * (Number(member.sharePercentage || 0) / 100)),
+    }));
+    const mySettlement = members.find((member) => member.userId === user?.id);
+
+    return {
+      grossAmount,
+      platformFeeAmount,
+      distributableAmount,
+      shareTotal,
+      members,
+      mySettlementAmount: mySettlement?.expectedSettlement ?? 0,
+    };
+  }, [settlement?.grossAmount, settlementConfig, user?.id]);
+
+  const studioProfileCompletion = useMemo(() => {
+    const items = [
+      { label: "매칭 프로필 공개", done: Boolean(myCreatorProfile) },
+      { label: "소개 문구 작성", done: Boolean(myCreatorProfile?.headline && myCreatorProfile.bio) },
+      { label: "스킬 태그 3개 이상", done: Boolean(myCreatorProfile?.skills && myCreatorProfile.skills.length >= 3) },
+      { label: "포트폴리오 샘플 등록", done: Boolean(myCreatorProfile && getCreatorPortfolio(myCreatorProfile).length > 0) },
+      { label: "대표 작품 연결", done: myStudioWorks.length > 0 },
+    ];
+    const doneCount = items.filter((item) => item.done).length;
+
+    return {
+      items,
+      percent: Math.round((doneCount / items.length) * 100),
+      doneCount,
+    };
+  }, [myCreatorProfile, myStudioWorks.length]);
+
+  const studioPublishChecklist = useMemo(() => {
+    const items = [
+      { label: "작품 제목", done: studioDraft.title.trim().length >= 2 },
+      { label: "작품 소개", done: studioDraft.synopsis.trim().length >= 20 },
+      { label: "무료 미리보기", done: studioDraft.previewText.trim().length >= 20 },
+      { label: "가격/공개 방식", done: studioDraft.accessType === "무료 공개" || Number(studioDraft.priceCoins) > 0 },
+      { label: "정산 지분 100%", done: settlementPreview.shareTotal === 100 },
+      { label: "접근성 대본 메모", done: studioDraft.uploadMemo.includes("대본") || studioDraft.uploadMemo.trim().length >= 12 },
+    ];
+
+    return {
+      items,
+      doneCount: items.filter((item) => item.done).length,
+      percent: Math.round((items.filter((item) => item.done).length / items.length) * 100),
+    };
+  }, [settlementPreview.shareTotal, studioDraft]);
+
+  const studioFanPostChecklist = useMemo(() => {
+    const items = [
+      { label: "포스트 제목", done: studioFanPostDraft.title.trim().length >= 2 },
+      { label: "유료/구독 공개 설정", done: Boolean(studioFanPostDraft.accessType) },
+      { label: "구독 티어 연결", done: studioFanPostDraft.accessType !== "구독자 전용" || Boolean(studioFanPostDraft.tierName) },
+      { label: "코인 가격", done: studioFanPostDraft.accessType === "무료 공개" || Number(studioFanPostDraft.priceCoins) > 0 },
+      { label: "팬에게 보일 설명", done: studioFanPostDraft.summary.trim().length >= 20 },
+    ];
+
+    return {
+      items,
+      doneCount: items.filter((item) => item.done).length,
+      percent: Math.round((items.filter((item) => item.done).length / items.length) * 100),
+    };
+  }, [studioFanPostDraft]);
+
+  const studioGrowthInsights = useMemo(() => {
+    const works = myStudioWorks.length > 0 ? myStudioWorks : readerWorks.slice(0, 3);
+    const totalAudience = works.reduce((sum, work) => sum + parseAudienceCount(work.listeners), 0);
+    const averageRating = works.reduce((sum, work) => sum + work.rating, 0) / Math.max(works.length, 1);
+    const estimatedCoinSales = works.reduce((sum, work) => sum + work.priceCoins * Math.max(work.episodes, 1), 0);
+    const fanPostReadiness = studioFanPostChecklist.percent;
+    const publishReadiness = studioPublishChecklist.percent;
+
+    return {
+      metrics: [
+        { label: "누적 감상", value: `${Math.round(totalAudience / 1000).toLocaleString("ko-KR")}K`, detail: "참여 작품 기준", icon: <Users size={20} /> },
+        { label: "평균 평점", value: averageRating.toFixed(1), detail: "독자 만족도", icon: <Star size={20} /> },
+        { label: "예상 판매 풀", value: formatCoins(estimatedCoinSales), detail: "회차 가격 합산", icon: <Coins size={20} /> },
+        { label: "팬 수익화 준비", value: `${fanPostReadiness}%`, detail: "유료 포스트 체크", icon: <Heart size={20} /> },
+      ],
+      funnel: [
+        { label: "작품 발견", rate: 82, caption: "추천/랭킹 진입" },
+        { label: "상세 진입", rate: 64, caption: "참여 창작자 클릭" },
+        { label: "코인 결제", rate: 41, caption: "열람권 구매" },
+        { label: "팬 구독", rate: premiumSubscription.isActive ? 36 : 24, caption: "멤버십 전환" },
+      ],
+      actions: [
+        publishReadiness < 100 ? "발행 체크리스트를 완성해 예약 공개 상태로 바꾸기" : "이번 주 대표작을 홈 추천 후보로 올리기",
+        fanPostReadiness < 100 ? "구독자 전용 포스트 설명과 가격을 마무리하기" : "팬 포스트를 작품 상세 하단에 연결하기",
+        myCreatorProfile ? "포트폴리오 상단에 가장 반응 좋은 작품을 고정하기" : "매칭 프로필을 공개해 작품 크레딧과 연결하기",
+      ],
+    };
+  }, [myCreatorProfile, myStudioWorks, premiumSubscription.isActive, studioFanPostChecklist.percent, studioPublishChecklist.percent]);
+
+  const studioAccessibilityChecklist = useMemo(() => {
+    const items = [
+      { label: "대본-오디오 싱크", done: studioAccessibilityAudit.transcriptSync >= 90, detail: `${studioAccessibilityAudit.transcriptSync}% 일치` },
+      { label: "고대비 표시", done: studioAccessibilityAudit.contrastMode.includes("통과"), detail: studioAccessibilityAudit.contrastMode },
+      { label: "스크린리더 구조", done: studioAccessibilityAudit.screenReader.includes("완료"), detail: studioAccessibilityAudit.screenReader },
+      { label: "오디오 음량", done: studioAccessibilityAudit.audioLevel.includes("권장"), detail: studioAccessibilityAudit.audioLevel },
+      { label: "키보드/제스처 이동", done: studioAccessibilityAudit.keyboardFlow.includes("가능"), detail: studioAccessibilityAudit.keyboardFlow },
+      { label: "이미지 대체 텍스트", done: studioAccessibilityAudit.altTextStatus.includes("완료"), detail: studioAccessibilityAudit.altTextStatus },
+    ];
+    const doneCount = items.filter((item) => item.done).length;
+
+    return {
+      items,
+      doneCount,
+      percent: Math.round((doneCount / items.length) * 100),
+      status: doneCount === items.length ? "발행 가능" : "보강 필요",
+    };
+  }, [studioAccessibilityAudit]);
+
+  const settlementDonutStyle = useMemo(() => {
+    const colors = ["var(--brand)", "var(--cyan)", "var(--violet)", "var(--green)", "#ffb84d"];
+    let cursor = 0;
+    const segments = settlementConfig.members.map((member, index) => {
+      const start = cursor;
+      cursor += Number(member.sharePercentage || 0);
+      return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+    });
+
+    return {
+      background: `radial-gradient(circle, var(--surface) 0 45%, transparent 46%), conic-gradient(${segments.join(", ")})`,
+    };
+  }, [settlementConfig.members]);
+
+  async function loadData(currentToken = token) {
+    const query = role === "ALL" ? "" : `?role=${role}`;
+    const [creatorResult, projectResult, settlementResult, reviewsResult] = await Promise.allSettled([
+      request<Creator[]>(`/api/creators${query}`, currentToken),
+      request<Project>(`/api/projects/${PROJECT_ID}`, currentToken),
+      currentToken
+        ? request<SettlementDashboard>(`/api/projects/${PROJECT_ID}/settlement-dashboard`, currentToken)
+        : Promise.resolve(null),
+      request<ContentReview[]>("/api/content/reviews", currentToken),
+    ]);
+
+    if (creatorResult.status === "rejected" || projectResult.status === "rejected") {
+      throw new Error(getRejectedMessage(creatorResult) || getRejectedMessage(projectResult) || "초기 데이터를 불러오지 못했습니다.");
+    }
+
+    const normalizedCreators = creatorResult.value.map(normalizeCreator);
+    setCreators(normalizedCreators);
+    setSelectedCreator((current) =>
+      current ? normalizedCreators.find((creator) => creator.userId === current.userId) ?? current : current,
+    );
+    setProject(projectResult.value);
+    setSettlement(settlementResult.status === "fulfilled" ? settlementResult.value : null);
+    setContentReviews(reviewsResult.status === "fulfilled" ? reviewsResult.value.map(normalizeContentReview) : []);
+
+    if (currentToken) {
+      const [walletResult, walletDetailResult, chatThreadsResult, followsResult, matchRequestsResult] = await Promise.allSettled([
+        request<{ balance: string | number }>("/api/users/me/wallet", currentToken),
+        request<WalletDetail>("/api/users/me/wallet/detail", currentToken),
+        request<ChatThread[]>("/api/chats/threads", currentToken),
+        request<{ creatorUserIds: string[] }>("/api/creators/me/follows", currentToken),
+        request<MatchRequestRecord[]>("/api/matching/requests", currentToken),
+      ]);
+
+      const walletBalance = walletResult.status === "fulfilled" ? Number(walletResult.value.balance) : wallet;
+      if (walletResult.status === "fulfilled") {
+        setWallet(walletBalance);
+      }
+      if (walletDetailResult.status === "fulfilled") {
+        setWalletDetail(walletDetailResult.value);
+      } else if (walletResult.status === "fulfilled") {
+        setWalletDetail({
+          ...walletFallback,
+          balance: walletBalance ?? 0,
+        });
+      }
+      setCreatorChatThreads(chatThreadsResult.status === "fulfilled" ? mapChatThreads(chatThreadsResult.value) : {});
+      if (followsResult.status === "fulfilled") {
+        setFollowedCreatorIds(followsResult.value.creatorUserIds);
+      }
+      setMatchRequests(matchRequestsResult.status === "fulfilled" ? matchRequestsResult.value : []);
+    } else {
+      setWallet(null);
+      setWalletDetail(null);
+      setCreatorChatThreads({});
+      setMatchRequests([]);
+    }
+
+    setStatus("");
+  }
+
+  async function refreshCreatorChats(currentToken = token) {
+    if (!currentToken) {
+      setCreatorChatThreads({});
+      setMatchRequests([]);
+      return;
+    }
+
+    const [chatThreadsResult, matchRequestsResult] = await Promise.allSettled([
+      request<ChatThread[]>("/api/chats/threads", currentToken),
+      request<MatchRequestRecord[]>("/api/matching/requests", currentToken),
+    ]);
+    setCreatorChatThreads(chatThreadsResult.status === "fulfilled" ? mapChatThreads(chatThreadsResult.value) : {});
+    setMatchRequests(matchRequestsResult.status === "fulfilled" ? matchRequestsResult.value : []);
+  }
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    localStorage.setItem("creator-universe-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    document.body.dataset.highContrast = accessibilityPreferences.highContrast ? "true" : "false";
+    document.body.dataset.largeText = accessibilityPreferences.largeText ? "true" : "false";
+    document.body.dataset.reducedMotion = accessibilityPreferences.reducedMotion ? "true" : "false";
+    localStorage.setItem("creator-universe-accessibility-preferences", JSON.stringify(accessibilityPreferences));
+  }, [accessibilityPreferences]);
+
+  useEffect(() => {
+    localStorage.setItem("creator-universe-app-mode", appMode);
+  }, [appMode]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setAppMode(isCreatorAccount ? "creator" : "reader");
+  }, [isCreatorAccount, user]);
+
+  useEffect(() => {
+    if (user && needsCreator) {
+      setActivePage("home", "all", true);
+      setCommunityMessage("독자 계정에서는 작품과 지갑 중심으로 이용할 수 있어요. 창작자 기능은 창작자 계정에서 열립니다.");
+    }
+  }, [needsCreator, user]);
+
+  useEffect(() => {
+    if (user && needsAdmin) {
+      setActivePage("home", "all", true);
+      setCommunityMessage("운영 콘솔은 관리자 계정에서만 열 수 있어요.");
+    }
+  }, [needsAdmin, user]);
+
+  useEffect(() => {
+    if (activePage !== "admin" || !token || !isAdminAccount) {
+      return;
+    }
+
+    void loadAdminDashboard(token).catch((error) => setAdminMessage(error instanceof Error ? error.message : "운영 콘솔을 불러오지 못했습니다."));
+  }, [activePage, isAdminAccount, token]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isAndroidShell =
+      /CreatorUniverseAndroid/i.test(navigator.userAgent) ||
+      searchParams.get("app") === "android" ||
+      searchParams.get("shell") === "android";
+
+    if (!isAndroidShell) {
+      return;
+    }
+
+    document.documentElement.classList.add("cu-android-webview");
+    document.body.classList.add("cu-android-app");
+    document.body.dataset.appShell = "android";
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsBootLoading(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const chatLog = aiChatLogRef.current;
+    if (!chatLog) {
+      return;
+    }
+
+    chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: accessibilityPreferences.reducedMotion ? "auto" : "smooth" });
+  }, [aiMatchMessages, isAiMatching, accessibilityPreferences.reducedMotion]);
+
+  useEffect(() => {
+    if (aiMatchMessages.length === 0) {
+      localStorage.removeItem(AI_MATCH_MESSAGES_STORAGE_KEY);
+      return;
+    }
+
+    localStorage.setItem(AI_MATCH_MESSAGES_STORAGE_KEY, JSON.stringify(aiMatchMessages.slice(-30)));
+  }, [aiMatchMessages]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPurchasedWorkIds([]);
+    if (token && user?.id) request<{workIds: string[]}>("/api/settlements/me/library", token, {signal: controller.signal})
+      .then(data => { if (!controller.signal.aborted) setPurchasedWorkIds(data.workIds); }).catch(() => {});
+    return () => controller.abort();
+  }, [token, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || libraryStorageOwner !== user.id) {
+      return;
+    }
+    localStorage.setItem(getUserLibraryStorageKey(user.id, "scrapped-works"), JSON.stringify(scrappedWorkIds));
+  }, [libraryStorageOwner, scrappedWorkIds, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || libraryStorageOwner !== user.id) {
+      return;
+    }
+    localStorage.setItem(getUserLibraryStorageKey(user.id, "followed-creators"), JSON.stringify(followedCreatorIds));
+  }, [followedCreatorIds, libraryStorageOwner, user?.id]);
+
+  useEffect(() => {
+    const owner = user?.id ?? "anonymous";
+    if (libraryStorageOwner !== owner) {
+      return;
+    }
+    const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "recent-works") : "creator-universe-recent-works";
+    localStorage.setItem(storageKey, JSON.stringify(recentWorkIds));
+  }, [libraryStorageOwner, recentWorkIds, user?.id]);
+
+  useEffect(() => {
+    const owner = user?.id ?? "anonymous";
+    if (libraryStorageOwner !== owner) {
+      return;
+    }
+    const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "work-progress") : "creator-universe-work-progress";
+    localStorage.setItem(storageKey, JSON.stringify(workProgress));
+  }, [libraryStorageOwner, user?.id, workProgress]);
+
+  useEffect(() => {
+    const owner = user?.id ?? "anonymous";
+    if (libraryStorageOwner !== owner) {
+      return;
+    }
+    const storageKey = user?.id ? getUserLibraryStorageKey(user.id, "read-notifications") : "creator-universe-read-notifications";
+    localStorage.setItem(storageKey, JSON.stringify(readNotificationIds));
+  }, [libraryStorageOwner, readNotificationIds, user?.id]);
+
+  useEffect(() => {
+    localStorage.setItem("creator-universe-notification-preferences", JSON.stringify(notificationPreferences));
+  }, [notificationPreferences]);
+
+  useEffect(() => {
+    if (!selectedWork) {
+      return;
+    }
+
+    setRecentWorkIds((current) => [selectedWork.id, ...current.filter((workId) => workId !== selectedWork.id)].slice(0, 12));
+  }, [selectedWork]);
+
+  useEffect(() => {
+    if (user?.id) {
+      setPremiumSubscription(readUserPremiumSubscription(user.id));
+
+      setScrappedWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "scrapped-works")));
+      setFollowedCreatorIds(readStoredIds(getUserLibraryStorageKey(user.id, "followed-creators")));
+      setRecentWorkIds(readStoredIds(getUserLibraryStorageKey(user.id, "recent-works")));
+      setWorkProgress(readWorkProgress(getUserLibraryStorageKey(user.id, "work-progress")));
+      setReadNotificationIds(readStoredIds(getUserLibraryStorageKey(user.id, "read-notifications")));
+      setLibraryStorageOwner(user.id);
+    } else {
+      setPremiumSubscription(createInactivePremiumSubscription());
+      setPurchasedWorkIds([]);
+      setScrappedWorkIds([]);
+      setFollowedCreatorIds([]);
+      setRecentWorkIds(readStoredIds("creator-universe-recent-works"));
+      setWorkProgress(readWorkProgress("creator-universe-work-progress"));
+      setReadNotificationIds(readStoredIds("creator-universe-read-notifications"));
+      setLibraryStorageOwner("anonymous");
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (settlement?.members.length) {
+      setSettlementConfig((current) => ({
+        ...current,
+        platformFeeRate: Math.round(settlement.appliedFeeRate * 100),
+        members: settlement.members.map((member, index) => normalizeSettlementMember({
+          userId: member.userId,
+          displayName: member.displayName,
+          username: member.username,
+          memberRole: member.memberRole,
+          sharePercentage: member.sharePercentage,
+        }, index)),
+      }));
+    }
+  }, [settlement?.appliedFeeRate, settlement?.members]);
+
+  useEffect(() => {
+    if ((activePage !== "home" && activePage !== "intro") || accessibilityPreferences.reducedMotion) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setActiveIntroSlide((index) => (index + 1) % introSlides.length);
+    }, 5200);
+
+    return () => window.clearInterval(timer);
+  }, [activePage, accessibilityPreferences.reducedMotion]);
+
+  useEffect(() => {
+    if (activePage !== "home" && activePage !== "intro") {
+      return;
+    }
+
+    const revealTargets = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    if (!("IntersectionObserver" in window)) {
+      revealTargets.forEach(target => target.classList.add("revealed"));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("revealed");
+            observer.unobserve(entry.target);
+          }
+        }
+      },
+      { threshold: 0, rootMargin: "0px 0px -8% 0px" },
+    );
+
+    for (const target of revealTargets) {
+      observer.observe(target);
+    }
+
+    return () => observer.disconnect();
+  }, [activePage]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (!token) {
+      setUser(null);
+      void loadData(null).catch((error) => {
+        setStatus(isApiConnectionError(error) ? "데모 모드로 표시 중" : getFriendlyError(error));
+      });
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    async function verifySessionAndLoadData() {
+      try {
+        const me = user ?? await request<User | null>("/api/auth/me", token);
+
+        if (!me) {
+          throw new Error("로그인이 만료되었습니다. 다시 로그인해 주세요.");
+        }
+
+        if (!isCurrent) {
+          return;
+        }
+
+        setUser(me);
+        await loadData(token).catch((error) => {
+          if (isCurrent) {
+            setStatus(isApiConnectionError(error) ? "일부 데이터 동기화 대기 중" : getFriendlyError(error));
+          }
+        });
+      } catch (error) {
+        if (!isCurrent) {
+          return;
+        }
+        if (isApiConnectionError(error)) {
+          setStatus("서버 연결 대기 중");
+          return;
+        }
+        setStatus(getFriendlyError(error));
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem("creator-universe-token");
+      }
+    }
+
+    void verifySessionAndLoadData();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [token, role]);
+
+  function openPayment() {
+    setPaymentMode("charge");
+    setIsPaymentOpen(true);
+  }
+
+  function openWorkPayment(workId: string) {
+    if (salePrices[workId] === undefined) return;
+    setPendingPurchaseWorkId(workId);
+    setPaymentMode("content");
+    setIsPaymentOpen(true);
+  }
+
+  function openWorkEpisode(work: ReaderWork, episodeNumber: number) {
+    const episodes = getWorkEpisodes(work);
+    const selectedEpisode = episodes.find((episode) => episode.episodeNumber === episodeNumber) ?? episodes[0];
+    const unlocked = selectedEpisode.isFree || purchasedWorkIds.includes(work.id);
+    if (!unlocked) {
+      openWorkPayment(work.id);
+      return;
+    }
+
+    const basePercent = Math.round((selectedEpisode.episodeNumber / Math.max(episodes.length, 1)) * 100);
+    const nextPercent = selectedEpisode.episodeNumber >= episodes.length ? 100 : Math.min(97, Math.max(basePercent, 18));
+    setWorkProgress((current) => ({
+      ...current,
+      [work.id]: {
+        episodeNumber: selectedEpisode.episodeNumber,
+        percent: nextPercent,
+        updatedAt: new Date().toISOString(),
+      },
+    }));
+    setRecentWorkIds((current) => [work.id, ...current.filter((workId) => workId !== work.id)].slice(0, 12));
+    setCommunityMessage(`${work.title} ${selectedEpisode.episodeNumber}화를 이어보기로 저장했습니다.`);
+  }
+
+  async function handlePaymentConfirm(coinAmount: number) {
+    if (!token || !user) throw new Error("로그인 후 다시 결제해 주세요.");
+    const receipt = await request<{ workId: string }>("/api/settlements/content-purchase", token, {
+      method: "POST", body: JSON.stringify({ workId: pendingPurchaseWorkId, coinAmount }),
+    });
+    setPurchasedWorkIds(current => current.includes(receipt.workId) ? current : [receipt.workId, ...current]);
+    void loadData(token).catch(() => {});
+  }
+
+  function toggleScrap(workId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    setScrappedWorkIds((current) =>
+      current.includes(workId) ? current.filter((id) => id !== workId) : [workId, ...current],
+    );
+  }
+
+  async function toggleCreatorFollow(creatorUserId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const wasFollowing = followedCreatorIds.includes(creatorUserId);
+    setFollowedCreatorIds((current) =>
+      wasFollowing ? current.filter((id) => id !== creatorUserId) : [creatorUserId, ...current],
+    );
+
+    try {
+      await request(`/api/creators/${creatorUserId}/follow`, token, {
+        method: wasFollowing ? "DELETE" : "POST",
+      });
+      await loadData(token);
+    } catch (error) {
+      setFollowedCreatorIds((current) =>
+        wasFollowing
+          ? current.includes(creatorUserId)
+            ? current
+            : [creatorUserId, ...current]
+          : current.filter((id) => id !== creatorUserId),
+      );
+      setCommunityMessage(error instanceof Error ? error.message : "팔로우 상태를 저장하지 못했습니다.");
+    }
+  }
+
+  function openReaderLibrary(view: LibraryViewId) {
+    setReaderSearch("");
+    setReaderFilters([]);
+    navigate("discover", view);
+    window.setTimeout(() => {
+      librarySectionRef.current?.scrollIntoView({ behavior: accessibilityPreferences.reducedMotion ? "auto" : "smooth", block: "start" });
+    }, 120);
+  }
+
+  function navigate(page: PageId, collection: LibraryViewId = "all") {
+    if (protectedPages.has(page) && (!token || !user)) {
+      setActivePage(page, collection);
+      if (!token) setAuthMode("login");
+      setIsMobileMenuOpen(false);
+      setIsAccountMenuOpen(false);
+      return;
+    }
+
+    if (creatorOnlyPages.has(page) && !isCreatorAccount) {
+      setCommunityMessage("스튜디오, 매칭, 정산은 창작자 계정으로 가입하거나 로그인해야 이용할 수 있어요.");
+      setActivePage("home");
+      setIsMobileMenuOpen(false);
+      setIsAccountMenuOpen(false);
+      setIsMobileQuickOpen(false);
+      return;
+    }
+
+    if (adminOnlyPages.has(page) && !isAdminAccount) {
+      setCommunityMessage("운영 콘솔은 관리자 계정에서만 열 수 있어요.");
+      setActivePage("home");
+      setIsMobileMenuOpen(false);
+      setIsAccountMenuOpen(false);
+      setIsMobileQuickOpen(false);
+      return;
+    }
+
+    setActivePage(page, collection);
+    setIsMobileMenuOpen(false);
+    setIsMobileQuickOpen(false);
+    setIsAccountModalOpen(false);
+    window.scrollTo({ top: 0, behavior: accessibilityPreferences.reducedMotion ? "auto" : "smooth" });
+  }
+
+  function openMyAccount() {
+    setIsMobileQuickOpen(false);
+    setIsMobileMenuOpen(false);
+    setIsAccountMenuOpen(false);
+    setIsNotificationOpen(false);
+    setIsSupportBotOpen(false);
+    setIsMessengerOpen(false);
+
+    if (!token || !user) {
+      // A stale token can exist in WebView storage even after the server session expired.
+      setToken(null);
+      localStorage.removeItem("creator-universe-token");
+      setAuthMode("login");
+      return;
+    }
+
+    setIsAccountModalOpen(true);
+  }
+
+  function openNotificationItem(item: NotificationItem) {
+    setReadNotificationIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+    setIsNotificationOpen(false);
+    setIsAccountMenuOpen(false);
+
+    if (item.openAccount) {
+      setIsAccountModalOpen(true);
+      return;
+    }
+
+    if (item.libraryView) {
+      openReaderLibrary(item.libraryView);
+      return;
+    }
+
+    navigate(item.page);
+  }
+
+  function markAllNotificationsRead() {
+    setReadNotificationIds((current) => {
+      const nextIds = notificationItems.map((item) => item.id);
+      return Array.from(new Set([...current, ...nextIds]));
+    });
+  }
+
+  function toggleNotificationPreference(key: keyof NotificationPreferences) {
+    setNotificationPreferences((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
+
+  function toggleAccessibilityPreference(key: AccessibilityPreferenceKey) {
+    setAccessibilityPreferences((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  }
+
+  function toggleReaderFilter(filter: string) {
+    if (filter === "전체") {
+      setReaderFilters([]);
+      return;
+    }
+
+    setReaderFilters((current) =>
+      current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter],
+    );
+  }
+
+  function toggleMatchingFilter(filter: string) {
+    if (filter === "전체") {
+      setMatchingFilters([]);
+      setSelectedGenre("전체");
+      return;
+    }
+
+    setMatchingFilters((current) =>
+      current.includes(filter) ? current.filter((item) => item !== filter) : [...current, filter],
+    );
+    setSelectedGenre(filter);
+  }
+
+  function toggleAiPreferredRole(roleId: string) {
+    setAiPreferredRoles((current) =>
+      current.includes(roleId) ? current.filter((item) => item !== roleId) : [...current, roleId],
+    );
+  }
+
+  function resetAiMatchingConversation() {
+    aiRequestRef.current?.abort();
+    aiRequestRef.current = null;
+    setIsAiMatching(false);
+    setAiMatchPrompt("");
+    setAiMatchMessages([]);
+    setIsAiHistoryOpen(false);
+    setAiMatchResponse(null);
+    setAiMatchResults([]);
+    setAiMatchMessage("");
+  }
+
+  async function runAiMatchingRecommendation(promptOverride?: string) {
+    if (aiRequestRef.current) return;
+    const prompt = (promptOverride ?? aiMatchPrompt).trim();
+    if (prompt.length < 2) {
+      setAiMatchMessage("AI 매칭 매니저에게 물어볼 내용을 짧게라도 적어주세요.");
+      return;
+    }
+    if (prompt.length > 1200) {
+      setAiMatchMessage("작품 설명은 1,200자 이내로 적어주세요.");
+      return;
+    }
+
+    const nextMessages: AiChatMessage[] = [...aiMatchMessages, { role: "user", content: prompt }];
+    const requestedLimit = detectAiRequestedLimit(prompt) ?? 3;
+    const controller = new AbortController();
+    aiRequestRef.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 25000);
+
+    setIsAiMatching(true);
+    setAiMatchMessage("");
+    setAiMatchPrompt("");
+    setAiMatchMessages(nextMessages);
+
+    try {
+      const response = await request<AiMatchingResponse>("/api/ai/matching-chat", token, {
+        method: "POST",
+        signal: controller.signal,
+        body: JSON.stringify({
+          projectDescription: prompt,
+          preferredRoles: aiPreferredRoles,
+          genres: matchingFilters,
+          messages: nextMessages.slice(-8).map(message => ({ ...message, content: message.content.slice(0, 2000) })),
+          limit: requestedLimit,
+        }),
+      });
+      if (aiRequestRef.current !== controller) return;
+
+      setAiMatchResponse(response);
+      setAiMatchResults(response.recommendations);
+      setAiMatchMessages((current) => [
+        ...current,
+        { role: "assistant", content: response.assistantMessage },
+      ]);
+      setAiMatchMessage(
+        response.recommendations.length > 0 ? "" : "아직 추천할 수 있는 매칭 프로필이 부족해요. 프로필 등록을 먼저 늘려보면 좋아요.",
+      );
+    } catch (error) {
+      if (aiRequestRef.current !== controller) return;
+      const fallbackResponse = buildLocalAiMatchingResponse(creators, prompt, aiPreferredRoles, matchingFilters, nextMessages);
+      setAiMatchResponse(fallbackResponse);
+      setAiMatchResults(fallbackResponse.recommendations);
+      setAiMatchMessages((current) => [
+        ...current,
+        { role: "assistant", content: fallbackResponse.assistantMessage },
+      ]);
+      setAiMatchMessage(
+        fallbackResponse.recommendations.length > 0
+          ? "연결을 기다리는 대신, 현재 공개 프로필에서 같은 기준으로 추천했어요."
+          : `추천 실패: ${getFriendlyError(error)}`,
+      );
+    } finally {
+      window.clearTimeout(timeout);
+      if (aiRequestRef.current === controller) {
+        aiRequestRef.current = null;
+        setIsAiMatching(false);
+      }
+    }
+  }
+
+  async function refreshAfterCommunityAction(message: string) {
+    setCommunityMessage(message);
+    await loadData(token);
+  }
+
+  async function submitReview(targetWorkId = reviewWorkId) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    const review = await request<ContentReview>("/api/content/reviews", token, {
+      method: "POST",
+      body: JSON.stringify({ workId: targetWorkId, rating: reviewRating, body: reviewBody }),
+    });
+    setContentReviews((current) => [normalizeContentReview(review), ...current]);
+    setReviewBody("");
+    setCommunityMessage("리뷰가 등록되었습니다.");
+  }
+
+  async function submitSupportTicket() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    await request("/api/support/tickets", token, {
+      method: "POST",
+      body: JSON.stringify({ category: supportCategory, body: supportBody }),
+    });
+    setSupportBody("");
+    setCommunityMessage("고객센터 문의가 접수되었습니다.");
+  }
+
+  async function submitUserReport() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    await request("/api/reports", token, {
+      method: "POST",
+      body: JSON.stringify({ targetUserId: reportTargetUserId, reason: reportReason, context: "고객센터 신고 폼" }),
+    });
+    setReportReason("");
+    setCommunityMessage("사용자 신고가 접수되었습니다.");
+  }
+
+  async function loadAdminDashboard(currentToken = token) {
+    if (!currentToken) {
+      setAdminDashboard(null);
+      return;
+    }
+
+    const dashboard = await request<AdminModerationDashboard>("/api/admin/moderation", currentToken);
+    setAdminDashboard(dashboard);
+  }
+
+  async function updateAdminItemStatus(kind: "ticket" | "report", id: string, status: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const path = kind === "ticket" ? `/api/admin/support/tickets/${id}/status` : `/api/admin/reports/${id}/status`;
+    await request(path, token, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    setAdminMessage(`${kind === "ticket" ? "문의" : "신고"} 상태가 ${status}로 변경되었습니다.`);
+    await loadAdminDashboard(token);
+  }
+
+  function sendSupportBotMessage(message = supportChatInput) {
+    const normalized = message.trim();
+    if (!normalized) {
+      return;
+    }
+
+    const lowerMessage = normalized.toLowerCase();
+    let botReply = "문의 내용을 확인했어요. 더 정확한 처리를 위해 오른쪽 1:1 문의 카드에 내용을 남기면 운영팀 티켓으로 접수됩니다.";
+
+    if (lowerMessage.includes("환불") || lowerMessage.includes("결제") || lowerMessage.includes("코인")) {
+      botReply = "결제/환불 문의는 결제 시각, 코인 금액, 열람권 지급 여부를 함께 적어주시면 가장 빠르게 확인할 수 있어요.";
+      setSupportCategory("PAYMENT");
+    } else if (lowerMessage.includes("정산") || lowerMessage.includes("수익") || lowerMessage.includes("지분")) {
+      botReply = "정산 문의는 프로젝트명, 팀원 지분율, 문제가 발생한 정산 기간을 적어주세요. 고정 수수료와 팀원별 분배 내역을 같이 확인합니다.";
+      setSupportCategory("SETTLEMENT");
+    } else if (lowerMessage.includes("접근") || lowerMessage.includes("시각") || lowerMessage.includes("감상") || lowerMessage.includes("대본")) {
+      botReply = "접근성 문의는 사용 기기, 스크린리더 종류, 문제가 생긴 감상 화면을 알려주시면 우선순위로 확인할게요.";
+      setSupportCategory("ACCESSIBILITY");
+    } else if (lowerMessage.includes("신고") || lowerMessage.includes("불친절") || lowerMessage.includes("괴롭힘")) {
+      botReply = "사용자 신고는 대상 창작자와 상황 설명이 필요해요. 아래 신고 카드에서 대상을 선택하고 내용을 남겨주세요.";
+    } else if (lowerMessage.includes("버그") || lowerMessage.includes("오류") || lowerMessage.includes("안돼")) {
+      botReply = "버그 신고는 발생 화면, 클릭한 버튼, 재현 순서를 적어주시면 좋아요. 가능하면 오류 문구도 함께 남겨주세요.";
+      setSupportCategory("BUG");
+    }
+
+    setSupportChatMessages((current) => [
+      ...current,
+      { from: "user", text: normalized },
+      { from: "bot", text: botReply },
+    ]);
+    setSupportChatInput("");
+  }
+
+  function openCreatorMessenger(creator?: Creator) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const nextCreator = creator ?? activeChatCreator ?? messengerCreators[0] ?? null;
+    if (nextCreator) {
+      setActiveChatCreatorId(nextCreator.userId);
+    }
+    setIsMessengerOpen(true);
+    setIsSupportBotOpen(false);
+  }
+
+  async function submitCreatorProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const authToken = getActiveAuthToken(token);
+    if (!authToken) {
+      setAuthMode("login");
+      return;
+    }
+
+    const data = new FormData(event.currentTarget);
+    const skills = String(data.get("skills") || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (skills.length === 0) {
+      setMatchingActionMessage("태그를 1개 이상 입력해 주세요. 예: 로맨스, 웹툰, 감정연기");
+      return;
+    }
+
+    setIsPublishingCreatorProfile(true);
+    try {
+      await request<Creator>("/api/creators/me", authToken, {
+        method: "POST",
+        body: JSON.stringify({
+          primaryRole: data.get("primaryRole"),
+          headline: data.get("headline"),
+          bio: data.get("bio"),
+          skills,
+          availabilityNote: data.get("availabilityNote"),
+        }),
+      });
+      await loadData(authToken);
+      setIsCreatorProfileFormOpen(false);
+      setMatchingActionMessage("내 매칭 프로필이 등록되었습니다. 이제 다른 사용자가 팀원 찾기에서 나를 발견할 수 있어요.");
+    } catch (error) {
+      setMatchingActionMessage(`매칭 프로필 등록 실패: ${getFriendlyError(error)}`);
+    } finally {
+      setIsPublishingCreatorProfile(false);
+    }
+  }
+
+  async function deleteMyCreatorProfile() {
+    const authToken = getActiveAuthToken(token);
+    if (!authToken) {
+      setAuthMode("login");
+      return;
+    }
+
+    const confirmed = window.confirm("내 매칭 프로필을 보드에서 내릴까요? 나중에 다시 등록할 수 있습니다.");
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingCreatorProfile(true);
+    try {
+      await request<{ deleted: boolean }>("/api/creators/me", authToken, { method: "DELETE" });
+      await loadData(authToken);
+      setIsCreatorProfileFormOpen(false);
+      setMatchingActionMessage("내 매칭 프로필을 보드에서 내렸습니다. 다시 올리고 싶으면 언제든 재등록할 수 있어요.");
+    } catch (error) {
+      setMatchingActionMessage(`매칭 프로필 삭제 실패: ${getFriendlyError(error)}`);
+    } finally {
+      setIsDeletingCreatorProfile(false);
+    }
+  }
+
+  async function sendCreatorChat(creator: Creator) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    const body = `${creator.displayName}님, 포트폴리오를 보고 협업 상담을 드리고 싶습니다.`;
+    await request("/api/chats/messages", token, {
+      method: "POST",
+      body: JSON.stringify({
+        receiverUserId: creator.userId,
+        body,
+      }),
+    });
+    await refreshCreatorChats(token);
+    setActiveChatCreatorId(creator.userId);
+    setIsMessengerOpen(true);
+    setIsSupportBotOpen(false);
+    setMatchingActionMessage(`${creator.displayName}님과 채팅방을 열었습니다. 오른쪽 하단 메신저에서 이어서 대화할 수 있어요.`);
+  }
+
+  async function sendMessengerMessage() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    if (!activeChatCreator) {
+      return;
+    }
+    const body = messengerInput.trim();
+    if (!body) {
+      return;
+    }
+
+    setMessengerInput("");
+    await request("/api/chats/messages", token, {
+      method: "POST",
+      body: JSON.stringify({
+        receiverUserId: activeChatCreator.userId,
+        body,
+      }),
+    });
+    await refreshCreatorChats(token);
+  }
+
+  function openMatchProposal(creator: Creator) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    const suggestedShare = creator.primaryRole === "VOICE_ACTOR" || creator.primaryRole === "SOUND_DIRECTOR" ? 25 : 20;
+    setMatchProposalCreator(creator);
+    setMatchProposalShare(suggestedShare);
+    setMatchProposalMessage(
+      `${creator.displayName}님, 포트폴리오를 보고 함께 협업하고 싶습니다. ${suggestedShare}% 수익 지분 조건으로 매칭을 제안드려요.`,
+    );
+  }
+
+  async function submitMatchProposal() {
+    if (!token || !matchProposalCreator) {
+      setAuthMode("login");
+      return;
+    }
+    setIsMatchProposalSubmitting(true);
+    try {
+      await request("/api/matching/requests", token, {
+        method: "POST",
+        body: JSON.stringify({
+          targetUserId: matchProposalCreator.userId,
+          projectId: PROJECT_ID,
+          projectTitle: project?.title || "Creator Universe Pilot",
+          projectType: matchingFilters.join(", ") || "멀티 콘텐츠 협업",
+          memberRole: matchProposalCreator.primaryRole,
+          sharePercentage: matchProposalShare,
+          message: matchProposalMessage,
+        }),
+      });
+      await refreshCreatorChats(token);
+      setActiveChatCreatorId(matchProposalCreator.userId);
+      setIsMessengerOpen(true);
+      setIsSupportBotOpen(false);
+      setMatchingActionMessage(`${matchProposalCreator.displayName}님에게 ${matchProposalShare}% 수익 지분 조건으로 매칭 제안을 보냈습니다.`);
+      setMatchProposalCreator(null);
+    } finally {
+      setIsMatchProposalSubmitting(false);
+    }
+  }
+
+  async function acceptMatchProposal(proposalId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    const result = await request<{ members: SettlementMemberConfig[] }>(`/api/matching/requests/${proposalId}/accept`, token, {
+      method: "POST",
+    });
+    if (result.members?.length) {
+      setSettlementConfig((current) => ({
+        ...current,
+        members: result.members,
+      }));
+    }
+    await refreshCreatorChats(token);
+    await loadData(token);
+    setMatchingActionMessage("매칭 조건을 수락했습니다. 새 팀원이 정산 팀원 목록에 반영되었습니다.");
+  }
+
+  async function declineMatchProposal(proposalId: string) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    await request(`/api/matching/requests/${proposalId}/decline`, token, {
+      method: "POST",
+    });
+    await refreshCreatorChats(token);
+    setMatchingActionMessage("매칭 제안을 거절했습니다. 제안함 상태가 업데이트되었습니다.");
+  }
+
+  async function requestCreatorMatch(creator: Creator) {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+    await request("/api/matching/requests", token, {
+      method: "POST",
+      body: JSON.stringify({
+        targetUserId: creator.userId,
+        projectType: matchingFilters.join(", ") || "멀티 콘텐츠 협업",
+        message: "작품 세계관을 함께 만들 팀원으로 매칭 요청을 보냅니다.",
+      }),
+    });
+    setMatchingActionMessage(`${creator.displayName}님에게 매칭 요청을 보냈습니다.`);
+  }
+
+  function updateMemberShare(userId: string, sharePercentage: number) {
+    setSettlementMessage("");
+    setSettlementConfig((current) => ({
+      ...current,
+      members: current.members.map((member) =>
+        member.userId === userId
+          ? { ...member, sharePercentage: Math.max(0, Math.min(100, Number.isFinite(sharePercentage) ? sharePercentage : 0)) }
+          : member,
+      ),
+    }));
+  }
+
+  function applySettlementPreset(preset: "audioDrama" | "equal") {
+    setSettlementMessage("");
+    setSettlementConfig((current) => {
+      const leaderIndex = current.members.findIndex((member) => ["WRITER", "PRODUCER"].includes(member.memberRole));
+      const normalizedLeaderIndex = leaderIndex >= 0 ? leaderIndex : 0;
+      const shares = preset === "audioDrama"
+        ? current.members.map((_, index) => {
+            if (index === normalizedLeaderIndex) {
+              return 40;
+            }
+
+            const teammateCount = Math.max(current.members.length - 1, 1);
+            return Math.floor(60 / teammateCount);
+          })
+        : current.members.map(() => Math.floor(100 / current.members.length));
+      const remainder = 100 - shares.reduce((sum, share) => sum + share, 0);
+
+      return {
+        ...current,
+        members: current.members.map((member, index) => ({
+          ...member,
+          sharePercentage: (shares[index] ?? 0) + (index === current.members.length - 1 ? remainder : 0),
+        })),
+      };
+    });
+  }
+
+  function saveSettlementSettings() {
+    if (settlementPreview.shareTotal !== 100) {
+      setSettlementMessage(`지분율 합계가 ${settlementPreview.shareTotal}%입니다. 정확히 100%가 되도록 조정해 주세요.`);
+      return;
+    }
+
+    setSettlementMessage("정산 설정이 저장되었습니다. 플랫폼 수수료는 일반 13%, 공식 파트너 8% 고정 정책으로 적용됩니다.");
+  }
+
+  function updateStudioDraft<K extends keyof StudioDraftState>(key: K, value: StudioDraftState[K]) {
+    setStudioDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function updateStudioFanPostDraft<K extends keyof StudioFanPostDraftState>(key: K, value: StudioFanPostDraftState[K]) {
+    setStudioFanPostDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function updateStudioAccessibilityAudit<K extends keyof StudioAccessibilityAuditState>(
+    key: K,
+    value: StudioAccessibilityAuditState[K],
+  ) {
+    setStudioAccessibilityAudit((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function submitStudioWorkDraft(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const title = String(data.get("title") || "새 작품");
+    const episodeTitle = String(data.get("episodeTitle") || "새 회차");
+    setCommunityMessage(`${title} · ${episodeTitle} 발행 초안이 저장되었습니다. 체크리스트를 모두 채우면 예약 발행으로 넘길 수 있어요.`);
+  }
+
+  function submitStudioFanPost(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const title = String(data.get("fanPostTitle") || "팬 포스트");
+    const accessType = String(data.get("fanPostAccess") || "구독자 전용");
+    setCommunityMessage(`${title} 팬 포스트 초안이 저장되었습니다. ${accessType} 상품으로 창작자 채널에 노출할 수 있어요.`);
+  }
+
+  function saveAccessibilityAudit() {
+    setCommunityMessage(`접근성 검수 리포트가 저장되었습니다. 현재 상태는 ${studioAccessibilityChecklist.status}, 준비도는 ${studioAccessibilityChecklist.percent}%입니다.`);
+  }
+
+  async function uploadStudioEpisodeFile(kind: StudioUploadKind, file: File | null) {
+    if (!file) {
+      return;
+    }
+
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    setIsStudioUploading(true);
+    setStudioUploadMessage("");
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const uploaded = await request<UploadedAsset>("/api/uploads", token, {
+        method: "POST",
+        body: JSON.stringify({
+          kind,
+          originalName: file.name,
+          mimeType: getUploadMimeType(file),
+          dataUrl,
+        }),
+      });
+
+      setStudioEpisodeUploads((current) => ({
+        ...current,
+        [kind]: uploaded,
+      }));
+      setStudioUploadMessage(`${uploaded.originalName} 업로드 완료 · ${formatBytes(uploaded.sizeBytes)}`);
+    } catch (error) {
+      setStudioUploadMessage(error instanceof Error ? `업로드 실패: ${error.message}` : "업로드 실패: 다시 시도해 주세요.");
+    } finally {
+      setIsStudioUploading(false);
+    }
+  }
+
+  function submitStudioEpisode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const title = String(data.get("episodeTitle") || "새 회차");
+    const uploadedCount = Object.values(studioEpisodeUploads).filter(Boolean).length;
+    setCommunityMessage(
+      uploadedCount > 0
+        ? `${title} 회차 초안에 업로드 파일 ${uploadedCount}개가 연결되었습니다. 오디오/이미지 URL은 서버에서 바로 접근할 수 있어요.`
+        : `${title} 회차 메모가 저장되었습니다. 오디오, 표지, 대본 파일을 연결하면 업로드 초안으로 관리할 수 있어요.`,
+    );
+    event.currentTarget.reset();
+  }
+
+  function saveStudioTeamPlan() {
+    setCommunityMessage("팀원 초대와 수익 지분 설정이 저장되었습니다. 매칭 제안함 기능과 연결하면 수락 즉시 팀에 합류시킬 수 있어요.");
+  }
+
+  function completeAuth(nextUser: User, nextToken: string) {
+    setAuthMode(null);
+    if (resumeCheckoutAfterLogin.current) {
+      resumeCheckoutAfterLogin.current = false;
+      setIsPaymentOpen(true);
+    }
+    setUser(nextUser);
+    setToken(nextToken);
+    setAppMode(nextUser.role === "CREATOR" || nextUser.role === "ADMIN" ? "creator" : "reader");
+    localStorage.setItem("creator-universe-token", nextToken);
+  }
+
+  async function logout() {
+    if (token) {
+      await request("/api/auth/logout", token, { method: "POST" }).catch(() => null);
+    }
+    setUser(null);
+    setToken(null);
+    if (protectedPages.has(activePage)) {
+      setActivePage("home");
+    }
+    setIsAccountMenuOpen(false);
+    setIsAccountModalOpen(false);
+    localStorage.removeItem("creator-universe-token");
+  }
+
+  async function deleteAccount() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const confirmed = window.confirm("정말 계정을 탈퇴할까요? 로그인 정보는 삭제되고 결제/정산 기록은 익명 처리되어 보존됩니다.");
+    if (!confirmed) {
+      return;
+    }
+
+    await request("/api/auth/me", token, { method: "DELETE" });
+    setUser(null);
+    setToken(null);
+    setWallet(null);
+    setWalletDetail(null);
+    setCreatorChatThreads({});
+    setIsAccountMenuOpen(false);
+    setIsAccountModalOpen(false);
+    setActivePage("home");
+    localStorage.removeItem("creator-universe-token");
+    setStatus("계정 탈퇴가 완료되었습니다.");
+  }
+
+  async function upgradeToCreatorAccount() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const result = await request<{ user: User }>("/api/auth/me/creator-mode", token, { method: "POST" });
+    setUser(result.user);
+    setAppMode("creator");
+    setIsAccountMenuOpen(false);
+    setIsAccountModalOpen(false);
+    setCommunityMessage("창작자 계정으로 전환되었습니다. 스튜디오에서 내 프로필과 대표작을 먼저 등록해보세요.");
+    await loadData(token);
+    setActivePage("studio");
+    window.scrollTo({ top: 0, behavior: accessibilityPreferences.reducedMotion ? "auto" : "smooth" });
+  }
+
+  function startPremiumSubscription() {
+    if (!token) {
+      setAuthMode("login");
+      return;
+    }
+
+    const now = new Date();
+    const nextBillingDate = getNextPremiumBillingDate(now);
+    setPremiumSubscription({
+      isActive: true,
+      startedAt: now.toISOString(),
+      nextBillingDate,
+    });
+    if (user?.id) {
+      writeUserPremiumSubscription(user.id, {
+        isActive: true,
+        startedAt: now.toISOString(),
+        nextBillingDate,
+      });
+    }
+    setCommunityMessage(`프리미엄 체험을 시작했습니다.`);
+  }
+
+  function cancelPremiumSubscription() {
+    if (!premiumSubscription.isActive) {
+      return;
+    }
+
+    const confirmed = window.confirm("프리미엄 체험을 종료할까요?");
+    if (!confirmed) {
+      return;
+    }
+
+    const nextSubscription = {
+      ...premiumSubscription,
+      isActive: false,
+      cancelledAt: new Date().toISOString(),
+    };
+    setPremiumSubscription(nextSubscription);
+    if (user?.id) {
+      writeUserPremiumSubscription(user.id, nextSubscription);
+    }
+    setCommunityMessage("프리미엄 체험을 종료했습니다.");
+  }
+
+  return (
+    <div className={`app page-${activePage}`}>
+      {isBootLoading && (
+        <div className="boot-loader" role="status" aria-live="polite">
+          <div className="boot-loader-card">
+            <div className="loader-cat" aria-hidden="true">
+              <span className="cat-shadow" />
+              <span className="cat-tail" />
+              <span className="cat-body">
+                <i className="cat-paw paw-one" />
+                <i className="cat-paw paw-two" />
+              </span>
+              <span className="cat-head">
+                <i className="cat-ear ear-left" />
+                <i className="cat-ear ear-right" />
+                <b className="cat-eye eye-left" />
+                <b className="cat-eye eye-right" />
+                <em className="cat-nose" />
+                <small className="cat-cheek cheek-left" />
+                <small className="cat-cheek cheek-right" />
+                <strong className="cat-whisker whisker-left" />
+                <strong className="cat-whisker whisker-right" />
+              </span>
+              <span className="cat-heart" />
+              <span className="cat-yarn" />
+            </div>
+            <div className="loader-3d-universe" aria-hidden="true">
+              <i />
+              <b />
+              <em />
+            </div>
+            <strong>크리에이터 유니버스 준비 중</strong>
+            <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>
+            <div className="loader-dots" aria-hidden="true"><span /><span /><span /></div>
+          </div>
+        </div>
+      )}
+      <header className="topbar">
+        <button className="brand" onClick={() => navigate("home")}>
+          <span className="brand-logo"><img src="/logo.png" alt="" /></span>
+          <strong>크리에이터 유니버스</strong>
+          <em>Audio Studio</em>
+        </button>
+        <nav className="desktop-nav">
+          {visibleNavItems.map((item) => (
+            <button className={activePage === item.id ? "active" : ""} onClick={() => navigate(item.id)} key={item.id}>
+              <span>{item.label}</span>
+              <small>{item.helper}</small>
+            </button>
+          ))}
+        </nav>
+        <div className="header-actions">
+          <button className="ghost-button nav-pay-button" onClick={openPayment}>
+            <Coins size={16} /> 결제
+          </button>
+          <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="테마 변경">
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          {user && (
+            <div className="notification-wrap">
+              <button
+                className={`icon-button notification-trigger ${unreadNotificationCount > 0 ? "has-unread" : ""}`}
+                onClick={() => {
+                  setIsNotificationOpen((value) => !value);
+                  setIsAccountMenuOpen(false);
+                }}
+                aria-label="알림센터 열기"
+                aria-expanded={isNotificationOpen}
+              >
+                <Bell size={18} />
+                {unreadNotificationCount > 0 && <span>{Math.min(unreadNotificationCount, 9)}</span>}
+              </button>
+              {isNotificationOpen && (
+                <div className="notification-panel">
+                  <div className="notification-panel-head">
+                    <div>
+                      <strong>알림센터</strong>
+                      <small>{unreadNotificationCount > 0 ? `${unreadNotificationCount}개의 새 알림` : "모두 확인했어요"}</small>
+                      <em>{isCreatorAccount ? "매칭 · 채팅 · 정산 알림 중심" : "새 회차 · 스크랩 · 결제 알림 중심"}</em>
+                    </div>
+                    <button type="button" onClick={markAllNotificationsRead}>모두 읽음</button>
+                  </div>
+                  <div className="notification-list">
+                    {notificationItems.map((item) => {
+                      const isUnread = !readNotificationIds.includes(item.id);
+
+                      return (
+                        <button
+                          className={`notification-item ${item.tone} ${isUnread ? "unread" : ""}`}
+                          key={item.id}
+                          onClick={() => openNotificationItem(item)}
+                          type="button"
+                        >
+                          <i>
+                            {item.tone === "match" && <Users size={16} />}
+                            {item.tone === "wallet" && <Coins size={16} />}
+                            {item.tone === "content" && <BookOpen size={16} />}
+                            {item.tone === "studio" && <Rocket size={16} />}
+                            {item.tone === "settlement" && <Split size={16} />}
+                            {item.tone === "premium" && <Sparkles size={16} />}
+                            {item.tone === "marketing" && <Flame size={16} />}
+                          </i>
+                          <span>
+                            <b>{item.title}</b>
+                            <small>{item.body}</small>
+                            <em>{item.time} · {item.actionLabel}</em>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="notification-preference-strip" aria-label="알림 빠른 설정">
+                    <button
+                      className={notificationPreferences.newEpisode ? "active" : ""}
+                      type="button"
+                      onClick={() => toggleNotificationPreference("newEpisode")}
+                    >
+                      새 회차
+                    </button>
+                    {isCreatorAccount && (
+                      <button
+                        className={notificationPreferences.settlement ? "active" : ""}
+                        type="button"
+                        onClick={() => toggleNotificationPreference("settlement")}
+                      >
+                        정산
+                      </button>
+                    )}
+                    <button
+                      className={notificationPreferences.marketing ? "active" : ""}
+                      type="button"
+                      onClick={() => toggleNotificationPreference("marketing")}
+                    >
+                      이벤트
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {user ? (
+            <div className="account-menu-wrap">
+              <button
+                className="account-trigger"
+                onClick={() => {
+                  setIsAccountMenuOpen((value) => !value);
+                  setIsNotificationOpen(false);
+                }}
+                aria-expanded={isAccountMenuOpen}
+              >
+                <span>{user.displayName.slice(0, 1)}</span>
+                <b>{user.displayName}</b>
+                <ChevronDown size={16} />
+              </button>
+              {isAccountMenuOpen && (
+                <div className="account-dropdown">
+                  <button onClick={openMyAccount}><UserRound size={17} /> 내 계정</button>
+                  <button onClick={() => { openReaderLibrary("recent"); setIsAccountMenuOpen(false); }}><RefreshCw size={17} /> 최근 본 작품</button>
+                  <button onClick={() => { openReaderLibrary("purchased"); setIsAccountMenuOpen(false); }}><BookOpen size={17} /> 결제한 작품</button>
+                  <button onClick={() => { openReaderLibrary("scrapped"); setIsAccountMenuOpen(false); }}><Heart size={17} /> 스크랩한 작품</button>
+                  {isCreatorAccount && (
+                    <button onClick={() => { navigate("studio"); setIsAccountMenuOpen(false); }}><Rocket size={17} /> 창작자 스튜디오</button>
+                  )}
+                  <button onClick={() => { navigate("wallet"); setIsAccountMenuOpen(false); }}><Wallet size={17} /> 내 지갑</button>
+                  {isCreatorAccount && (
+                    <button onClick={() => { navigate("settlement"); setIsAccountMenuOpen(false); }}><Split size={17} /> 정산 콘솔</button>
+                  )}
+                  {isAdminAccount && (
+                    <button onClick={() => { navigate("admin"); setIsAccountMenuOpen(false); }}><ShieldCheck size={17} /> 운영 콘솔</button>
+                  )}
+                  <button onClick={openMyAccount}><Settings size={17} /> 정보 변경</button>
+                  <button className="danger" onClick={logout}><LogOut size={17} /> 로그아웃</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button className="primary-button compact" onClick={() => setAuthMode("login")}><LogIn size={16} /> 로그인</button>
+          )}
+          <button
+            className="icon-button mobile-menu-button"
+            onClick={() => setIsMobileMenuOpen((value) => !value)}
+            aria-label="모바일 메뉴 열기"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+        <div className={`mobile-drawer ${isMobileMenuOpen ? "open" : ""}`}>
+          <div className="mobile-drawer-card">
+            <p><Sparkles size={16} /> Creator Universe Menu</p>
+            {visibleNavItems.map((item) => (
+              <button className={activePage === item.id ? "active" : ""} key={item.id} onClick={() => navigate(item.id)}>
+                <span>{item.label}</span>
+                <small>{item.helper}</small>
+              </button>
+            ))}
+            <button className="drawer-pay-button" onClick={() => { setIsMobileMenuOpen(false); openPayment(); }}>
+              <Coins size={17} /> 코인 결제창 열기
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        {(activePage === "home" || activePage === "intro") && (
+          <div className={activePage === "intro" ? "classic-intro-page page-panel" : "home-page page-panel"}>
+            {activePage === "home" && <section className="app-home-dashboard" aria-label="앱 홈 대시보드">
+              <div className="app-home-greeting">
+                <span>Creator Universe App</span>
+                <h1>{user ? `${user.displayName}님, 이어서 볼까요?` : "오늘 볼 작품을 바로 찾아볼까요?"}</h1>
+                <p>
+                  {user
+                    ? isCreatorAccount
+                      ? "오늘 확인할 제안, 프로필 준비도, 정산 상태를 먼저 정리했습니다."
+                      : "이어보기, 새 회차, 코인 상태를 먼저 보여줘 바로 감상으로 들어갈 수 있어요."
+                    : appMode === "creator"
+                      ? "창작자로 시작하면 프로필, 매칭, 정산 흐름을 먼저 체험할 수 있어요."
+                      : "독자로 시작하면 작품 탐색, 스크랩, 코인 흐름을 먼저 체험할 수 있어요."}
+                </p>
+              </div>
+
+              <button type="button" className="ghost-button classic-app-intro-link" onClick={() => navigate("intro")}>서비스 소개 보기</button>
+              {user ? (
+                <div className="app-mode-switch role-locked" aria-label="현재 계정 유형">
+                  <button type="button" className="active" disabled>
+                    {isCreatorAccount ? <Rocket size={16} /> : <BookOpen size={16} />}
+                    {isCreatorAccount ? "창작자 계정" : "독자 계정"}
+                  </button>
+                </div>
+              ) : (
+                <div className="app-mode-switch" aria-label="앱 사용 목적 선택">
+                  <button type="button" className={appMode === "reader" ? "active" : ""} onClick={() => setAppMode("reader")}>
+                    <BookOpen size={16} />
+                    독자 모드
+                  </button>
+                  <button type="button" className={appMode === "creator" ? "active" : ""} onClick={() => setAppMode("creator")}>
+                    <Rocket size={16} />
+                    창작자 모드
+                  </button>
+                </div>
+              )}
+
+              {user ? (
+                <div className="app-today-strip" aria-label={isCreatorAccount ? "창작자 오늘 요약" : "독자 오늘 요약"}>
+                  {isCreatorAccount ? (
+                    <>
+                      <button type="button" className="app-today-card primary" onClick={() => navigate("matching")}>
+                        <MessageCircle size={17} />
+                        <span>오늘의 제안</span>
+                        <strong>{matchInboxCounts.pending}건 확인</strong>
+                        <small>조건 보고 바로 수락</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => navigate("studio")}>
+                        <Rocket size={17} />
+                        <span>채널 준비</span>
+                        <strong>{studioProfileCompletion.percent}%</strong>
+                        <small>대표작/프로필 점검</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => navigate("settlement")}>
+                        <Split size={17} />
+                        <span>정산 예정</span>
+                        <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+                        <small>주 단위 정산</small>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" className="app-today-card primary" onClick={() => openReaderLibrary("recent")}>
+                        <Play size={17} />
+                        <span>바로 이어보기</span>
+                        <strong>{recentWorks.length || purchasedWorks.length}개</strong>
+                        <small>최근 본 작품부터</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => openReaderLibrary("scrapped")}>
+                        <Bell size={17} />
+                        <span>새 회차</span>
+                        <strong>{followedNewEpisodeWorks.length}개</strong>
+                        <small>스크랩 작품 알림</small>
+                      </button>
+                      <button type="button" className="app-today-card" onClick={() => navigate("wallet")}>
+                        <Wallet size={17} />
+                        <span>보유 코인</span>
+                        <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+                        <small>충전/사용 내역</small>
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className={`app-onboarding-rail ${visibleOnboardingGuides.length === 1 ? "single" : ""}`} aria-label="앱 시작 가이드">
+                  {visibleOnboardingGuides.map((guide) => (
+                    <button type="button" key={guide.audience} onClick={() => navigate(guide.page)}>
+                      {guide.icon}
+                      <span>{guide.audience}</span>
+                      <strong>{guide.cta}</strong>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <section className={`app-purpose-panel ${appMode}`} aria-label={appMode === "reader" ? "독자 추천 동선" : "창작자 추천 동선"}>
+                <div className="app-purpose-head">
+                  <span>{appMode === "reader" ? "Reader Flow" : "Creator Flow"}</span>
+                  <strong>{appMode === "reader" ? "보고, 저장하고, 바로 이어보기" : "프로필부터 제안, 정산까지 한 번에"}</strong>
+                  <p>
+                    {appMode === "reader"
+                      ? "처음 들어온 독자는 작품 탐색과 내 보관함을 먼저 쓰게 됩니다. 많이 누르는 기능만 앞에 모았어요."
+                      : "창작자는 팀원 찾기보다 내 프로필, 제안 수락, 정산 상태가 먼저 보여야 오래 머뭅니다."}
+                  </p>
+                </div>
+                <div className="app-purpose-grid">
+                  {appMode === "reader" ? (
+                    <>
+                      <button type="button" onClick={() => openReaderLibrary("purchased")}>
+                        <Play size={17} />
+                        <span>이어볼 작품</span>
+                        <strong>{purchasedWorks.length}개</strong>
+                      </button>
+                      <button type="button" onClick={() => openReaderLibrary("scrapped")}>
+                        <Heart size={17} />
+                        <span>스크랩</span>
+                        <strong>{scrappedWorks.length}개</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("discover")}>
+                        <Search size={17} />
+                        <span>장르 탐색</span>
+                        <strong>{readerGenreFilters.slice(0, 3).join(" · ")}</strong>
+                      </button>
+                      <button type="button" onClick={openPayment}>
+                        <Wallet size={17} />
+                        <span>보유 코인</span>
+                        <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => navigate("studio")}>
+                        <UserRound size={17} />
+                        <span>프로필 완성도</span>
+                        <strong>{studioProfileCompletion.percent}%</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("matching")}>
+                        <MessageCircle size={17} />
+                        <span>대기 제안</span>
+                        <strong>{matchInboxCounts.pending}건</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("settlement")}>
+                        <Split size={17} />
+                        <span>예상 정산</span>
+                        <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+                      </button>
+                      <button type="button" onClick={() => navigate("support")}>
+                        <ShieldCheck size={17} />
+                        <span>도움센터</span>
+                        <strong>문의/신고</strong>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </section>
+
+              <div className="app-role-action-strip" aria-label={isCreatorAccount ? "창작자 오늘 할 일" : "독자 오늘 추천 동선"}>
+                {isCreatorAccount ? (
+                  <>
+                    <button type="button" onClick={() => navigate("studio")}>
+                      <Rocket size={18} />
+                      <span>오늘 할 일</span>
+                      <strong>프로필 {studioProfileCompletion.percent}%</strong>
+                    </button>
+                    <button type="button" onClick={() => navigate("matching")}>
+                      <MessageCircle size={18} />
+                      <span>제안 확인</span>
+                      <strong>{matchInboxCounts.pending}건 대기</strong>
+                    </button>
+                    <button type="button" onClick={() => navigate("settlement")}>
+                      <ShieldCheck size={18} />
+                      <span>정산 신뢰</span>
+                      <strong>수수료 13% · 파트너 8%</strong>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => openReaderLibrary("recent")}>
+                      <Play size={18} />
+                      <span>이어보기</span>
+                      <strong>{recentWorks.length || purchasedWorks.length}개 준비</strong>
+                    </button>
+                    <button type="button" onClick={() => openReaderLibrary("scrapped")}>
+                      <Bell size={18} />
+                      <span>새 회차 알림</span>
+                      <strong>{followedNewEpisodeWorks.length}개 업데이트</strong>
+                    </button>
+                    <button type="button" onClick={() => navigate("wallet")}>
+                      <CreditCard size={18} />
+                      <span>안전 결제</span>
+                      <strong>코인 원장 기록</strong>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="app-home-main-card">
+                {(() => {
+                  const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
+                  const progress = workProgress[continueWork.id];
+
+                  return (
+                    <>
+                      <img src={continueWork.coverImage} alt="" />
+                      <div>
+                        <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : continueWork.badge}</span>
+                        <strong>{continueWork.title}</strong>
+                        <p>{continueWork.tagline}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedWork(continueWork);
+                          setReviewWorkId(continueWork.id);
+                        }}
+                      >
+                        <Play size={16} /> 이어보기
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="app-home-quick-grid">
+                <button type="button" onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품 보기</span></button>
+                {isCreatorAccount ? (
+                  <button type="button" onClick={() => navigate("studio")}><Rocket size={18} /><span>스튜디오</span></button>
+                ) : (
+                  <button type="button" onClick={openPayment}><Coins size={18} /><span>코인 충전</span></button>
+                )}
+              </div>
+
+              <div className="app-home-mini-panels">
+                <article>
+                  <span>알림</span>
+                  <strong>{notificationItems[0]?.title ?? "아직 새 알림이 없어요"}</strong>
+                  <p>{notificationItems[0]?.body ?? "작품 스크랩, 구매, 매칭 제안이 생기면 여기에서 바로 확인할 수 있어요."}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!user) {
+                        setAuthMode("login");
+                        return;
+                      }
+                      if (notificationItems[0]) {
+                        openNotificationItem(notificationItems[0]);
+                      } else {
+                        setIsNotificationOpen(true);
+                      }
+                    }}
+                  >
+                    확인하기
+                  </button>
+                </article>
+                <article>
+                  <span>내 지갑</span>
+                  <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+                  <p>{currentWalletDetail.transactions[0]?.title ?? "충전하면 작품 열람과 후원에 바로 사용할 수 있어요."}</p>
+                  <button type="button" onClick={openPayment}>코인 충전</button>
+                </article>
+              </div>
+
+              <div className="app-trust-strip" aria-label="앱 신뢰 기능 요약">
+                {(isCreatorAccount
+                  ? trustSignals
+                  : [
+                      trustSignals[1],
+                      trustSignals[2],
+                      {
+                        icon: <BookOpen size={22} />,
+                        title: "보관함 동선",
+                        label: "Library Flow",
+                        text: "결제한 작품과 스크랩한 작품을 홈에서 바로 이어볼 수 있게 연결합니다.",
+                      },
+                    ]).map((signal) => (
+                  <button
+                    type="button"
+                    key={signal.title}
+                    onClick={() =>
+                      signal.title.includes("정산")
+                        ? navigate("settlement")
+                        : signal.title.includes("코인")
+                          ? navigate("wallet")
+                          : signal.title.includes("보관함")
+                            ? openReaderLibrary("purchased")
+                            : navigate("support")
+                    }
+                  >
+                    {signal.icon}
+                    <span>{signal.title}</span>
+                  </button>
+                ))}
+              </div>
+
+              <section className="app-accessibility-card" aria-label="앱 접근성 빠른 설정">
+                <div>
+                  <span>Accessibility</span>
+                  <strong>내 눈과 손에 맞게 보기</strong>
+                  <p>고대비, 큰 글자, 모션 줄이기를 바로 켜서 감상 화면을 더 편하게 조정합니다.</p>
+                </div>
+                <div>
+                  {accessibilityControls.map((control) => (
+                    <button
+                      type="button"
+                      className={accessibilityPreferences[control.key] ? "active" : ""}
+                      key={control.key}
+                      onClick={() => toggleAccessibilityPreference(control.key)}
+                    >
+                      {control.icon}
+                      <span>{control.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <div className="app-home-recommend">
+                <div>
+                  <span>추천 작품</span>
+                  <button type="button" onClick={() => navigate("discover")}>전체 보기</button>
+                </div>
+                <div>
+                  {rankedReaderWorks.slice(0, 3).map((work) => (
+                    <button
+                      type="button"
+                      key={work.id}
+                      onClick={() => {
+                        setSelectedWork(work);
+                        setReviewWorkId(work.id);
+                      }}
+                    >
+                      <img src={work.coverImage} alt="" />
+                      <strong>{work.title}</strong>
+                      <small>{work.format} · {work.genre}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>}
+
+            <section className={`intro-hero reveal revealed ${introSlides[activeIntroSlide].tone}`} aria-label="서비스 소개">
+              <div className="intro-copy">
+                <p className="kicker">{activePage === "intro" ? "서비스 소개" : "Creator Universe"}</p>
+                <div className="slide-copy-stage">
+                  {introSlides.map((slide, index) => (
+                    <article className={`slide-copy-panel ${activeIntroSlide === index ? "active" : ""}`} aria-hidden={activeIntroSlide !== index} key={slide.eyebrow}>
+                      <span className="slide-eyebrow">{slide.eyebrow}</span>
+                      <h1>{slide.title}</h1>
+                      <p className="lead">{slide.description}</p>
+                    </article>
+                  ))}
+                </div>
+                <div className="intro-actions">
+                  <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보기</button>
+                  {isCreatorAccount ? (
+                    <button className="ghost-button" onClick={() => navigate("studio")}><Rocket size={18} /> 스튜디오 열기</button>
+                  ) : (
+                    <button className="ghost-button" onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /> 스크랩 보관함</button>
+                  )}
+                </div>
+                <div className="slide-dots" aria-label="소개 슬라이드 선택">
+                  {introSlides.map((slide, index) => (
+                    <button
+                      key={slide.eyebrow}
+                      className={activeIntroSlide === index ? "active" : ""}
+                      onClick={() => setActiveIntroSlide(index)}
+                      aria-label={`${index + 1}번 소개 슬라이드`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <aside className="studio-visual" aria-label="크리에이터 유니버스 서비스 미리보기">
+                <div className="visual-stage">
+                  {introSlides.map((slide, index) => (
+                    <div className={`visual-slide ${slide.tone} ${activeIntroSlide === index ? "active" : ""}`} key={slide.visualTitle}>
+                      <div className="visual-artwork">
+                        <div className="aurora-orb orb-one" />
+                        <div className="aurora-orb orb-two" />
+                        <div className="moon" />
+                        <div className="universe-3d-scene" aria-hidden="true">
+                          <div className="orbit-ring ring-one" />
+                          <div className="orbit-ring ring-two" />
+                          <div className="orbit-ring ring-three" />
+                          <div className="constellation-core">
+                            <img src="/logo.png" alt="" />
+                            <span />
+                            <span />
+                            <span />
+                          </div>
+                          <div className="orbit-card orbit-card-work">
+                            <BookOpen size={15} />
+                            <b>{slide.visualCards.work[0]}</b>
+                            <small>{slide.visualCards.work[1]}</small>
+                          </div>
+                          <div className="orbit-card orbit-card-match">
+                            <Users size={15} />
+                            <b>{slide.visualCards.match[0]}</b>
+                            <small>{slide.visualCards.match[1]}</small>
+                          </div>
+                          <div className="orbit-card orbit-card-voice">
+                            <Headphones size={15} />
+                            <b>{slide.visualCards.voice[0]}</b>
+                            <small>{slide.visualCards.voice[1]}</small>
+                          </div>
+                          <div className="orbit-card orbit-card-settle">
+                            <Split size={15} />
+                            <b>{slide.visualCards.settle[0]}</b>
+                            <small>{slide.visualCards.settle[1]}</small>
+                          </div>
+                        </div>
+                        <div className="mobile-visual-chip">
+                          <b>{slide.mobileChipTitle}</b>
+                          <span>{slide.mobileChipText}</span>
+                        </div>
+                        <div className="city-lines" />
+                        <div className="character-card">
+                          <span>{slide.visualLabel}</span>
+                          <strong>{slide.visualTitle}</strong>
+                        </div>
+                        <div className="floating-widget widget-left">
+                          <span>{slide.stat}</span>
+                          <b>{slide.statLabel}</b>
+                        </div>
+                        <div className="floating-widget widget-right">
+                          <span>{index === 1 ? "8%" : "0%"}</span>
+                          <b>{index === 1 ? "파트너 수수료" : "초기 매칭 수수료"}</b>
+                        </div>
+                      </div>
+                      <div className="visual-caption">{slide.statLabel}</div>
+                    </div>
+                  ))}
+                </div>
+              </aside>
+            </section>
+
+            {activePage === "intro" && <nav className="classic-intro-contents" aria-label="소개 목차">
+              <a href="#intro-platform">플랫폼 소개</a>
+              <a href="#intro-process">이용 흐름</a>
+              <a href="#intro-accessibility">접근성 설정</a>
+              <a href="#intro-roadmap">로드맵</a>
+            </nav>}
+            <section className="intro-metrics reveal">
+              <div><strong>0원</strong><span>초기 매칭 수수료</span></div>
+              <div><strong>13% / 8%</strong><span>일반 · 파트너 수수료</span></div>
+              <div><strong>30:30:40</strong><span>팀 지분율 자동 분배</span></div>
+              <div><strong>Voice-first</strong><span>배리어프리 UX</span></div>
+            </section>
+
+            <section className="start-guide-section reveal">
+              <div className="section-head intro-head">
+                <div>
+                  <p className="kicker">Start Guide</p>
+                  <h2>처음 들어와도 바로 이해되는 3가지 시작 동선</h2>
+                </div>
+                <p>
+                  독자는 작품을 보고, 창작자는 프로필을 올리고, 팀장은 제안과 정산을 관리합니다.
+                  각 역할별 핵심 행동을 한 화면에서 바로 시작할 수 있게 정리했습니다.
+                </p>
+              </div>
+              <div className="start-guide-grid">
+                {onboardingGuides.map((guide) => (
+                  <article key={guide.audience} className="start-guide-card">
+                    <span>{guide.icon}</span>
+                    <em>{guide.audience}</em>
+                    <h3>{guide.title}</h3>
+                    <p>{guide.text}</p>
+                    <div>
+                      {guide.steps.map((step) => (
+                        <b key={step}>{step}</b>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => navigate(guide.page)}>
+                      {guide.cta}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="intro-section reveal" id="intro-platform">
+              <div className="section-head intro-head">
+                <div>
+                <p className="kicker">Why Creator Universe</p>
+                <h2>창작자 협업, 콘텐츠 유통, 정산 자동화를 하나의 스튜디오로 연결합니다</h2>
+                </div>
+                <p>흩어진 창작자가 팀을 만들고, 작품을 판매하고, 수익을 투명하게 나누는 과정을 하나의 제품 흐름으로 설계한 멀티 IP 플랫폼입니다.</p>
+              </div>
+              <div className="feature-grid">
+                {featureCards.map((feature, index) => (
+                  <article key={feature.title} className="feature-card">
+                    <span>{feature.icon}</span>
+                    <div className={`feature-3d-object object-${index + 1}`} aria-hidden="true">
+                      <i />
+                      <b />
+                      <em />
+                    </div>
+                    <h3>{feature.title}</h3>
+                    <p>{feature.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="showcase-section reveal">
+              <div className="showcase-copy">
+                <p className="kicker">Product Preview</p>
+                <h2>팀 결성부터 결제, 감상, 정산까지 한 번에</h2>
+                <p>독자는 코인으로 콘텐츠를 열람하고, 창작자는 합의된 지분율대로 정산 내역을 확인합니다. 시각장애인과 저시력자를 위한 고대비 감상 경험도 기본 흐름에 포함됩니다.</p>
+              </div>
+              <div className="showcase-cards">
+                <article className="mock-card matching-mock">
+                  <span>Matching</span>
+                  <strong>성우 · 일러스트 · 작가 매칭</strong>
+                  <div className="avatar-row"><i /><i /><i /><i /></div>
+                </article>
+                <article className="mock-card settlement-mock">
+                  <span>Settlement</span>
+                  <strong>합의한 지분대로 주 단위 정산</strong>
+                  <div className="mini-donut" />
+                </article>
+                <article className="mock-card viewer-mock">
+                  <span>Access</span>
+                  <strong>시각 중심 콘텐츠를 음성·대본 접근성으로 확장</strong>
+                  <p>“같은 작품을 더 많은 독자가 즐길 수 있도록.”</p>
+                </article>
+              </div>
+            </section>
+
+            <section className="ecosystem-section reveal">
+              <div className="section-head intro-head">
+                <div>
+                  <p className="kicker">For whom</p>
+                  <h2 className="balanced-korean-title">
+                    <span>각자 다른 이유로 필요한 사람들이</span>
+                    <span>같은 세계관 안에서 만납니다</span>
+                  </h2>
+                </div>
+                <p>팬덤형 창작 커뮤니티의 감성을 살리면서 소설, 웹툰, 만화, 애니메이션, 오디오드라마를 하나의 협업 IP로 확장할 수 있게 설계했습니다.</p>
+              </div>
+              <div className="audience-grid">
+                {audienceSegments.map((segment, index) => (
+                  <article className="audience-card" key={segment.title}>
+                    <b>0{index + 1}</b>
+                    <span>{segment.label}</span>
+                    <h3>{segment.title}</h3>
+                    <p>{segment.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="flow-section reveal" id="intro-process">
+              <div>
+                <p className="kicker">How it works</p>
+                <h2>결제 한 번이 팀 전체의 정산까지 이어지는 구조</h2>
+                <p>단순히 콘텐츠를 올리는 곳이 아니라, 협업의 시작부터 수익 분배까지 하나의 데이터 흐름으로 묶습니다.</p>
+              </div>
+              <div className="flow-visual-stack">
+                <div className="flow-rail">
+                  {serviceFlow.map((step, index) => (
+                    <button
+                      type="button"
+                      className={`flow-step-card ${activeFlowStep === index ? "active" : ""}`}
+                      key={step.title}
+                      onClick={() => setActiveFlowStep(index)}
+                      onFocus={() => setActiveFlowStep(index)}
+                      onMouseEnter={() => setActiveFlowStep(index)}
+                    >
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{step.title}</strong>
+                      <small>{step.metric}</small>
+                    </button>
+                  ))}
+                </div>
+                <aside className="flow-detail-card" aria-live="polite">
+                  <span>Step {String(activeFlowStep + 1).padStart(2, "0")}</span>
+                  <strong>{currentFlowStep.title}</strong>
+                  <p>{currentFlowStep.detail}</p>
+                  <div className="flow-mini-split" aria-hidden="true">
+                    <b>독자 결제</b>
+                    <i />
+                    <b>팀 지갑</b>
+                  </div>
+                </aside>
+              </div>
+            </section>
+
+            <section className="premium-section reveal">
+              <div className="section-head intro-head">
+                <div>
+                  <p className="kicker">Partner System</p>
+                  <h2>성공한 창작팀이 떠나지 않도록 수수료를 낮추는 락인 전략</h2>
+                </div>
+                <p>일반 팀은 낮은 진입 장벽으로 시작하고, 성장한 팀은 파트너 등급으로 더 좋은 조건을 받습니다.</p>
+              </div>
+              <div className="plan-grid">
+                {partnerPlans.map((plan) => (
+                  <article className="plan-card" key={plan.name}>
+                    <span>{plan.target}</span>
+                    <h3>{plan.name}</h3>
+                    <strong>{plan.fee}</strong>
+                    <p>플랫폼 수수료</p>
+                    {plan.perks.map((perk) => <em key={perk}>{perk}</em>)}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="universe-premium-card reveal">
+              <div>
+                <p className="kicker">Universe Premium</p>
+                <h2>월 7,900코인으로 광고 없이 보고, 매달 보너스 코인까지 받는 구독 서비스</h2>
+                <p>홈에서 바로 이해되는 독자용 멤버십 상품입니다. 작품 페이지 광고 제거, 팬덤형 콘텐츠 선공개, 보너스 코인을 묶어 유튜브 프리미엄처럼 명확한 구독 가치를 제공합니다.</p>
+                <button onClick={openPayment}><Sparkles size={17} /> 프리미엄 구독 살펴보기</button>
+              </div>
+              <div>
+                <strong>7,900 Coin</strong>
+                {universePremiumBenefits.map((benefit) => <span key={benefit}><CheckCircle2 size={16} /> {benefit}</span>)}
+              </div>
+            </section>
+
+            <section className="trust-safety-section reveal">
+              <div className="section-head intro-head">
+                <div>
+                  <p className="kicker">Trust & Safety</p>
+                  <h2>돈과 권리가 오가는 플랫폼이라서 신뢰 흐름을 먼저 설계했습니다</h2>
+                </div>
+                <p>
+                  코인 결제, 콘텐츠 열람권, 창작자 정산, 사용자 신고를 서로 분리하지 않고
+                  하나의 기록 흐름으로 연결해 문제 상황을 빠르게 확인할 수 있게 했습니다.
+                </p>
+              </div>
+              <div className="trust-safety-grid">
+                {trustSignals.map((signal) => (
+                  <article key={signal.title}>
+                    <span>{signal.icon}</span>
+                    <em>{signal.label}</em>
+                    <h3>{signal.title}</h3>
+                    <p>{signal.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="accessibility-preference-section reveal" id="intro-accessibility">
+              <div>
+                <p className="kicker">Accessible Reading</p>
+                <h2>사용자가 직접 조절하는 감상 환경</h2>
+                <p>
+                  배리어프리 오디오뿐 아니라 웹과 앱 전체에서 읽기 편한 색, 글자 크기, 움직임 정도를
+                  직접 고를 수 있게 했습니다. 설정은 브라우저에 저장되어 다음 방문에도 유지됩니다.
+                </p>
+              </div>
+              <div className="accessibility-preference-grid">
+                {accessibilityControls.map((control) => (
+                  <article className={accessibilityPreferences[control.key] ? "active" : ""} key={control.key}>
+                    <span>{control.icon}</span>
+                    <div>
+                      <h3>{control.title}</h3>
+                      <p>{control.text}</p>
+                    </div>
+                    <button type="button" onClick={() => toggleAccessibilityPreference(control.key)}>
+                      {accessibilityPreferences[control.key] ? "켜짐" : "켜기"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="timeline-section reveal" id="intro-roadmap">
+              <div>
+                <p className="kicker">Growth Roadmap</p>
+                <h2>프로토타입 이후에도 확장 가능한 실행 계획</h2>
+              </div>
+              <div className="timeline-list">
+                {growthTimeline.map((item) => (
+                  <article key={item.year}>
+                    <span>{item.year}</span>
+                    <div>
+                      <h3>{item.title}</h3>
+                      <p>{item.text}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="mission-section reveal">
+              <div>
+                <p className="kicker">ESG Mission</p>
+                <h2>시장성과 사회적 가치를 동시에 잡는 멀티 IP 플랫폼</h2>
+                <p>소설과 웹툰은 창작의 시작점이 되고, 오디오 버전과 배리어프리 감상 기능은 더 많은 사용자가 같은 작품을 즐기게 만드는 확장 채널이 됩니다.</p>
+              </div>
+              <div className="roadmap-card">
+                <Rocket size={26} />
+                <strong>3주 MVP 추진 계획</strong>
+                {roadmapItems.map((item) => <span key={item}>{item}</span>)}
+              </div>
+            </section>
+
+            <section className="final-cta reveal">
+              <span>Everything you create has a voice</span>
+              <h2>창작자가 모이고, 독자가 듣고, 수익이 공정하게 흐르는 오디오 유니버스</h2>
+              <p>이제 매칭, 작품 결제, 정산, 고객센터 화면에서 실제 MVP 흐름을 확인해보세요.</p>
+              <div>
+                {isCreatorAccount ? (
+                  <button className="primary-button" onClick={() => navigate("matching")}><Users size={18} /> 매칭 화면 보기</button>
+                ) : (
+                  <button className="primary-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 추천 작품 보기</button>
+                )}
+                <button className="ghost-button" onClick={openPayment}><Coins size={18} /> 결제창 열기</button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activePage === "discover" && <section className="section discover-page page-panel">
+          <section className="app-discover-dashboard" aria-label="앱 작품 탐색 요약">
+            <div className="app-discover-head">
+              <span>Library</span>
+              <h2>오늘 볼 작품을 빠르게 찾기</h2>
+              <p>앱에서는 검색, 이어보기, 스크랩을 먼저 보여줘서 복잡하게 내려가지 않아도 바로 감상할 수 있게 했어요.</p>
+            </div>
+
+            <label className="app-discover-search">
+              <Search size={17} />
+              <input
+                value={readerSearch}
+                onChange={(event) => setReaderSearch(event.target.value)}
+                placeholder="웹툰 로맨스, 소설 판타지처럼 검색"
+                type="search"
+              />
+            </label>
+
+            <div className="app-discover-library-tabs" aria-label="앱 작품 보관함 바로가기">
+              {libraryViewItems.map((item) => {
+                const count =
+                  item.id === "recent"
+                    ? recentWorkIds.length
+                    : item.id === "purchased"
+                      ? purchasedWorkIds.length
+                      : item.id === "scrapped"
+                        ? scrappedWorkIds.length
+                        : readerWorks.length;
+
+                return (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={readerLibraryView === item.id ? "active" : ""}
+                    onClick={() => {
+                      setActivePage("discover", item.id);
+                      window.setTimeout(() => {
+                        librarySectionRef.current?.scrollIntoView({ behavior: accessibilityPreferences.reducedMotion ? "auto" : "smooth", block: "start" });
+                      }, 80);
+                    }}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <article className="app-continue-card">
+              {(() => {
+                const continueWork = recentWorks[0] ?? purchasedWorks[0] ?? rankedReaderWorks[0];
+                const progress = workProgress[continueWork.id];
+
+                return (
+                  <>
+                    <img src={continueWork.coverImage} alt="" />
+                    <div>
+                      <span>{progress ? `${progress.episodeNumber}화 · ${progress.percent}% 진행` : "추천 이어보기"}</span>
+                      <strong>{continueWork.title}</strong>
+                      <p>{continueWork.format} · {continueWork.genre}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedWork(continueWork);
+                        setReviewWorkId(continueWork.id);
+                      }}
+                    >
+                      <Play size={15} /> 보기
+                    </button>
+                  </>
+                );
+              })()}
+            </article>
+
+            <div className="app-filter-strip" aria-label="앱 장르 빠른 선택">
+              {[...readerFormatFilters.slice(0, 5), ...readerGenreFilters.slice(0, 6)].map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  className={(filter === "전체" ? readerFilters.length === 0 : readerFilters.includes(filter)) ? "active" : ""}
+                  onClick={() => toggleReaderFilter(filter)}
+                >
+                  {filter}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="discover-hero">
+            <div>
+              <p className="kicker">Multi Content Library</p>
+              <h2>소설, 웹툰, 만화, 애니메이션, 오디오드라마를 장르별로 골라보세요</h2>
+              <p>독자는 웹툰 플랫폼처럼 원하는 장르와 콘텐츠 형식을 고르고, 창작팀은 하나의 IP를 글·그림·소리·영상으로 확장해 유통할 수 있습니다.</p>
+            </div>
+            <div className="featured-work">
+              <span><Flame size={15} /> 실시간 인기</span>
+              <strong>{readerWorks[0].title}</strong>
+              <p>{readerWorks[0].tagline}</p>
+              <button disabled={salePrices[readerWorks[0].id] === undefined} onClick={() => openWorkPayment(readerWorks[0].id)}>
+                <Coins size={17} /> {salePrices[readerWorks[0].id] === undefined ? "판매 준비 중" : formatCoins(salePrices[readerWorks[0].id]) + " 열람"}
+              </button>
+            </div>
+          </div>
+
+          <section className="content-format-grid" aria-label="콘텐츠 형식별 협업 모델">
+            {contentFormatCards.map((item, index) => (
+              <article className="content-format-card" key={item.title}>
+                <div className={`content-3d-stack stack-${index + 1}`} aria-hidden="true">
+                  <i />
+                  <b />
+                  <em />
+                </div>
+                <span>{item.label}</span>
+                <strong>{item.title}</strong>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </section>
+
+          <section className="ranking-section">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Ranking</p>
+                <h2>지금 가장 많이 보는 작품과 장르별 TOP 차트</h2>
+              </div>
+              <p className="section-description">
+                <span>감상 수, 평점, 회차 활동성을 합산해 만든 데모 랭킹입니다.</span>
+                <span>카드 클릭 시 작품 상세와 댓글/리뷰로 바로 연결됩니다.</span>
+              </p>
+            </div>
+            <div className="ranking-layout">
+              <article className="overall-ranking-card">
+                <div className="ranking-card-head">
+                  <span>전체 차트</span>
+                  <small>오늘의 인기 순위</small>
+                </div>
+                {rankedReaderWorks.slice(0, 8).map((work, index) => (
+                  <button
+                    className={index < 3 ? "podium" : ""}
+                    key={work.id}
+                    onClick={() => {
+                      setSelectedWork(work);
+                      setReviewWorkId(work.id);
+                    }}
+                  >
+                    <b>{index + 1}</b>
+                    <img src={work.coverImage} alt="" />
+                    <div>
+                      <strong>{work.title}</strong>
+                      <small>{work.format} · {work.genre} · ★ {work.rating}</small>
+                    </div>
+                    <em>{index === 0 ? "HOT" : index % 3 === 0 ? "NEW" : `▲ ${index + 1}`}</em>
+                  </button>
+                ))}
+              </article>
+
+              <div className="genre-ranking-grid">
+                {genreRankings.map((ranking) => (
+                  <article key={ranking.genre}>
+                    <span>{ranking.genre}</span>
+                    {ranking.works.map((work, index) => (
+                      <button
+                        key={work.id}
+                        onClick={() => {
+                          setSelectedWork(work);
+                          setReviewWorkId(work.id);
+                        }}
+                      >
+                        <b>{index + 1}</b>
+                        <div>
+                          <strong>{work.title}</strong>
+                          <small>{work.format} · {work.listeners} · ★ {work.rating}</small>
+                        </div>
+                      </button>
+                    ))}
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="recommend-strip" ref={librarySectionRef} id="reader-library">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Recommended</p>
+                <h2>{readerFilters.length === 0 ? "전체 추천작" : `${readerFilters.join(" · ")} 추천작`}</h2>
+              </div>
+              <p>선택한 장르와 검색어에 맞춰 독자용 작품 카드가 바뀝니다.</p>
+            </div>
+            <div className="library-shelf">
+              <article>
+                <div>
+                  <span>Continue</span>
+                  <strong>최근 본 작품</strong>
+                  <p>{recentWorks.length > 0 ? `${recentWorks.length}개 작품 이어보기 가능` : "작품 상세를 열면 자동 저장돼요"}</p>
+                </div>
+                <div className="library-cover-stack recent-stack">
+                  {(recentWorks.length > 0 ? recentWorks : readerWorks.slice(1, 4)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => openReaderLibrary("recent")}>
+                  최근 본 작품 보기
+                </button>
+              </article>
+              <article>
+                <div>
+                  <span>Purchased</span>
+                  <strong>결제한 작품</strong>
+                  <p>{purchasedWorks.length > 0 ? `${purchasedWorks.length}개 열람권 보유` : "아직 결제한 작품이 없어요"}</p>
+                </div>
+                <div className="library-cover-stack">
+                  {(purchasedWorks.length > 0 ? purchasedWorks : readerWorks.slice(0, 3)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => {
+                  if (!token) {
+                    setAuthMode("login");
+                    return;
+                  }
+                  openReaderLibrary("purchased");
+                }}>
+                  결제한 작품만 보기
+                </button>
+              </article>
+              <article>
+                <div>
+                  <span>Scrap</span>
+                  <strong>스크랩 보관함</strong>
+                  <p>{scrappedWorks.length > 0 ? `${scrappedWorks.length}개 작품 저장됨` : "하트를 누르면 여기에 저장돼요"}</p>
+                </div>
+                <div className="library-cover-stack heart-stack">
+                  {(scrappedWorks.length > 0 ? scrappedWorks : readerWorks.slice(3, 6)).slice(0, 3).map((work) => (
+                    <img src={work.coverImage} alt="" key={work.id} />
+                  ))}
+                </div>
+                <button onClick={() => {
+                  if (!token) {
+                    setAuthMode("login");
+                    return;
+                  }
+                  openReaderLibrary("scrapped");
+                }}>
+                  스크랩만 보기
+                </button>
+              </article>
+            </div>
+            <div className="reader-toolbar recommend-toolbar">
+              <div className="library-tabs" aria-label="내 작품 보관함 필터">
+                {libraryViewItems.map((item) => {
+                  const count =
+                    item.id === "recent"
+                      ? recentWorkIds.length
+                      : item.id === "purchased"
+                        ? purchasedWorkIds.length
+                        : item.id === "scrapped"
+                          ? scrappedWorkIds.length
+                          : readerWorks.length;
+                  return (
+                    <button
+                      key={item.id}
+                      className={readerLibraryView === item.id ? "active" : ""}
+                      onClick={() => setActivePage("discover", item.id)}
+                    >
+                      {item.id === "recent" && <RefreshCw size={15} />}
+                      {item.id === "purchased" && <BookOpen size={15} />}
+                      {item.id === "scrapped" && <Heart size={15} />}
+                      {item.label}
+                      <span>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="matching-search">
+                <Search size={18} />
+                <input
+                  value={readerSearch}
+                  onChange={(event) => setReaderSearch(event.target.value)}
+                  placeholder="예: 웹툰 로맨스, 소설 판타지, 만화 스릴러"
+                  type="search"
+                />
+              </label>
+              <div className="reader-filter-groups" aria-label="작품 형식과 장르 필터">
+                <div>
+                  <span>콘텐츠 형식</span>
+                  <div className="genre-filter reader-genre-filter">
+                    {readerFormatFilters.map((format) => (
+                      <button
+                        key={format}
+                        className={(format === "전체" ? readerFilters.length === 0 : readerFilters.includes(format)) ? "active" : ""}
+                        onClick={() => toggleReaderFilter(format)}
+                      >
+                        {format}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span>장르</span>
+                  <div className="genre-filter reader-genre-filter">
+                    {readerGenreFilters.map((genre) => (
+                      <button
+                        key={genre}
+                        className={readerFilters.includes(genre) ? "active" : ""}
+                        onClick={() => toggleReaderFilter(genre)}
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <p className="active-filter-hint">
+                {readerFilters.length > 0
+                  ? `${readerFilters.join(" + ")} 조건을 모두 만족하는 작품만 표시 중`
+                  : "여러 필터를 동시에 선택하거나 검색창에 '웹툰 로맨스'처럼 입력해보세요."}
+              </p>
+            </div>
+            <div className="reader-work-grid">
+              {filteredReaderWorks.map((work) => (
+                <article className={`reader-work-card ${work.tone}`} key={work.id}>
+                  <div className="reader-cover">
+                    <img src={work.coverImage} alt={`${work.title} 커버`} />
+                    <span>{work.badge}</span>
+                    {hasAudioExperience(work) && (
+                      <em className="audio-work-badge"><Headphones size={14} /> {getAudioExperienceLabel(work)}</em>
+                    )}
+                    <strong>{work.format}</strong>
+                    <button
+                      className={`scrap-button ${scrappedWorkIds.includes(work.id) ? "active" : ""}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleScrap(work.id);
+                      }}
+                      aria-label={scrappedWorkIds.includes(work.id) ? `${work.title} 스크랩 해제` : `${work.title} 스크랩`}
+                    >
+                      <Heart size={17} fill={scrappedWorkIds.includes(work.id) ? "currentColor" : "none"} />
+                    </button>
+                  </div>
+                  <div className="reader-work-body">
+                    <span>{work.format} · {work.subGenre}</span>
+                    <h3>{work.title}</h3>
+                    <p>{work.tagline}</p>
+                    <div className="reader-meta">
+                      <b><Star size={14} /> {work.rating}</b>
+                      <b>{work.listeners} 감상</b>
+                      <b>{work.episodes}화</b>
+                    </div>
+                    {workProgress[work.id] && (
+                      <div className="reader-progress-chip">
+                        <span>{workProgress[work.id].episodeNumber}화 이어보기</span>
+                        <b>{workProgress[work.id].percent}%</b>
+                        <i><em style={{ width: `${workProgress[work.id].percent}%` }} /></i>
+                      </div>
+                    )}
+                    <div className="work-contributors">
+                      <span>참여 창작자</span>
+                      <div>
+                        {work.participantUserIds
+                          .map((userId) => creators.find((creator) => creator.userId === userId))
+                          .filter(Boolean)
+                          .slice(0, 4)
+                          .map((creator) => (
+                            <button key={creator!.id} onClick={() => setSelectedCreator(creator!)}>
+                              <i>{creator!.displayName.slice(0, 1)}</i>
+                              <b>{creator!.displayName}</b>
+                              <em>{roleLabels[creator!.primaryRole]}</em>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                    <div className="chips">{work.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                    <div className="reader-actions">
+                      {purchasedWorkIds.includes(work.id) ? (
+                        <button className="ghost-button compact purchased-badge"><CheckCircle2 size={16} /> 결제 완료</button>
+                      ) : (
+                        <button className="primary-button compact" disabled={salePrices[work.id] === undefined} onClick={() => openWorkPayment(work.id)}><Coins size={16} /> {salePrices[work.id] === undefined ? "판매 준비 중" : formatCoins(salePrices[work.id])}</button>
+                      )}
+                      <button
+                        className="ghost-button compact"
+                        onClick={() => {
+                          setSelectedWork(work);
+                          setReviewWorkId(work.id);
+                        }}
+                      >
+                        <BookOpen size={16} /> 상세/리뷰
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            {filteredReaderWorks.length === 0 && (
+              <div className="empty-matching">
+                <BookOpen size={24} />
+                <strong>조건에 맞는 작품이 없어요</strong>
+                <p>다른 장르를 누르거나 검색어를 바꿔보세요.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="creator-discovery-strip">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Creator Search</p>
+                <h2>작품에 참여한 작가, 성우, 그림 작가를 찾아보세요</h2>
+              </div>
+              <p>이름, 직군, 작품명, 장르를 검색해서 창작자 프로필을 열고 후원이나 구독으로 연결할 수 있습니다.</p>
+            </div>
+            <div className="creator-search-toolbar">
+              <label className="matching-search">
+                <Search size={18} />
+                <input
+                  value={discoverCreatorSearch}
+                  onChange={(event) => setDiscoverCreatorSearch(event.target.value)}
+                  placeholder="예: 성우 미스터리, 작가 로맨스, 렌카 웹툰"
+                  type="search"
+                />
+              </label>
+              <div className="role-tabs compact-role-tabs">
+                {roleFilterItems.map((item) => (
+                  <button key={item} className={discoverCreatorRole === item ? "active" : ""} onClick={() => setDiscoverCreatorRole(item)}>
+                    {item === "ALL" ? "전체" : roleLabels[item]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="discover-creator-grid">
+              {discoverCreators.slice(0, 6).map((creator) => {
+                const joinedWorks = readerWorks.filter((work) => work.participantUserIds.includes(creator.userId));
+
+                return (
+                  <article key={creator.id}>
+                    <div className="discover-creator-avatar">{creator.displayName.slice(0, 1)}</div>
+                    <span>{roleLabels[creator.primaryRole]}</span>
+                    <strong>{creator.displayName}</strong>
+                    <p>{creator.headline}</p>
+                    <div>
+                      {joinedWorks.slice(0, 2).map((work) => <em key={work.id}>{work.title}</em>)}
+                    </div>
+                    <button onClick={() => setSelectedCreator(creator)}>프로필 · 후원 보기</button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+
+        </section>}
+
+        {activePage === "studio" && <section className="section studio-page page-panel">
+          <section className="app-studio-dashboard" aria-label="앱 창작자 스튜디오 요약">
+            <div className="app-studio-head">
+              <span>Creator Studio</span>
+              <h2>{myCreatorProfile ? "오늘의 창작 스튜디오" : "먼저 내 프로필을 만들어볼까요?"}</h2>
+              <p>
+                앱에서는 자주 쓰는 작업만 앞에 모았습니다. 프로필 등록, 매칭 제안 확인, 채팅, 지갑 이동을 빠르게 시작할 수 있어요.
+              </p>
+            </div>
+
+            <div className="app-studio-status-grid">
+              <article>
+                <UserRound size={18} />
+                <span>프로필</span>
+                <strong>{studioProfileCompletion.percent}%</strong>
+                <p>{myCreatorProfile ? roleLabels[myCreatorProfile.primaryRole] : "등록 대기"}</p>
+              </article>
+              <article>
+                <MessageCircle size={18} />
+                <span>제안함</span>
+                <strong>{matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length}건</strong>
+                <p>대기 중</p>
+              </article>
+              <article>
+                <Wallet size={18} />
+                <span>지갑</span>
+                <strong>{formatCoins(wallet ?? 0)}</strong>
+                <p>보유 코인</p>
+              </article>
+            </div>
+
+            <div className="app-studio-flow-card">
+              <span>추천 순서</span>
+              <div>
+                <b>1</b>
+                <p>프로필 공개</p>
+              </div>
+              <div>
+                <b>2</b>
+                <p>팀원 찾기</p>
+              </div>
+              <div>
+                <b>3</b>
+                <p>제안 수락</p>
+              </div>
+              <div>
+                <b>4</b>
+                <p>정산 확인</p>
+              </div>
+            </div>
+
+            <div className="app-studio-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreatorProfileFormOpen(true);
+                  navigate("matching");
+                }}
+              >
+                <UserPlus size={16} /> 프로필 등록
+              </button>
+              <button type="button" onClick={() => navigate("matching")}>
+                <Users size={16} /> 팀원 찾기
+              </button>
+              <button type="button" onClick={() => openCreatorMessenger()}>
+                <MessageCircle size={16} /> 채팅 열기
+              </button>
+              <button type="button" onClick={() => navigate("wallet")}>
+                <Wallet size={16} /> 지갑
+              </button>
+            </div>
+          </section>
+
+          <div className="studio-hero">
+            <div>
+              <p className="kicker">Creator Studio</p>
+              <h2>내 채널, 작품, 팀원, 수익을 한눈에 관리하는 창작자 작업실</h2>
+              <p>
+                창작자는 프로필을 공개하고, 대표작을 정리하고, 팀원을 초대하고, 멤버십과 정산 상태까지 한 화면에서 관리할 수 있습니다.
+                이 페이지는 Creator Universe의 창작자 홈이자 작품 운영 콘솔입니다.
+              </p>
+              <div className="studio-hero-actions">
+                <button className="primary-button" onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={18} /> 매칭 프로필 준비</button>
+                <button className="ghost-button" onClick={() => navigate("settlement")}><Split size={18} /> 정산 설정으로 이동</button>
+              </div>
+            </div>
+            <div className="studio-status-card">
+              <span>Studio Status</span>
+              <strong>{myCreatorProfile ? "창작자 프로필 공개 중" : "프로필 등록 대기"}</strong>
+              <p>{myCreatorProfile ? myCreatorProfile.headline : "매칭 보드에 프로필을 올리면 팀원이 내 스튜디오로 합류할 수 있어요."}</p>
+            </div>
+          </div>
+
+          <section className="studio-command-center">
+            <article className="studio-profile-score">
+              <div className="studio-score-ring" style={{ "--score": `${studioProfileCompletion.percent}%` } as never}>
+                <strong>{studioProfileCompletion.percent}%</strong>
+                <span>Profile</span>
+              </div>
+              <div>
+                <p className="kicker">Creator Readiness</p>
+                <h3>프로필 완성도</h3>
+                <p>팀원이 신뢰하고 제안할 수 있도록 공개 정보와 대표작을 채워주세요.</p>
+                <div className="studio-checklist">
+                  {studioProfileCompletion.items.map((item) => (
+                    <span className={item.done ? "done" : ""} key={item.label}>
+                      <CheckCircle2 size={14} /> {item.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </article>
+
+            <article className="studio-channel-preview">
+              <div className="studio-channel-avatar">{(myCreatorProfile?.displayName ?? user?.displayName ?? "C").slice(0, 1)}</div>
+              <div>
+                <span>{myCreatorProfile ? roleLabels[myCreatorProfile.primaryRole] : "창작자"}</span>
+                <strong>{myCreatorProfile?.displayName ?? user?.displayName ?? "내 창작자 채널"}</strong>
+                <p>{myCreatorProfile?.portfolioSummary ?? "대표작, 포트폴리오, 멤버십을 연결하면 독자와 팀원이 보는 창작자 채널이 완성됩니다."}</p>
+              </div>
+              <div className="studio-channel-stats">
+                <div><b>{myCreatorProfile?.followerCount.toLocaleString("ko-KR") ?? 0}</b><span>팔로워</span></div>
+                <div><b>{myCreatorProfile?.responseRate ?? 0}%</b><span>응답률</span></div>
+                <div><b>{myStudioWorks.length}</b><span>대표작</span></div>
+              </div>
+            </article>
+
+            <article className="studio-revenue-snapshot">
+              <p className="kicker">Revenue Snapshot</p>
+              <h3>이번 달 창작 수익 흐름</h3>
+              <div>
+                <span>예상 정산</span>
+                <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+              </div>
+              <div>
+                <span>지갑 잔액</span>
+                <strong>{formatCoins(wallet ?? 0)}</strong>
+              </div>
+              <button onClick={() => navigate("wallet")}><Wallet size={15} /> 지갑으로 이동</button>
+            </article>
+          </section>
+
+          <div className="studio-kpi-grid">
+            <article><BookOpen size={22} /><span>대표 작품</span><strong>{myStudioWorks.length || 3}개</strong><p>창작자 채널에 보여줄 대표작과 참여작을 관리합니다.</p></article>
+            <article><Users size={22} /><span>매칭 제안</span><strong>{matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length}건</strong><p>지분율 조건을 확인하고 팀 합류 여부를 결정합니다.</p></article>
+            <article><Split size={22} /><span>기본 지분</span><strong>40 · 30 · 30</strong><p>팀장 40%, 팀원 30% 프리셋을 적용할 수 있습니다.</p></article>
+            <article><Rocket size={22} /><span>채널 준비</span><strong>{studioProfileCompletion.percent}%</strong><p>프로필, 대표작, 포트폴리오 기준의 준비 상태입니다.</p></article>
+          </div>
+
+          <section className="studio-channel-dashboard">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Creator Channel</p>
+                <h2>내 창작자 홈 구성</h2>
+              </div>
+              <p>픽시브식 포트폴리오, 포스타입식 멤버십, 팀 프로젝트 정산을 한 화면으로 묶은 창작자 채널 영역입니다.</p>
+            </div>
+            <div className="studio-channel-grid">
+              <article className="studio-feature-work">
+                <span>대표작</span>
+                <strong>{myStudioWorks[0]?.title ?? "대표작을 아직 연결하지 않았어요"}</strong>
+                <p>{myStudioWorks[0]?.tagline ?? "작품 상세에서 참여 창작자로 연결되면 이 영역에 대표작이 표시됩니다."}</p>
+                <button onClick={() => navigate("discover")}><BookOpen size={15} /> 작품 관리</button>
+              </article>
+              <article>
+                <span>멤버십</span>
+                <strong>{premiumSubscription.isActive ? "프리미엄 구독중" : "팬 멤버십 설계 필요"}</strong>
+                <p>러프, 짧은 글, 보이스 샘플, BGM 루프를 구독자 전용 포스트로 묶을 수 있습니다.</p>
+                <button onClick={openMyAccount}><Sparkles size={15} /> 구독 관리</button>
+              </article>
+              <article>
+                <span>다음 할 일</span>
+                <strong>{studioProfileCompletion.items.find((item) => !item.done)?.label ?? "채널 기본 준비 완료"}</strong>
+                <p>완성도가 높을수록 매칭 보드와 작품 상세에서 더 신뢰감 있게 보입니다.</p>
+                <button onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={15} /> 프로필 보강</button>
+              </article>
+            </div>
+          </section>
+
+          <section className="studio-publish-editor">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Publishing Editor</p>
+                <h2>작품/회차 발행 에디터</h2>
+              </div>
+              <p>작품 기본 정보, 회차 제목, 가격, 공개 방식, 접근성 대본 메모를 한 번에 정리하고 독자에게 보일 화면을 바로 확인합니다.</p>
+            </div>
+
+            <div className="studio-editor-workspace">
+              <form className="studio-form studio-publish-form" onSubmit={submitStudioWorkDraft}>
+                <div className="studio-form-section">
+                  <span>작품 정보</span>
+                  <label>작품 제목
+                    <input
+                      name="title"
+                      required
+                      value={studioDraft.title}
+                      onChange={(event) => updateStudioDraft("title", event.target.value)}
+                    />
+                  </label>
+                  <label>콘텐츠 형식
+                    <select
+                      name="format"
+                      value={studioDraft.format}
+                      onChange={(event) => updateStudioDraft("format", event.target.value)}
+                    >
+                      {readerFormatFilters.filter((item) => item !== "전체").map((format) => <option key={format}>{format}</option>)}
+                    </select>
+                  </label>
+                  <label>대표 장르
+                    <select
+                      name="genre"
+                      value={studioDraft.genre}
+                      onChange={(event) => updateStudioDraft("genre", event.target.value)}
+                    >
+                      {readerGenreFilters.map((genre) => <option key={genre}>{genre}</option>)}
+                    </select>
+                  </label>
+                  <label>회차 제목
+                    <input
+                      name="episodeTitle"
+                      required
+                      value={studioDraft.episodeTitle}
+                      onChange={(event) => updateStudioDraft("episodeTitle", event.target.value)}
+                    />
+                  </label>
+                  <label className="wide">작품 소개
+                    <textarea
+                      name="synopsis"
+                      required
+                      value={studioDraft.synopsis}
+                      onChange={(event) => updateStudioDraft("synopsis", event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <div className="studio-form-section">
+                  <span>발행 설정</span>
+                  <label>공개 방식
+                    <select
+                      name="accessType"
+                      value={studioDraft.accessType}
+                      onChange={(event) => updateStudioDraft("accessType", event.target.value)}
+                    >
+                      <option>무료 공개</option>
+                      <option>코인 열람</option>
+                      <option>구독자 선공개</option>
+                      <option>멤버십 전용</option>
+                    </select>
+                  </label>
+                  <label>열람 가격
+                    <input
+                      name="priceCoins"
+                      min={0}
+                      step={100}
+                      type="number"
+                      value={studioDraft.priceCoins}
+                      onChange={(event) => updateStudioDraft("priceCoins", Number(event.target.value))}
+                    />
+                  </label>
+                  <label>발행 상태
+                    <select
+                      name="publishMode"
+                      value={studioDraft.publishMode}
+                      onChange={(event) => updateStudioDraft("publishMode", event.target.value)}
+                    >
+                      <option>초안 저장</option>
+                      <option>예약 발행</option>
+                      <option>즉시 공개</option>
+                      <option>팀 검수 대기</option>
+                    </select>
+                  </label>
+                  <label>예약 시간
+                    <input
+                      name="scheduledAt"
+                      value={studioDraft.scheduledAt}
+                      onChange={(event) => updateStudioDraft("scheduledAt", event.target.value)}
+                    />
+                  </label>
+                  <label className="wide">무료 미리보기 문구
+                    <textarea
+                      name="previewText"
+                      value={studioDraft.previewText}
+                      onChange={(event) => updateStudioDraft("previewText", event.target.value)}
+                    />
+                  </label>
+                  <label className="wide">업로드/접근성 메모
+                    <textarea
+                      name="uploadMemo"
+                      value={studioDraft.uploadMemo}
+                      onChange={(event) => updateStudioDraft("uploadMemo", event.target.value)}
+                    />
+                  </label>
+                </div>
+
+                <button className="primary-button" type="submit"><Sparkles size={17} /> 발행 초안 저장</button>
+              </form>
+
+              <aside className="studio-publish-preview">
+                <div className="publish-preview-cover">
+                  <span>{studioDraft.format}</span>
+                  <strong>{studioDraft.title || "작품 제목"}</strong>
+                  <em>{studioDraft.genre}</em>
+                </div>
+                <div className="publish-preview-copy">
+                  <span>{studioDraft.publishMode} · {studioDraft.accessType}</span>
+                  <h3>{studioDraft.episodeTitle || "회차 제목"}</h3>
+                  <p>{studioDraft.synopsis || "작품 소개를 입력하면 독자 카드에 보일 문장이 표시됩니다."}</p>
+                  <div className="publish-preview-meta">
+                    <b>{studioDraft.accessType === "무료 공개" ? "무료" : formatCoins(studioDraft.priceCoins)}</b>
+                    <b>{studioDraft.scheduledAt}</b>
+                  </div>
+                </div>
+                <div className="publish-preview-script">
+                  <span>무료 미리보기</span>
+                  <p>{studioDraft.previewText}</p>
+                </div>
+                <div className="publish-checklist">
+                  <div>
+                    <strong>발행 준비도</strong>
+                    <b>{studioPublishChecklist.percent}%</b>
+                  </div>
+                  {studioPublishChecklist.items.map((item) => (
+                    <p className={item.done ? "done" : ""} key={item.label}>
+                      <CheckCircle2 size={16} />
+                      {item.label}
+                    </p>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <div className="studio-layout">
+            <section className="studio-work-form-card compact-studio-card">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">Quick Work</p>
+                  <h3>빠른 작품 초안</h3>
+                </div>
+                <p>간단한 초안만 빠르게 남기고 싶을 때 사용하는 축약 폼입니다.</p>
+              </div>
+              <form className="studio-form" onSubmit={submitStudioWorkDraft}>
+                <label>작품 제목<input name="title" required placeholder="예: 네온 별자리 탐정단" /></label>
+                <label>콘텐츠 형식
+                  <select name="format" defaultValue="웹툰">
+                    {readerFormatFilters.filter((item) => item !== "전체").map((format) => <option key={format}>{format}</option>)}
+                  </select>
+                </label>
+                <label>대표 장르
+                  <select name="genre" defaultValue="판타지">
+                    {readerGenreFilters.map((genre) => <option key={genre}>{genre}</option>)}
+                  </select>
+                </label>
+                <label className="wide">작품 소개<textarea name="synopsis" required placeholder="작품의 핵심 설정, 독자에게 보여줄 매력, 필요한 팀원을 적어주세요." /></label>
+                <button className="primary-button" type="submit"><Sparkles size={17} /> 작품 초안 저장</button>
+              </form>
+            </section>
+
+            <section className="studio-work-form-card compact-studio-card">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">Quick Episode</p>
+                  <h3>빠른 회차 메모</h3>
+                </div>
+                <p>작품별 회차 아이디어나 업로드 준비물을 짧게 저장합니다.</p>
+              </div>
+              <form className="studio-form" onSubmit={submitStudioEpisode}>
+                <label>연결 작품
+                  <select name="workId" defaultValue={readerWorks[0].id}>
+                    {readerWorks.slice(0, 6).map((work) => <option value={work.id} key={work.id}>{work.title}</option>)}
+                  </select>
+                </label>
+                <label>회차 제목<input name="episodeTitle" required placeholder="예: 2화. 사라진 목소리" /></label>
+                <label>공개 방식
+                  <select name="accessType" defaultValue="유료">
+                    <option>무료</option>
+                    <option>유료</option>
+                    <option>구독자 선공개</option>
+                  </select>
+                </label>
+                <label className="studio-upload-field">오디오 파일
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    disabled={isStudioUploading}
+                    onChange={(event) => void uploadStudioEpisodeFile("audio", event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <label className="studio-upload-field">표지/웹툰 이미지
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={isStudioUploading}
+                    onChange={(event) => void uploadStudioEpisodeFile("image", event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <label className="wide studio-upload-field">대본/원고 파일
+                  <input
+                    type="file"
+                    accept=".txt,.md,.json,.pdf,.docx,text/plain,text/markdown,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    disabled={isStudioUploading}
+                    onChange={(event) => void uploadStudioEpisodeFile("document", event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <div className="studio-upload-list">
+                  {(["audio", "image", "document"] as const).map((kind) => {
+                    const uploaded = studioEpisodeUploads[kind];
+                    const labels: Record<StudioUploadKind, string> = {
+                      audio: "오디오",
+                      image: "이미지",
+                      document: "대본/원고",
+                    };
+
+                    return (
+                      <article className={uploaded ? "ready" : ""} key={kind}>
+                        <span>{labels[kind]}</span>
+                        <strong>{uploaded ? uploaded.originalName : "파일 대기 중"}</strong>
+                        <p>{uploaded ? `${formatBytes(uploaded.sizeBytes)} · ${uploaded.mimeType}` : "파일을 선택하면 서버 URL이 생성됩니다."}</p>
+                        {uploaded && <a href={uploaded.url} target="_blank" rel="noreferrer">업로드 파일 열기</a>}
+                      </article>
+                    );
+                  })}
+                </div>
+                {studioUploadMessage && <p className="studio-upload-message">{studioUploadMessage}</p>}
+                <label className="wide">업로드 메모<textarea name="uploadMemo" placeholder="원고, 콘티, 음성 파일, 대본 싱크 등 업로드할 자료를 적어주세요." /></label>
+                <button className="primary-button" type="submit" disabled={isStudioUploading}>
+                  <BookOpen size={17} /> {isStudioUploading ? "파일 업로드 중" : "회차 초안 저장"}
+                </button>
+              </form>
+            </section>
+          </div>
+
+          <section className="studio-fan-commerce">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Fan Commerce</p>
+                <h2>팬 멤버십과 유료 포스트 운영</h2>
+              </div>
+              <p>픽시브 FANBOX처럼 러프, 이미지팩, 보이스 샘플, 제작노트를 코인 열람 또는 구독자 전용 콘텐츠로 발행하는 수익화 콘솔입니다.</p>
+            </div>
+
+            <div className="fan-commerce-grid">
+              <form className="fan-post-editor-card" onSubmit={submitStudioFanPost}>
+                <div className="fan-editor-head">
+                  <span><Heart size={18} /> Fan Post Editor</span>
+                  <strong>팬 전용 포스트 초안</strong>
+                </div>
+                <label>포스트 제목
+                  <input
+                    name="fanPostTitle"
+                    value={studioFanPostDraft.title}
+                    onChange={(event) => updateStudioFanPostDraft("title", event.target.value)}
+                  />
+                </label>
+                <div className="fan-editor-row">
+                  <label>콘텐츠 유형
+                    <select
+                      value={studioFanPostDraft.postType}
+                      onChange={(event) => updateStudioFanPostDraft("postType", event.target.value)}
+                    >
+                      <option>이미지팩</option>
+                      <option>작업노트</option>
+                      <option>보이스 샘플</option>
+                      <option>BGM 루프</option>
+                      <option>외전 원고</option>
+                    </select>
+                  </label>
+                  <label>공개 방식
+                    <select
+                      name="fanPostAccess"
+                      value={studioFanPostDraft.accessType}
+                      onChange={(event) => updateStudioFanPostDraft("accessType", event.target.value)}
+                    >
+                      <option>무료 공개</option>
+                      <option>코인 열람</option>
+                      <option>구독자 전용</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="fan-editor-row">
+                  <label>연결 티어
+                    <select
+                      value={studioFanPostDraft.tierName}
+                      onChange={(event) => updateStudioFanPostDraft("tierName", event.target.value)}
+                    >
+                      {creatorMembershipPlans.map((plan) => <option key={plan.name}>{plan.name}</option>)}
+                    </select>
+                  </label>
+                  <label>개별 열람 가격
+                    <input
+                      min={0}
+                      step={100}
+                      type="number"
+                      value={studioFanPostDraft.priceCoins}
+                      onChange={(event) => updateStudioFanPostDraft("priceCoins", Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+                <label>팬에게 보일 설명
+                  <textarea
+                    value={studioFanPostDraft.summary}
+                    onChange={(event) => updateStudioFanPostDraft("summary", event.target.value)}
+                  />
+                </label>
+                <label>운영 메모
+                  <textarea
+                    value={studioFanPostDraft.releaseNote}
+                    onChange={(event) => updateStudioFanPostDraft("releaseNote", event.target.value)}
+                  />
+                </label>
+                <button className="primary-button" type="submit"><Sparkles size={17} /> 팬 포스트 초안 저장</button>
+              </form>
+
+              <aside className="fan-commerce-preview">
+                <article className="fan-post-preview-card">
+                  <span>{studioFanPostDraft.postType} · {studioFanPostDraft.accessType}</span>
+                  <strong>{studioFanPostDraft.title}</strong>
+                  <p>{studioFanPostDraft.summary}</p>
+                  <div>
+                    <b>{studioFanPostDraft.accessType === "무료 공개" ? "무료" : formatCoins(studioFanPostDraft.priceCoins)}</b>
+                    <em>{studioFanPostDraft.tierName}</em>
+                  </div>
+                </article>
+
+                <div className="fan-tier-preview">
+                  {creatorMembershipPlans.map((plan) => (
+                    <article className={studioFanPostDraft.tierName === plan.name ? "active" : ""} key={plan.name}>
+                      <span>{plan.name}</span>
+                      <strong>{formatCoins(plan.price)} / 월</strong>
+                      <p>{plan.benefits.slice(0, 2).join(" · ")}</p>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="fan-commerce-checklist">
+                  <div>
+                    <strong>수익화 준비도</strong>
+                    <b>{studioFanPostChecklist.percent}%</b>
+                  </div>
+                  {studioFanPostChecklist.items.map((item) => (
+                    <p className={item.done ? "done" : ""} key={item.label}>
+                      <CheckCircle2 size={16} />
+                      {item.label}
+                    </p>
+                  ))}
+                </div>
+              </aside>
+            </div>
+          </section>
+
+          <section className="studio-growth-analytics">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Growth Analytics</p>
+                <h2>창작자 성장 인사이트</h2>
+              </div>
+              <p>작품 반응, 팬 구독 준비도, 코인 판매 흐름을 한 화면에서 보고 다음 운영 액션을 결정합니다.</p>
+            </div>
+
+            <div className="growth-metric-grid">
+              {studioGrowthInsights.metrics.map((metric) => (
+                <article key={metric.label}>
+                  <span>{metric.icon}</span>
+                  <div>
+                    <small>{metric.label}</small>
+                    <strong>{metric.value}</strong>
+                    <p>{metric.detail}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <div className="growth-analytics-layout">
+              <article className="growth-funnel-card">
+                <div className="growth-card-head">
+                  <span><Flame size={17} /> Reader Funnel</span>
+                  <strong>독자 전환 흐름</strong>
+                </div>
+                <div className="growth-funnel-list">
+                  {studioGrowthInsights.funnel.map((item) => (
+                    <div key={item.label}>
+                      <div>
+                        <b>{item.label}</b>
+                        <span>{item.rate}%</span>
+                      </div>
+                      <i><em style={{ width: `${item.rate}%` }} /></i>
+                      <small>{item.caption}</small>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="growth-action-card">
+                <div className="growth-card-head">
+                  <span><Rocket size={17} /> Next Actions</span>
+                  <strong>이번 주 추천 액션</strong>
+                </div>
+                <div className="growth-action-list">
+                  {studioGrowthInsights.actions.map((action, index) => (
+                    <button key={action} onClick={() => setCommunityMessage(action)}>
+                      <b>{String(index + 1).padStart(2, "0")}</b>
+                      <span>{action}</span>
+                    </button>
+                  ))}
+                </div>
+              </article>
+
+              <article className="growth-signal-card">
+                <span><Bell size={17} /> Signal</span>
+                <strong>{premiumSubscription.isActive ? "구독 혜택 운영 중" : "팬 구독 상품을 더 노출해보세요"}</strong>
+                <p>
+                  작품 상세에서 창작자 프로필 클릭, 스크랩, 결제 흐름을 묶으면 포스타입형 팬덤과 크몽형 협업 문의를 동시에 키울 수 있습니다.
+                </p>
+                <button onClick={() => setIsNotificationOpen(true)}>알림/팬 반응 보기</button>
+              </article>
+            </div>
+          </section>
+
+          <section className="studio-accessibility-lab">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Barrier-free QA</p>
+                <h2>배리어프리 접근성 검수 센터</h2>
+              </div>
+              <p>오디오드라마, 웹툰, 소설을 발행하기 전에 대본 싱크, 고대비, 스크린리더, 대체 텍스트를 점검해 모두가 감상 가능한 상태로 만듭니다.</p>
+            </div>
+
+            <div className="accessibility-lab-layout">
+              <article className="accessibility-score-card">
+                <span><ShieldCheck size={18} /> Accessibility Score</span>
+                <strong>{studioAccessibilityChecklist.percent}%</strong>
+                <p>{studioAccessibilityChecklist.status} · {studioAccessibilityChecklist.doneCount}/{studioAccessibilityChecklist.items.length}개 항목 통과</p>
+                <div className="accessibility-ring" style={{ "--accessibility-score": `${studioAccessibilityChecklist.percent}%` } as never}>
+                  <b>{studioAccessibilityChecklist.status}</b>
+                </div>
+              </article>
+
+              <div className="accessibility-check-grid">
+                {studioAccessibilityChecklist.items.map((item) => (
+                  <article className={item.done ? "done" : ""} key={item.label}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>{item.label}</strong>
+                      <span>{item.detail}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <form className="accessibility-audit-form" onSubmit={(event) => { event.preventDefault(); saveAccessibilityAudit(); }}>
+                <div className="fan-editor-head">
+                  <span><Headphones size={18} /> QA Controls</span>
+                  <strong>발행 전 검수 입력</strong>
+                </div>
+                <label>대본 싱크 정확도
+                  <input
+                    max={100}
+                    min={0}
+                    type="range"
+                    value={studioAccessibilityAudit.transcriptSync}
+                    onChange={(event) => updateStudioAccessibilityAudit("transcriptSync", Number(event.target.value))}
+                  />
+                  <em>{studioAccessibilityAudit.transcriptSync}%</em>
+                </label>
+                <div className="accessibility-form-row">
+                  <label>고대비 모드
+                    <select
+                      value={studioAccessibilityAudit.contrastMode}
+                      onChange={(event) => updateStudioAccessibilityAudit("contrastMode", event.target.value)}
+                    >
+                      <option>고대비 통과</option>
+                      <option>색 대비 보강 필요</option>
+                    </select>
+                  </label>
+                  <label>스크린리더
+                    <select
+                      value={studioAccessibilityAudit.screenReader}
+                      onChange={(event) => updateStudioAccessibilityAudit("screenReader", event.target.value)}
+                    >
+                      <option>검수 완료</option>
+                      <option>레이블 보강 필요</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="accessibility-form-row">
+                  <label>오디오 음량
+                    <select
+                      value={studioAccessibilityAudit.audioLevel}
+                      onChange={(event) => updateStudioAccessibilityAudit("audioLevel", event.target.value)}
+                    >
+                      <option>권장 범위</option>
+                      <option>노멀라이징 필요</option>
+                    </select>
+                  </label>
+                  <label>대체 텍스트
+                    <select
+                      value={studioAccessibilityAudit.altTextStatus}
+                      onChange={(event) => updateStudioAccessibilityAudit("altTextStatus", event.target.value)}
+                    >
+                      <option>보강 필요</option>
+                      <option>작성 완료</option>
+                    </select>
+                  </label>
+                </div>
+                <label>검수 메모
+                  <textarea
+                    value={studioAccessibilityAudit.qaMemo}
+                    onChange={(event) => updateStudioAccessibilityAudit("qaMemo", event.target.value)}
+                  />
+                </label>
+                <button className="primary-button" type="submit"><CheckCircle2 size={17} /> 검수 리포트 저장</button>
+              </form>
+            </div>
+          </section>
+
+          <section className="studio-team-board">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Team Builder</p>
+                <h2>팀원 초대와 수익 지분 설정</h2>
+              </div>
+              <p>매칭에서 찾은 창작자를 작품 팀으로 초대하고, 30:30:40 같은 지분율을 사전에 합의하는 영역입니다.</p>
+            </div>
+            <div className="studio-team-grid">
+              {[
+                { role: "WRITER", name: "팀장/원작", share: 40, status: "확정" },
+                { role: "ILLUSTRATOR", name: "일러스트", share: 30, status: "초대 가능" },
+                { role: "VOICE_ACTOR", name: "성우", share: 20, status: "상담 중" },
+                { role: "SOUND_DIRECTOR", name: "BGM", share: 10, status: "모집 중" },
+              ].map((member) => (
+                <article key={member.role}>
+                  <span>{roleLabels[member.role]}</span>
+                  <strong>{member.name}</strong>
+                  <div><b>{member.share}%</b><em>{member.status}</em></div>
+                  <button onClick={() => navigate("matching")}><Send size={15} /> 팀원 찾기</button>
+                </article>
+              ))}
+            </div>
+            <div className="studio-share-summary">
+              <div>
+                <span>현재 지분 합계</span>
+                <strong>100%</strong>
+                <p>팀원이 수락하면 이 비율을 정산 콘솔에 그대로 반영할 수 있습니다.</p>
+              </div>
+              <button className="primary-button compact" onClick={saveStudioTeamPlan}><CheckCircle2 size={17} /> 팀 구성 저장</button>
+            </div>
+          </section>
+
+          <section className="studio-portfolio-panel">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Portfolio Manager</p>
+                <h2>내 포트폴리오와 공개 상태</h2>
+              </div>
+              <p>매칭 보드에 노출되는 내 프로필, 작품 참여 이력, 팬 후원 포스트를 스튜디오에서 관리합니다.</p>
+            </div>
+            <div className="studio-portfolio-grid">
+              <article>
+                <UserRound size={22} />
+                <strong>{myCreatorProfile ? "매칭 프로필 공개 중" : "매칭 프로필 없음"}</strong>
+                <p>{myCreatorProfile ? myCreatorProfile.bio : "프로필을 등록하면 팀원 찾기 카드에 표시됩니다."}</p>
+                <button onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}>프로필 관리</button>
+              </article>
+              <article>
+                <BookOpen size={22} />
+                <strong>참여 작품 크레딧</strong>
+                <p>{readerWorks.slice(0, 3).map((work) => work.title).join(" · ")}</p>
+                <button onClick={() => navigate("discover")}>작품 확인</button>
+              </article>
+              <article>
+                <Coins size={22} />
+                <strong>팬 후원/구독 포스트</strong>
+                <p>러프, 짤 이미지팩, 보이스 샘플을 유료 포스트로 확장할 수 있습니다.</p>
+                <button onClick={() => setCommunityMessage("팬 포스트 작성기는 다음 단계에서 이미지 업로드와 함께 연결하면 좋아요.")}>포스트 준비</button>
+              </article>
+            </div>
+          </section>
+
+          {communityMessage && <p className="community-message studio-message">{communityMessage}</p>}
+        </section>}
+
+        {activePage === "matching" && <section className="section matching-page page-panel">
+          <section className="app-matching-dashboard" aria-label="앱 팀원 찾기 요약">
+            <div className="app-matching-head">
+              <span>Team Matching</span>
+              <h2>필요한 팀원을 빠르게 찾기</h2>
+              <p>직군을 고르고 검색한 뒤 바로 채팅하거나 지분 제안을 보낼 수 있게 앱 전용으로 단순화했습니다.</p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!token) {
+                      setAuthMode("login");
+                      return;
+                    }
+                    setIsCreatorProfileFormOpen((value) => !value);
+                  }}
+                >
+                  <UserPlus size={16} /> 내 프로필
+                </button>
+                <button type="button" onClick={() => openCreatorMessenger()}>
+                  <MessageCircle size={16} /> 채팅
+                </button>
+              </div>
+            </div>
+
+            <label className="app-matching-search">
+              <Search size={17} />
+              <input
+                value={matchingSearch}
+                onChange={(event) => setMatchingSearch(event.target.value)}
+                placeholder="예: 로맨스 작가, 판타지 BGM, 웹툰 그림"
+                type="search"
+              />
+            </label>
+
+            <div className="app-role-strip" aria-label="앱 직군 필터">
+              {roleFilterItems.map((item) => (
+                <button key={item} className={role === item ? "active" : ""} onClick={() => setRole(item)} type="button">
+                  {item === "ALL" ? "전체" : roleLabels[item]}
+                </button>
+              ))}
+            </div>
+
+            <div className="app-matching-shortcuts">
+              <button type="button" onClick={() => setMatchInboxFilter("received")}>
+                <span>받은 제안</span>
+                <strong>{matchInboxCounts.received}</strong>
+              </button>
+              <button type="button" onClick={() => setMatchInboxFilter("sent")}>
+                <span>보낸 제안</span>
+                <strong>{matchInboxCounts.sent}</strong>
+              </button>
+              <button type="button" onClick={() => setMatchInboxFilter("accepted")}>
+                <span>합류 완료</span>
+                <strong>{matchInboxCounts.accepted}</strong>
+              </button>
+            </div>
+
+            <div className="app-matching-featured">
+              {filteredCreators.slice(0, 3).map((creator) => (
+                <article key={creator.id}>
+                  <i>{creator.displayName.slice(0, 1)}</i>
+                  <div>
+                    <span>{roleLabels[creator.primaryRole]}</span>
+                    <strong>{creator.displayName}</strong>
+                    <p>{creator.headline}</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedCreator(creator)}>
+                    보기
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <div className="matching-hero">
+            <div>
+              <p className="kicker">Creator Match Board</p>
+              <h2>같은 세계관을 만들 팀원을 발견하세요</h2>
+              <p>글, 그림, 목소리, BGM 창작자의 대표 작업과 협업 가능 상태를 한눈에 보고 포트폴리오까지 확인할 수 있습니다.</p>
+              <div className="matching-hero-actions">
+                <button
+                  className="primary-button compact"
+                  onClick={() => {
+                    if (!token) {
+                      setAuthMode("login");
+                      return;
+                    }
+                    setIsCreatorProfileFormOpen((value) => !value);
+                  }}
+                >
+                  <UserPlus size={16} /> 내 매칭 프로필 올리기
+                </button>
+                <button className="ghost-button compact" onClick={() => openCreatorMessenger()}>
+                  <MessageCircle size={16} /> 내 채팅방 보기
+                </button>
+              </div>
+            </div>
+            <div className="matching-hero-side">
+              <div className="matching-3d-studio" aria-hidden="true">
+                <span className="studio-table" />
+                <i className="role-orb writer">글</i>
+                <i className="role-orb artist">그림</i>
+                <i className="role-orb voice">목소리</i>
+                <i className="role-orb sound">BGM</i>
+                <b />
+              </div>
+              <div className="matching-stats">
+                <div><strong>{creators.length}</strong><span>활동 크리에이터</span></div>
+                <div><strong>0원</strong><span>초기 매칭 수수료</span></div>
+                <div><strong>1/N</strong><span>정산 자동화</span></div>
+              </div>
+            </div>
+          </div>
+
+          <section className="ai-match-panel" aria-label="AI 팀원 추천">
+            <div className="ai-match-copy">
+              <p className="kicker">AI Matching Coach</p>
+              <h2>작품 설명만 넣으면 맞는 팀원을 순위로 정리해요</h2>
+              <p>
+                장르, 분위기, 필요한 직군을 편하게 말하면 AI가 공개 포트폴리오를 비교해서
+                추천 이유와 다음 질문까지 이어서 정리합니다.
+              </p>
+              <div className="ai-availability-note" aria-label="AI 매칭 동작 기준">
+                <span>작품 조건별 추천</span>
+                <span>등록 후보만 추천</span>
+                <span>후보 없으면 솔직 안내</span>
+              </div>
+              <div className="ai-coach-steps" aria-label="AI 매칭 이용 순서">
+                <article>
+                  <b>01</b>
+                  <strong>작품 설명</strong>
+                  <span>장르와 분위기 입력</span>
+                </article>
+                <article>
+                  <b>02</b>
+                  <strong>후보 비교</strong>
+                  <span>직군별 포트폴리오 분석</span>
+                </article>
+                <article>
+                  <b>03</b>
+                  <strong>바로 액션</strong>
+                  <span>채팅, 지분 제안 연결</span>
+                </article>
+              </div>
+            </div>
+
+            <div className="ai-match-workbench">
+              <div className="ai-workbench-status" aria-label="AI 매칭 현재 상태">
+                <article>
+                  <span>AI 상태</span>
+                  <strong>{isAiMatching ? "추천 분석 중" : aiMatchResponse ? "분석 완료" : "준비 완료"}</strong>
+                </article>
+                <article>
+                  <span>공개 후보</span>
+                  <strong>{creators.length}명</strong>
+                </article>
+                <article>
+                  <span>선택 직군</span>
+                  <strong>{aiPreferredRoles.length}개</strong>
+                </article>
+              </div>
+              <div className="ai-role-picker" aria-label="AI 추천 희망 직군">
+                <span>필요한 역할을 먼저 골라도 좋아요</span>
+                <div>
+                  {roleFilterItems.filter((item) => item !== "ALL").map((item) => (
+                    <button
+                      key={item}
+                      className={aiPreferredRoles.includes(item) ? "active" : ""}
+                      aria-pressed={aiPreferredRoles.includes(item)}
+                      disabled={isAiMatching}
+                      onClick={() => toggleAiPreferredRole(item)}
+                      type="button"
+                    >
+                      {roleLabels[item]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ai-conversation-card ai-live-chat">
+                <div className="ai-conversation-head">
+                  <div className="ai-manager-title">
+                    <div className="ai-manager-avatar">
+                      <Bot size={19} />
+                    </div>
+                    <div>
+                      <span>AI 매칭 매니저</span>
+                      <strong>대화하듯 물어보면 후보와 이유를 같이 정리해요</strong>
+                      <p>
+                        대화 기억 {aiMatchMessages.filter((message) => message.role === "user").length}개 · 공개 포트폴리오 기반 추천
+                        <span className={`ai-provider-badge ${aiMatchResponse?.provider ?? "waiting"}`}>
+                          {aiMatchResponse?.provider === "gemini"
+                            ? "AI 분석"
+                            : aiMatchResponse
+                              ? "프로필 분석"
+                              : "조건 입력 대기"}
+                        </span>
+                      </p>
+                      {aiMatchResponse?.provider === "local" && (
+                        <small className="ai-provider-note">현재 공개된 프로필과 요청 조건을 비교한 추천입니다.</small>
+                      )}
+                    </div>
+                  </div>
+                  <div className="ai-history-actions">
+                    {aiMatchMessages.length > 6 && (
+                      <button
+                        className={`ai-history-toggle ${isAiHistoryOpen ? "active" : ""}`}
+                        type="button"
+                        onClick={() => setIsAiHistoryOpen((value) => !value)}
+                      >
+                        <MessageCircle size={15} />
+                        {isAiHistoryOpen ? "최근만" : `이전 ${hiddenAiMessageCount}개`}
+                      </button>
+                    )}
+                    <button className="ai-reset-button" type="button" onClick={resetAiMatchingConversation}>
+                      <RefreshCw size={15} />
+                      새 대화
+                    </button>
+                  </div>
+                </div>
+                {aiMatchMessages.length === 0 && (
+                  <div className="ai-starter-grid" aria-label="AI 매칭 시작 질문">
+                    {aiStarterPrompts.map((item) => (
+                      <button key={item.label} type="button" disabled={isAiMatching} onClick={() => void runAiMatchingRecommendation(item.prompt)}>
+                        <strong>{item.label}</strong>
+                        <span>{item.helper}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="ai-chat-log" role="log" aria-live="polite" aria-busy={isAiMatching} aria-label="AI 매칭 대화 기록" ref={aiChatLogRef}>
+                  {aiMatchMessages.length === 0 && (
+                    <div className="ai-chat-bubble assistant">
+                      <span>AI 매칭 매니저</span>
+                      <p>
+                        “사운드 디자이너 있나?”, “로맨스 웹툰에 맞는 그림 작가 찾아줘”처럼 말해보세요.
+                        후보가 없으면 없다고 말하고, 있으면 1·2·3순위와 이유를 같이 보여줄게요.
+                      </p>
+                    </div>
+                  )}
+                  {hiddenAiMessageCount > 0 && !isAiHistoryOpen && (
+                    <button className="ai-history-reveal" type="button" onClick={() => setIsAiHistoryOpen(true)}>
+                      이전 대화 {hiddenAiMessageCount}개 보기
+                    </button>
+                  )}
+                  {visibleAiMessages.map((message, index) => (
+                    <div className={`ai-chat-bubble ${message.role}`} key={`${message.role}-${index}-${message.content.slice(0, 12)}`}>
+                      <span>{message.role === "user" ? "나" : "AI 매칭 매니저"}</span>
+                      <p>{message.content}</p>
+                    </div>
+                  ))}
+                  {isAiMatching && (
+                    <div className="ai-chat-bubble assistant ai-typing">
+                      <span>AI 매칭 매니저</span>
+                      <p><i className="ai-thinking-dots" aria-hidden="true"><b /><b /><b /></i>작품 분위기와 작업 경험을 비교하고 있어요.</p>
+                    </div>
+                  )}
+                </div>
+
+                <label className="ai-chat-composer">
+                  <textarea
+                    aria-label="AI 매칭 질문"
+                    maxLength={1200}
+                    value={aiMatchPrompt}
+                    onChange={(event) => setAiMatchPrompt(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) {
+                        event.preventDefault();
+                        void runAiMatchingRecommendation();
+                      }
+                    }}
+                    placeholder="예: 비 오는 도시괴담 웹소설인데 낮은 톤 성우랑 네온 일러스트가 필요해. 누구랑 하면 좋을까?"
+                  />
+                  <button type="button" onClick={() => void runAiMatchingRecommendation()} disabled={isAiMatching || aiMatchPrompt.trim().length < 2}>
+                    <Send size={17} />
+                    {isAiMatching ? "분석 중" : "보내기"}
+                  </button>
+                </label>
+                <div className="ai-chat-hints" aria-label="AI 매칭 사용 힌트">
+                  <span>{aiMatchPrompt.length.toLocaleString()} / 1,200자</span>
+                  <span>Enter 전송</span>
+                  <span>Shift+Enter 줄바꿈</span>
+                  <span>“왜?”라고 물으면 근거를 다시 설명해요</span>
+                </div>
+                {aiMatchMessage && <p className="ai-match-message" role="status">{aiMatchMessage}</p>}
+              </div>
+            </div>
+
+            {aiMatchResponse && (
+              <div className="ai-conversation-card ai-analysis-card">
+                <div className="ai-brief-card">
+                  <span>AI가 읽은 작품 방향</span>
+                  <strong>{aiMatchResponse.projectBrief.summary}</strong>
+                  <div>
+                    <em>{aiMatchResponse.projectBrief.tone}</em>
+                    {aiMatchResponse.projectBrief.topics.map((topic) => <em key={topic}>{topic}</em>)}
+                    {aiMatchResponse.projectBrief.neededRoles.map((roleName) => <em key={roleName}>{roleName} 필요</em>)}
+                  </div>
+                </div>
+                <div className="ai-followup-row">
+                  {aiMatchResponse.followUpSuggestions.map((question) => (
+                    <button
+                      key={question}
+                      type="button"
+                      disabled={isAiMatching}
+                      onClick={() => void runAiMatchingRecommendation(question)}
+                    >
+                      {question}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {aiMatchResults.length > 0 && (
+              <div className="ai-recommendation-grid">
+                {aiMatchResults.map((item) => {
+                  const portfolio = item.creator.portfolioItems?.[0];
+
+                  return (
+                    <article className={`ai-recommendation-card ${item.creator.primaryRole.toLowerCase()}`} key={`${item.creator.userId}-${item.rank}`} style={{ animationDelay: `${(item.rank - 1) * 70}ms` }}>
+                      <div className="ai-rank-badge">
+                        <b>{item.rank}</b>
+                        <span>{item.matchSignals ? `추천 점수 ${item.score} / 100` : `${item.matchRate}% 매칭`}</span>
+                      </div>
+                      <div className="ai-creator-line">
+                        <i>{item.creator.displayName.slice(0, 1)}</i>
+                        <div>
+                          <strong>{item.creator.displayName}</strong>
+                          <small>{roleLabels[item.creator.primaryRole]} · @{item.creator.username}</small>
+                        </div>
+                      </div>
+                      <p>{item.reason}</p>
+                      {item.matchSignals && (
+                        <details className="ai-score-details">
+                          <summary>추천 근거 자세히 보기 <ChevronDown size={14} /></summary>
+                          <p>직군·작품 방향·작업 역량·협업 기록을 합산한 점수예요.</p>
+                          {item.matchSignals.map(signal => (
+                            <div className="ai-score-row" key={signal.label}>
+                              <span>{signal.label}</span><b>{signal.points} / {signal.maximum}</b>
+                              <div className="ai-score-track" aria-hidden="true"><i style={{ width: `${signal.points / signal.maximum * 100}%` }} /></div>
+                              <small>{signal.detail}</small>
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {!item.matchSignals && item.reasonDetails && item.reasonDetails.length > 0 && (
+                        <ul className="ai-reason-list">
+                          {item.reasonDetails.slice(0, 4).map((detail) => (
+                            <li key={detail}>{detail}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {portfolio && (
+                        <div className="ai-portfolio-hit">
+                          <span>대표 포트폴리오</span>
+                          <strong>{portfolio.title}</strong>
+                          <small>{portfolio.category}</small>
+                        </div>
+                      )}
+                      <div className="ai-keywords">
+                        {(item.matchedKeywords.length ? item.matchedKeywords : item.creator.skills).slice(0, 5).map((keyword) => (
+                          <em key={keyword}>{keyword}</em>
+                        ))}
+                      </div>
+                      <div className="ai-card-actions">
+                        <button type="button" onClick={() => setSelectedCreator(item.creator)}>프로필</button>
+                        <button type="button" onClick={() => void sendCreatorChat(item.creator)}>채팅</button>
+                        <button type="button" onClick={() => openMatchProposal(item.creator)}>지분 제안</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {aiMatchResults.length > 1 && (
+              <details className="ai-candidate-comparison">
+                <summary><Users size={18} /> 후보 한눈에 비교 <ChevronDown size={16} /></summary>
+                <div className="ai-comparison-scroll" tabIndex={0} role="region" aria-label="추천 후보 비교 표">
+                  <table>
+                    <caption>같은 프로젝트 조건으로 추천한 후보 비교</caption>
+                    <thead><tr><th scope="col">창작자</th><th scope="col">직군</th><th scope="col">일치 키워드</th><th scope="col">응답률</th><th scope="col">완료 작업</th></tr></thead>
+                    <tbody>{aiMatchResults.map(item => (
+                      <tr key={item.creator.userId}>
+                        <th scope="row">{item.rank}. {item.creator.displayName}</th>
+                        <td>{roleLabels[item.creator.primaryRole]}</td>
+                        <td>{item.matchedKeywords.join(" · ") || "상담에서 확인"}</td>
+                        <td>{item.creator.responseRate}%</td>
+                        <td>{item.creator.completedProjects}건</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </details>
+            )}
+
+            {aiMatchResponse && aiMatchResults.length === 0 && (
+              <div className="ai-empty-result-card">
+                <Bot size={24} />
+                <div>
+                  <strong>현재 조건에 맞는 등록 후보가 없어요</strong>
+                  <p>없는 창작자를 억지로 추천하지 않고, 매칭 공고에 어떤 역할과 포트폴리오 조건을 적으면 좋을지 먼저 안내합니다.</p>
+                </div>
+                <button type="button" onClick={() => void runAiMatchingRecommendation("이 조건으로 매칭 공고 문구를 만들어줘")}>
+                  공고 문구 만들기
+                </button>
+              </div>
+            )}
+          </section>
+
+          {isCreatorProfileFormOpen && (
+            <form className="creator-profile-publisher" onSubmit={(event) => void submitCreatorProfile(event)}>
+              <div>
+                <p className="kicker">Publish Portfolio</p>
+                <h3>팀원 찾기에 내 프로필 등록</h3>
+                <p>
+                  {myCreatorProfile
+                    ? "현재 매칭 보드에 올라간 내 프로필을 수정하거나, 잠시 보드에서 내릴 수 있어요."
+                    : "직군과 장르 태그를 올리면 매칭 카드에 바로 노출됩니다. 나중에 다시 등록하면 내용이 수정돼요."}
+                </p>
+              </div>
+              <fieldset className="profile-role-picker">
+                <legend>직군 선택</legend>
+                {[
+                  { value: "WRITER", title: "글", text: "작가 · 대본" },
+                  { value: "ILLUSTRATOR", title: "그림", text: "일러스트" },
+                  { value: "VOICE_ACTOR", title: "목소리", text: "성우" },
+                  { value: "SOUND_DIRECTOR", title: "BGM", text: "사운드" },
+                ].map((item) => (
+                  <label key={item.value}>
+                    <input name="primaryRole" type="radio" value={item.value} defaultChecked={item.value === "WRITER"} />
+                    <span>
+                      <b>{item.title}</b>
+                      <small>{item.text}</small>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              <label>
+                한 줄 소개
+                <input name="headline" required minLength={2} maxLength={80} placeholder="예: 로맨스 판타지 웹툰 콘티와 대사 작업 가능" />
+              </label>
+              <label>
+                장르/스킬 태그
+                <input name="skills" required placeholder="예: 로맨스, 웹툰, 판타지, 콘티" />
+              </label>
+              <label>
+                협업 가능 상태
+                <input name="availabilityNote" placeholder="예: 주 1회 회의 가능, 단기 프로젝트 가능" />
+              </label>
+              <label className="wide">
+                포트폴리오 설명
+                <textarea name="bio" required minLength={5} maxLength={500} placeholder="어떤 장르를 만들 수 있고, 어떤 팀원을 찾는지 적어주세요." />
+              </label>
+              <div className="creator-profile-form-actions">
+                <button className="primary-button" type="submit" disabled={isPublishingCreatorProfile || isDeletingCreatorProfile}>
+                  <Sparkles size={17} /> {isPublishingCreatorProfile ? "등록 중" : myCreatorProfile ? "매칭 프로필 수정" : "매칭 보드에 등록"}
+                </button>
+                {myCreatorProfile && (
+                  <button
+                    className="ghost-button creator-profile-delete-button"
+                    type="button"
+                    onClick={() => void deleteMyCreatorProfile()}
+                    disabled={isPublishingCreatorProfile || isDeletingCreatorProfile}
+                  >
+                    <X size={17} /> {isDeletingCreatorProfile ? "내리는 중" : "내 매칭 내리기"}
+                  </button>
+                )}
+              </div>
+            </form>
+          )}
+
+          <section className="match-inbox-panel">
+            <div className="section-head compact-head">
+              <div>
+                <p className="kicker">Proposal Inbox</p>
+                <h2>매칭 제안함</h2>
+              </div>
+              <p>채팅으로 보낸 수익 지분 제안을 한곳에서 확인하고, 받은 제안은 바로 수락해 팀원으로 합류할 수 있습니다.</p>
+            </div>
+
+            <div className="match-inbox-tabs" aria-label="매칭 제안함 필터">
+              {[
+                { id: "all", label: "전체" },
+                { id: "received", label: "받은 제안" },
+                { id: "sent", label: "보낸 제안" },
+                { id: "pending", label: "대기 중" },
+                { id: "accepted", label: "합류 완료" },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  className={matchInboxFilter === item.id ? "active" : ""}
+                  onClick={() => setMatchInboxFilter(item.id as typeof matchInboxFilter)}
+                  type="button"
+                >
+                  {item.label}
+                  <span>{matchInboxCounts[item.id as keyof typeof matchInboxCounts]}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="match-inbox-list">
+              {filteredMatchProposalInboxItems.length > 0 ? (
+                filteredMatchProposalInboxItems.map((item) => {
+                  const proposalStatusLabel =
+                    item.proposal.status === "ACCEPTED" ? "수락 완료" : item.proposal.status === "DECLINED" ? "거절됨" : "수락 대기";
+                  const partnerName =
+                    item.partner?.displayName ??
+                    item.partnerName ??
+                    (item.direction === "received" ? item.proposal.requesterName : item.proposal.targetName) ??
+                    "창작자";
+                  const partnerRole = item.partner ? roleLabels[item.partner.primaryRole] : roleLabels[item.partnerRole] || roleLabels[item.proposal.memberRole];
+
+                  return (
+                    <article className={`match-inbox-card ${item.direction} ${item.proposal.status.toLowerCase()}`} key={item.id}>
+                      <div className="match-inbox-card-head">
+                        <span>{item.direction === "received" ? "받은 제안" : "보낸 제안"}</span>
+                        <b>{proposalStatusLabel}</b>
+                      </div>
+                      <div className="match-inbox-partner">
+                        <i>{partnerName.slice(0, 1)}</i>
+                        <div>
+                          <strong>{partnerName}</strong>
+                          <small>{partnerRole || "창작자"} · {item.time}</small>
+                        </div>
+                      </div>
+                      <MatchProposalBubble
+                        proposal={item.proposal}
+                        canAccept={item.canAccept}
+                        onAccept={() => void acceptMatchProposal(item.proposal.id)}
+                        onDecline={item.canAccept ? () => void declineMatchProposal(item.proposal.id) : undefined}
+                      />
+                      <div className="match-inbox-actions">
+                        {item.partner && (
+                          <button type="button" onClick={() => setSelectedCreator(item.partner)}>
+                            프로필 보기
+                          </button>
+                        )}
+                        {item.proposal.status === "ACCEPTED" && (
+                          <button type="button" onClick={() => navigate("settlement")}>
+                            정산 보기
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (item.partner) {
+                              setActiveChatCreatorId(item.partner.userId);
+                            }
+                            setIsMessengerOpen(true);
+                            setIsSupportBotOpen(false);
+                          }}
+                        >
+                          채팅 열기
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="match-inbox-empty">
+                  <MessageCircle size={24} />
+                  <strong>아직 매칭 제안이 없어요</strong>
+                  <p>마음에 드는 창작자 카드에서 “수익 지분 제안”을 보내면 이곳에 제안서가 정리됩니다.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <div className="matching-toolbar">
+            <div>
+              <span>탐색 필터</span>
+              <strong>{role === "ALL" ? "전체 창작자" : roleLabels[role]} · {matchingFilters.length ? matchingFilters.join(" + ") : "전체 장르"}</strong>
+            </div>
+            <label className="matching-search">
+              <Search size={18} />
+              <input
+                value={matchingSearch}
+                onChange={(event) => setMatchingSearch(event.target.value)}
+                placeholder="작품명, 장르, 태그, 창작자 검색"
+                type="search"
+              />
+            </label>
+            <div className="role-tabs">
+              {roleFilterItems.map((item) => (
+                <button key={item} className={role === item ? "active" : ""} onClick={() => setRole(item)}>
+                  {item === "ALL" ? "전체" : roleLabels[item]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="matching-filter-groups" aria-label="매칭 콘텐츠 형식과 장르 필터">
+            <div>
+              <span>콘텐츠 형식</span>
+              <div className="genre-filter">
+                {matchingContentFilters.map((filter) => (
+                  <button
+                    key={filter}
+                    className={(filter === "전체" ? matchingFilters.length === 0 : matchingFilters.includes(filter)) ? "active" : ""}
+                    onClick={() => toggleMatchingFilter(filter)}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <span>장르/작업 키워드</span>
+              <div className="genre-filter">
+                {matchingGenreFilters.map((filter) => (
+                  <button
+                    key={filter}
+                    className={matchingFilters.includes(filter) ? "active" : ""}
+                    onClick={() => toggleMatchingFilter(filter)}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {matchingActionMessage && <p className="matching-action-message">{matchingActionMessage}</p>}
+
+          <div className="creator-grid">
+            {filteredCreators.map((creator) => (
+              <article className={`creator-card ${creator.primaryRole.toLowerCase()}`} key={creator.id}>
+                <div className="card-top">
+                  <span>{roleLabels[creator.primaryRole]}</span>
+                  <b>{creator.responseRate}%</b>
+                </div>
+                <div className="creator-portrait">
+                  <strong>{creator.displayName.slice(0, 1)}</strong>
+                  <i />
+                </div>
+                <h3>{creator.displayName}</h3>
+                <p className="handle">@{creator.username}</p>
+                <p>{creator.headline}</p>
+                <div className="portfolio-preview">
+                  {getCreatorPortfolio(creator).slice(0, 2).map((item) => (
+                    <div key={item.title}>
+                      <span>{item.category}</span>
+                      <strong>{item.title}</strong>
+                    </div>
+                  ))}
+                </div>
+                {creator.voiceDemo && (
+                  <div className="wave-player">
+                    <Play size={18} />
+                    <div>{creator.voiceDemo.waveform.map((height, index) => <i key={index} style={{ height }} />)}</div>
+                    <small>{formatDuration(creator.voiceDemo.durationSeconds)}</small>
+                  </div>
+                )}
+                <div className="chips">{creator.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
+                <div className="creator-card-actions">
+                  <button className="portfolio-button" onClick={() => setSelectedCreator(creator)}>프로필 보기</button>
+                  <button onClick={() => void sendCreatorChat(creator)}>채팅 보내기</button>
+                  <button className="match-offer-button" onClick={() => openMatchProposal(creator)}>지분 제안 매칭</button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {filteredCreators.length === 0 && (
+            <div className="empty-matching">
+              <Sparkles size={24} />
+              <strong>조건에 맞는 창작자를 찾지 못했어요</strong>
+              <p>검색어를 줄이거나 장르/직군 필터를 전체로 바꿔보세요.</p>
+            </div>
+          )}
+
+          <section className="work-discovery">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Work Discovery</p>
+                <h2>장르별 포트폴리오 작품</h2>
+              </div>
+              <p>검색한 장르와 키워드에 맞는 글, 그림, 목소리, BGM 샘플을 작품 단위로 확인할 수 있습니다.</p>
+            </div>
+            <div className="work-grid">
+              {filteredPortfolioItems.slice(0, 8).map((item) => (
+                <article className={`work-card ${item.creator.primaryRole.toLowerCase()}`} key={`${item.creator.id}-${item.title}`}>
+                  <span>{item.category}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                  <div className="work-author">
+                    <b>{item.creator.displayName}</b>
+                    <em>{roleLabels[item.creator.primaryRole]}</em>
+                  </div>
+                  <div className="chips">{item.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                  <button onClick={() => setSelectedCreator(item.creator)}>창작자 보기</button>
+                </article>
+              ))}
+            </div>
+          </section>
+        </section>}
+
+        {activePage === "wallet" && <section className="section wallet-console page-panel">
+          <section className="app-wallet-dashboard" aria-label="앱 지갑 요약">
+            <div className="app-wallet-balance">
+              <span>My Coin Wallet</span>
+              <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+              <p>충전한 코인은 작품 열람, 창작자 후원, 구독에 사용할 수 있어요.</p>
+              <div>
+                <button type="button" onClick={openPayment}>
+                  <Coins size={16} /> 코인 충전
+                </button>
+                <button type="button" onClick={() => navigate("discover")}>
+                  <BookOpen size={16} /> 작품 보기
+                </button>
+              </div>
+            </div>
+
+            <div className="app-wallet-mini-grid">
+              <article>
+                <span>이번 달 사용</span>
+                <strong>{formatCoins(currentWalletDetail.monthlySpend)}</strong>
+              </article>
+              <article>
+                <span>정산 입금</span>
+                <strong>{formatCoins(currentWalletDetail.monthlyEarned)}</strong>
+              </article>
+              <article>
+                <span>보너스</span>
+                <strong>{formatCoins(currentWalletDetail.bonusCoins)}</strong>
+              </article>
+              <article>
+                <span>구독 상태</span>
+                <strong>{premiumSubscription.isActive ? "체험 중" : "체험 가능"}</strong>
+              </article>
+            </div>
+
+            <div className="app-wallet-feed">
+              <div>
+                <span>최근 이용 내역</span>
+                <button type="button" onClick={() => setWalletFilter("ALL")}>전체</button>
+              </div>
+              {filteredWalletTransactions.slice(0, 3).map((item) => (
+                <article className={item.amount >= 0 ? "plus" : "minus"} key={item.id}>
+                  <i>{item.amount >= 0 ? "+" : "-"}</i>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <p>{getWalletTypeLabel(item.type)} · {formatDateTime(item.createdAt)}</p>
+                  </div>
+                  <b>{item.amount >= 0 ? "+" : ""}{formatCoins(item.amount)}</b>
+                </article>
+              ))}
+              {filteredWalletTransactions.length === 0 && (
+                <article className="empty">
+                  <i>0</i>
+                  <div>
+                    <strong>아직 내역이 없어요</strong>
+                    <p>첫 충전이나 작품 구매 후 여기에 기록됩니다.</p>
+                  </div>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <div className="wallet-hero">
+            <div>
+              <p className="kicker">Coin Wallet</p>
+              <h2>독자 결제와 창작자 입금을 한눈에 보는 내 지갑</h2>
+              <p>웹툰식 코인 충전, 작품 열람권 구매, 환불 가능 금액, 창작자 정산 입금까지 하나의 원장으로 관리합니다.</p>
+              <div className="wallet-hero-actions">
+                <button className="primary-button" onClick={openPayment}><Coins size={18} /> 코인 충전 체험</button>
+                <button className="ghost-button" onClick={() => navigate("discover")}><BookOpen size={18} /> 작품 보러가기</button>
+              </div>
+            </div>
+            <div className="wallet-balance-card">
+              <span>현재 보유 코인</span>
+              <strong>{formatCoins(currentWalletDetail.balance)}</strong>
+              <p>{currentWalletDetail.autoChargeEnabled ? `자동 충전 ON · 다음 예정 ${currentWalletDetail.nextChargeDate}` : "자동 충전 OFF"}</p>
+            </div>
+          </div>
+
+          <div className="wallet-kpis">
+            <article><span>이번 달 사용</span><strong>{formatCoins(currentWalletDetail.monthlySpend)}</strong><p>작품 열람권과 후원 결제</p></article>
+            <article><span>이번 달 정산입금</span><strong>{formatCoins(currentWalletDetail.monthlyEarned)}</strong><p>참여 프로젝트 자동 분배</p></article>
+            <article><span>환불 가능</span><strong>{formatCoins(currentWalletDetail.refundableCoins)}</strong><p>미사용 결제분 기준</p></article>
+            <article><span>보너스 코인</span><strong>{formatCoins(currentWalletDetail.bonusCoins)}</strong><p>이벤트/멤버십 혜택</p></article>
+          </div>
+
+          <div className="wallet-layout">
+            <section className="wallet-ledger-panel">
+              <div className="panel-title">
+                <div>
+                  <p className="kicker">Wallet Ledger</p>
+                  <h3>코인 이용 내역</h3>
+                </div>
+                <div className="wallet-filter">
+                  {(["ALL", "CHARGE", "SPEND", "SETTLEMENT", "REFUND"] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      className={walletFilter === filter ? "active" : ""}
+                      onClick={() => setWalletFilter(filter)}
+                    >
+                      {filter === "ALL" ? "전체" : getWalletTypeLabel(filter)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="wallet-ledger-list">
+                {filteredWalletTransactions.length > 0 ? (
+                  filteredWalletTransactions.map((item) => (
+                    <article className={item.amount >= 0 ? "plus" : "minus"} key={item.id}>
+                      <div className="wallet-ledger-icon">{item.amount >= 0 ? <Coins size={20} /> : <CreditCard size={20} />}</div>
+                      <div>
+                        <span>{getWalletTypeLabel(item.type)} · {formatDateTime(item.createdAt)}</span>
+                        <strong>{item.title}</strong>
+                        <p>{item.description}</p>
+                      </div>
+                      <div className="wallet-ledger-amount">
+                        <b>{item.amount >= 0 ? "+" : ""}{formatCoins(item.amount)}</b>
+                        <em>{item.status}</em>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="empty-matching wallet-empty-state">
+                    <Coins size={24} />
+                    <strong>아직 코인 이용 내역이 없어요</strong>
+                    <p>코인을 충전하거나 작품을 구매하면 이곳에 내역이 쌓입니다.</p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <aside className="wallet-side-stack">
+              <article>
+                <CreditCard size={22} />
+                <strong>결제 수단</strong>
+                <p>{currentWalletDetail.paymentMethod}</p>
+                <button>결제 수단 변경</button>
+              </article>
+              <article>
+                <Wallet size={22} />
+                <strong>정산 계좌</strong>
+                <p>{currentWalletDetail.payoutAccount}</p>
+                <button onClick={() => navigate("settlement")}>정산 콘솔로 이동</button>
+              </article>
+              <article>
+                <ShieldCheck size={22} />
+                <strong>안전 장치</strong>
+                <p>미사용 코인 환불, 자동 충전 해지, 이상 결제 알림을 지갑에서 바로 처리할 수 있게 확장했습니다.</p>
+                <button>환불/문의 열기</button>
+              </article>
+            </aside>
+          </div>
+        </section>}
+
+        {activePage === "settlement" && <section className="section settlement-console page-panel">
+          <section className="app-settlement-dashboard" aria-label="앱 정산 요약">
+            <div className="app-settlement-head">
+              <span>Smart Settlement</span>
+              <h2>이번 달 정산 요약</h2>
+              <p>주 단위 정산으로, 고정 수수료를 제외한 금액이 팀원 지분율대로 자동 분배됩니다.</p>
+              <div className="settlement-3d-flow compact" aria-hidden="true">
+                <i className="coin-source" />
+                <span />
+                <b className="coin-member coin-one" />
+                <b className="coin-member coin-two" />
+                <b className="coin-member coin-three" />
+              </div>
+            </div>
+
+            <div className="app-settlement-amount-card">
+              <span>내 예상 정산</span>
+              <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+              <div>
+                <p>총 결제 {formatCoins(settlementPreview.grossAmount)}</p>
+                <p>수수료 {settlementConfig.platformFeeRate}%</p>
+                <p>주 단위 정산</p>
+              </div>
+            </div>
+
+            <div className="app-settlement-member-list">
+              <div>
+                <span>팀원별 분배</span>
+                <b>{settlementPreview.shareTotal}%</b>
+              </div>
+              {settlementPreview.members.map((member) => (
+                <article key={member.userId}>
+                  <i>{member.displayName.slice(0, 1)}</i>
+                  <div>
+                    <strong>{member.displayName}</strong>
+                    <p>{roleLabels[member.memberRole]} · {member.sharePercentage}%</p>
+                  </div>
+                  <b>{formatCoins(member.expectedSettlement)}</b>
+                </article>
+              ))}
+            </div>
+
+            <div className="app-settlement-actions">
+              <button type="button" onClick={() => applySettlementPreset("audioDrama")}>
+                <Split size={16} /> 팀장 40 프리셋
+              </button>
+              <button type="button" onClick={saveSettlementSettings}>
+                <CheckCircle2 size={16} /> 설정 저장
+              </button>
+            </div>
+            {settlementMessage && <p className={`app-settlement-message ${settlementPreview.shareTotal === 100 ? "ok" : "warn"}`}>{settlementMessage}</p>}
+          </section>
+
+          <div className="settlement-hero">
+            <div>
+              <p className="kicker">Smart Settlement Console</p>
+              <h2>고정 규칙으로 운영되는 자동 정산실</h2>
+              <p>팀장은 지분율과 팀원 동의 상태만 관리합니다. 주 단위 정산으로, 플랫폼 수수료를 제외한 금액이 각자의 지분율대로 자동 분배됩니다.</p>
+            </div>
+            <div className="settlement-next-card">
+              <div className="settlement-3d-flow" aria-hidden="true">
+                <i className="coin-source" />
+                <span />
+                <b className="coin-member coin-one" />
+                <b className="coin-member coin-two" />
+                <b className="coin-member coin-three" />
+              </div>
+              <span><ShieldCheck size={16} /> 정산 주기</span>
+              <strong>주 단위 정산</strong>
+              <p>주 단위 결제분을 자동 계산해 팀원 지갑으로 지급합니다.</p>
+            </div>
+          </div>
+
+          <div className="settlement-kpis">
+            <article><span>이번 달 총 결제</span><strong>{formatCoins(settlementPreview.grossAmount)}</strong></article>
+            <article><span>플랫폼 수수료</span><strong>- {formatCoins(settlementPreview.platformFeeAmount)}</strong></article>
+            <article><span>정산 주기</span><strong>주 단위 정산</strong></article>
+            <article><span>팀 분배 대상</span><strong>{formatCoins(settlementPreview.distributableAmount)}</strong></article>
+          </div>
+
+          <div className="settlement-main-grid">
+            <section className="settlement-visual-panel">
+              <div className="settlement-donut" style={settlementDonutStyle}>
+                <div>
+                  <span>내 예상 정산</span>
+                  <strong>{formatCoins(settlementPreview.mySettlementAmount)}</strong>
+                </div>
+              </div>
+              <div className="settlement-health">
+                <div><span>지분율 합계</span><b className={settlementPreview.shareTotal === 100 ? "ok" : "warn"}>{settlementPreview.shareTotal}%</b></div>
+                <div><span>적용 수수료</span><b>{settlementConfig.platformFeeRate}%</b></div>
+                <div><span>정산 주기</span><b>주 단위</b></div>
+              </div>
+            </section>
+
+            <section className="team-lead-panel">
+              <div className="panel-title">
+                <div>
+                  <p className="kicker">Team Leader Settings</p>
+                  <h3>정산 규칙 설정</h3>
+                </div>
+              </div>
+
+              <div className="settlement-preset-grid" aria-label="정산 지분율 프리셋">
+                <button type="button" className="settlement-preset-card featured" onClick={() => applySettlementPreset("audioDrama")}>
+                  <span>추천 프리셋</span>
+                  <strong>팀장 40 · 팀원 30 · 30</strong>
+                  <small>작가/프로듀서 등 팀장 역할에 40%를 우선 배정합니다.</small>
+                </button>
+                <button type="button" className="settlement-preset-card" onClick={() => applySettlementPreset("equal")}>
+                  <span>균등 프리셋</span>
+                  <strong>팀원 균등 분배</strong>
+                  <small>모든 참여자의 지분율 합계를 100%로 동일하게 맞춥니다.</small>
+                </button>
+              </div>
+
+              <div className="setting-grid">
+                <label>
+                  <span>고정 플랫폼 수수료</span>
+                  <div className="settlement-rule-card">
+                    <i><Coins size={17} /></i>
+                    <strong>{settlementConfig.platformFeeRate}%</strong>
+                    <small>{settlementConfig.platformFeeRate === 8 ? "공식 파트너 계정 고정 수수료" : "일반 계정 고정 수수료"}</small>
+                  </div>
+                </label>
+                <label>
+                  <span>정산 주기</span>
+                  <div className="settlement-rule-card">
+                    <i><ShieldCheck size={17} /></i>
+                    <strong>주 단위 정산</strong>
+                    <small>주 단위 결제분 자동 정산</small>
+                  </div>
+                </label>
+                <label>
+                  <span>팀원 동의 상태</span>
+                  <div className={`settlement-rule-card ${settlementPreview.shareTotal === 100 ? "ok" : "warn"}`}>
+                    <i><CheckCircle2 size={17} /></i>
+                    <strong>{settlementPreview.shareTotal === 100 ? "정상" : "확인 필요"}</strong>
+                    <small>{settlementPreview.shareTotal === 100 ? "지분율 합계 100%로 저장 가능" : "지분율 합계를 100%로 맞춰주세요"}</small>
+                  </div>
+                </label>
+              </div>
+
+              <div className="share-editor">
+                {settlementConfig.members.map((member) => (
+                  <div className="share-row" key={member.userId}>
+                    <div>
+                      <strong>{member.displayName}</strong>
+                      <span>{roleLabels[member.memberRole]} · @{member.username}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={member.sharePercentage}
+                      onChange={(event) => updateMemberShare(member.userId, Number(event.target.value))}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={member.sharePercentage}
+                      onChange={(event) => updateMemberShare(member.userId, Number(event.target.value))}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <button className="primary-button settlement-save" onClick={saveSettlementSettings}>정산 설정 저장</button>
+              {settlementMessage && <p className={`settlement-message ${settlementPreview.shareTotal === 100 ? "ok" : "warn"}`}>{settlementMessage}</p>}
+            </section>
+          </div>
+
+          <section className="settlement-ledger">
+            <div className="section-head">
+              <div>
+                <p className="kicker">Distribution Preview</p>
+                <h2>팀원별 예상 정산액</h2>
+              </div>
+              <p>플랫폼 수수료를 제외한 금액을 현재 지분율대로 나눈 미리보기입니다.</p>
+            </div>
+            <div className="ledger-list">
+              {settlementPreview.members.map((member) => (
+                <div key={member.userId}>
+                  <span>{member.displayName} · {roleLabels[member.memberRole]}</span>
+                  <b>{member.sharePercentage}%</b>
+                  <strong>{formatCoins(member.expectedSettlement)}</strong>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="settlement-ops">
+            <article><ShieldCheck size={22} /><strong>정산 잠금</strong><p>주 단위 마감 이후 지분율 변경을 잠가 팀원 모두가 같은 기준으로 정산 내역을 확인합니다.</p></article>
+            <article><Wallet size={22} /><strong>투명 원장</strong><p>결제 ID, 적용 수수료, 팀원별 지급액을 주별 리포트로 남겨 창작팀 신뢰를 높입니다.</p></article>
+            <article><RefreshCw size={22} /><strong>입금 상태 알림</strong><p>주 단위 정산의 지급 완료, 계좌 확인 필요, 지갑 반영 상태를 팀원에게 자동 안내합니다.</p></article>
+          </section>
+        </section>}
+
+        {activePage === "support" && (
+          <section className="section support-page page-panel">
+            <section className="app-support-dashboard" aria-label="앱 고객센터 요약">
+              <div className="app-support-head">
+                <span>Help Center</span>
+                <h2>무엇을 도와드릴까요?</h2>
+                <p>앱에서는 자주 쓰는 문의와 신고만 먼저 보이게 정리했습니다. 내용은 백엔드 티켓으로 저장됩니다.</p>
+              </div>
+
+              <div className="app-support-topic-grid">
+                {[
+                  { id: "PAYMENT", label: "결제", icon: <Coins size={17} /> },
+                  { id: "SETTLEMENT", label: "정산", icon: <Split size={17} /> },
+                  { id: "ACCESSIBILITY", label: "접근성", icon: <Headphones size={17} /> },
+                  { id: "BUG", label: "버그", icon: <ShieldCheck size={17} /> },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={supportCategory === item.id ? "active" : ""}
+                    onClick={() => setSupportCategory(item.id)}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <article className="app-support-card">
+                <div>
+                  <span>1:1 문의</span>
+                  <strong>{supportCategory === "PAYMENT" ? "결제/환불 문의" : supportCategory === "SETTLEMENT" ? "정산 문의" : supportCategory === "ACCESSIBILITY" ? "접근성 문의" : "버그 신고"}</strong>
+                </div>
+                <textarea
+                  value={supportBody}
+                  onChange={(event) => setSupportBody(event.target.value)}
+                  placeholder="문제 상황을 짧게 적어주세요. 예: 코인을 충전했는데 잔액이 늘지 않았어요."
+                />
+                <button type="button" onClick={() => void submitSupportTicket()}>
+                  <Send size={16} /> 문의 보내기
+                </button>
+              </article>
+
+              <article className="app-support-card report">
+                <div>
+                  <span>사용자 신고</span>
+                  <strong>매칭/채팅에서 문제가 있었나요?</strong>
+                </div>
+                <select value={reportTargetUserId} onChange={(event) => setReportTargetUserId(event.target.value)}>
+                  <option value="">신고 대상 선택</option>
+                  {creators.map((creator) => <option key={creator.userId} value={creator.userId}>{creator.displayName}</option>)}
+                </select>
+                <textarea
+                  value={reportReason}
+                  onChange={(event) => setReportReason(event.target.value)}
+                  placeholder="신고 사유와 상황을 적어주세요."
+                />
+                <button type="button" onClick={() => void submitUserReport()}>
+                  <Bell size={16} /> 신고 접수
+                </button>
+              </article>
+            </section>
+
+            <div className="support-hero">
+              <div>
+                <p className="kicker">Support & Trust Center</p>
+                <h2>결제, 정산, 접근성 문의와 사용자 신고를 한 곳에서 처리합니다</h2>
+                <p>창작자 협업 플랫폼은 신뢰가 제품의 일부입니다. 고객센터와 신고센터를 메뉴에서 바로 접근 가능한 독립 페이지로 분리했습니다.</p>
+                <label className="support-search">
+                  <Search size={19} />
+                  <input placeholder="궁금한 내용을 검색해보세요. 예: 코인 환불, 정산 비율, 신고 처리" type="search" />
+                  <button type="button">검색</button>
+                </label>
+              </div>
+              <div className="support-status-card">
+                <ShieldCheck size={24} />
+                <strong>운영팀 확인 프로세스</strong>
+                <span>접수 → 로그 확인 → 조치/답변</span>
+                <small>데모 백엔드에 문의와 신고가 저장됩니다.</small>
+              </div>
+            </div>
+
+            <section className="support-guide-grid">
+              <article><Coins size={22} /><strong>결제/환불</strong><p>코인 충전 실패, 중복 결제, 열람권 미지급을 빠르게 확인합니다.</p></article>
+              <article><Split size={22} /><strong>정산 확인</strong><p>지분율 변경, 정산 주기, 파트너 수수료 적용 내역을 검토합니다.</p></article>
+              <article><Headphones size={22} /><strong>접근성 지원</strong><p>스크린리더, 고대비 감상 모드, 대본 동기화 문제를 우선 처리합니다.</p></article>
+            </section>
+
+            <section className="play-review-safety-card">
+              <div>
+                <p className="kicker">App Review Ready</p>
+                <h2>구글 플레이 심사를 위한 신뢰/안전 정보</h2>
+                <p>만 12세 이상 서비스 기준으로 개인정보, 계정 삭제, 신고/문의, 콘텐츠 관리 안내를 한 곳에서 확인할 수 있게 정리했습니다.</p>
+              </div>
+              <div className="play-review-grid">
+                <a href="/privacy-policy.html" target="_blank" rel="noreferrer"><ShieldCheck size={18} /><strong>개인정보처리방침</strong><span>수집·이용·보관 기준</span></a>
+                <a href="/account-deletion.html" target="_blank" rel="noreferrer"><UserRound size={18} /><strong>계정 삭제 안내</strong><span>탈퇴와 데이터 처리</span></a>
+                <button type="button" onClick={() => setSupportCategory("BUG")}><Bell size={18} /><strong>신고/문의 접수</strong><span>운영팀 DB 티켓 저장</span></button>
+                <a href="/terms.html" target="_blank" rel="noreferrer"><BookOpen size={18} /><strong>만 12세 이상 정책</strong><span>약관과 콘텐츠 기준</span></a>
+              </div>
+            </section>
+
+            <section className="support-contact-board">
+              <article className="support-center-panel support-ticket-panel">
+                <div className="support-ticket-head">
+                  <div>
+                    <p className="kicker">1:1 Ticket</p>
+                    <h2>문의 접수</h2>
+                    <p>도움봇으로 해결되지 않는 문제는 운영팀 티켓으로 남겨주세요.</p>
+                  </div>
+                </div>
+                <div className="support-form-grid single-support-form">
+                  <div>
+                    <strong>어떤 도움이 필요하신가요?</strong>
+                    <select value={supportCategory} onChange={(event) => setSupportCategory(event.target.value)}>
+                      <option value="PAYMENT">결제/환불</option>
+                      <option value="SETTLEMENT">정산</option>
+                      <option value="ACCESSIBILITY">접근성</option>
+                      <option value="BUG">버그 신고</option>
+                    </select>
+                    <textarea value={supportBody} onChange={(event) => setSupportBody(event.target.value)} placeholder="문의 내용을 입력해 주세요. 예: 코인이 차감됐지만 열람권이 열리지 않았어요." />
+                    <button onClick={() => void submitSupportTicket()}><ShieldCheck size={17} /> 문의 접수</button>
+                  </div>
+                </div>
+              </article>
+
+              <article className="support-center-panel report-panel support-report-panel">
+                <div className="support-ticket-head">
+                  <div>
+                    <p className="kicker">Report Center</p>
+                    <h2>사용자 신고</h2>
+                    <p>매칭 과정의 부적절한 응대, 거래 회피, 괴롭힘을 운영팀에 전달합니다.</p>
+                  </div>
+                </div>
+                <div className="support-form-grid single-support-form">
+                  <div>
+                    <strong>신고 대상 선택</strong>
+                    <select value={reportTargetUserId} onChange={(event) => setReportTargetUserId(event.target.value)}>
+                      <option value="">대상 선택</option>
+                      {creators.map((creator) => <option key={creator.userId} value={creator.userId}>{creator.displayName}</option>)}
+                    </select>
+                    <textarea value={reportReason} onChange={(event) => setReportReason(event.target.value)} placeholder="신고 사유와 상황을 적어주세요. 운영팀이 대화/매칭 기록을 확인합니다." />
+                    <button onClick={() => void submitUserReport()}><Bell size={17} /> 신고 접수</button>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            {communityMessage && <p className="community-message support-message">{communityMessage}</p>}
+          </section>
+        )}
+
+        {activePage === "admin" && isAdminAccount && (
+          <section className="section admin-page page-panel">
+            <div className="admin-hero">
+              <div>
+                <p className="kicker">Admin Trust Console</p>
+                <h2>문의, 신고, 거래, 매칭을 한 번에 확인하는 운영 콘솔</h2>
+                <p>구글 플레이 심사와 실제 운영에 필요한 신뢰/안전 항목을 관리자 계정에서 바로 확인하고 상태를 바꿀 수 있습니다.</p>
+              </div>
+              <button className="primary-button compact" onClick={() => void loadAdminDashboard()}>
+                <RefreshCw size={16} /> 새로고침
+              </button>
+            </div>
+
+            {adminMessage && <p className="community-message admin-message">{adminMessage}</p>}
+
+            <div className="admin-kpi-grid">
+              <article><span>전체 회원</span><strong>{adminDashboard?.summary.users ?? 0}</strong><p>가입 계정 기준</p></article>
+              <article><span>창작자 프로필</span><strong>{adminDashboard?.summary.creators ?? 0}</strong><p>등록된 포트폴리오</p></article>
+              <article><span>열린 문의</span><strong>{adminDashboard?.summary.openTickets ?? 0}</strong><p>OPEN / IN_REVIEW</p></article>
+              <article><span>열린 신고</span><strong>{adminDashboard?.summary.openReports ?? 0}</strong><p>RECEIVED / IN_REVIEW</p></article>
+            </div>
+
+            <section className="admin-review-checklist">
+              <div className="section-head compact-head">
+                <div>
+                  <p className="kicker">Play Review Checklist</p>
+                  <h2>앱 심사 필수 흐름 체크</h2>
+                </div>
+                <p>개인정보처리방침, 계정 삭제, 신고/문의, 운영 모니터링을 심사 대응 항목으로 고정했습니다.</p>
+              </div>
+              <div>
+                {(adminDashboard?.playReviewChecklist ?? []).map((item) => (
+                  <article key={item.title}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.detail}</span>
+                    </div>
+                    <b>{item.status}</b>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <div className="admin-board-grid">
+              <section className="admin-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Tickets</p>
+                    <h3>문의 접수 내역</h3>
+                  </div>
+                </div>
+                <div className="admin-list">
+                  {(adminDashboard?.tickets ?? []).map((ticket) => (
+                    <article key={ticket.id}>
+                      <span>{ticket.category} · {formatDateTime(ticket.createdAt)}</span>
+                      <strong>{ticket.user.displayName}님의 문의</strong>
+                      <p>{ticket.body}</p>
+                      <div>
+                        <em>{ticket.status}</em>
+                        <button onClick={() => void updateAdminItemStatus("ticket", ticket.id, "IN_REVIEW")}>검토중</button>
+                        <button onClick={() => void updateAdminItemStatus("ticket", ticket.id, "RESOLVED")}>해결</button>
+                      </div>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.tickets.length === 0 && <p className="admin-empty">아직 접수된 문의가 없습니다.</p>}
+                </div>
+              </section>
+
+              <section className="admin-panel danger-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Reports</p>
+                    <h3>사용자 신고 내역</h3>
+                  </div>
+                </div>
+                <div className="admin-list">
+                  {(adminDashboard?.reports ?? []).map((report) => (
+                    <article key={report.id}>
+                      <span>{formatDateTime(report.createdAt)} · 신고자 {report.reporter.displayName}</span>
+                      <strong>{report.targetUser ? `${report.targetUser.displayName} 신고` : "대상 미지정 신고"}</strong>
+                      <p>{report.reason}</p>
+                      {report.context && <small>{report.context}</small>}
+                      <div>
+                        <em>{report.status}</em>
+                        <button onClick={() => void updateAdminItemStatus("report", report.id, "IN_REVIEW")}>검토중</button>
+                        <button onClick={() => void updateAdminItemStatus("report", report.id, "ACTIONED")}>조치완료</button>
+                      </div>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.reports.length === 0 && <p className="admin-empty">아직 접수된 신고가 없습니다.</p>}
+                </div>
+              </section>
+            </div>
+
+            <div className="admin-board-grid">
+              <section className="admin-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Transactions</p>
+                    <h3>최근 결제/코인 원장</h3>
+                  </div>
+                </div>
+                <div className="admin-ledger-list">
+                  {(adminDashboard?.transactions ?? []).map((transaction) => (
+                    <article key={transaction.id}>
+                      <div>
+                        <span>{transaction.transactionType} · {transaction.status}</span>
+                        <strong>{transaction.project.title}</strong>
+                        <p>{transaction.buyer.displayName} · {formatDateTime(transaction.createdAt)}</p>
+                      </div>
+                      <b>{transaction.coinAmount ? formatCoins(transaction.coinAmount) : formatCoins(Number(transaction.grossAmount))}</b>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.transactions.length === 0 && <p className="admin-empty">최근 거래가 없습니다.</p>}
+                </div>
+              </section>
+
+              <section className="admin-panel">
+                <div className="panel-title">
+                  <div>
+                    <p className="kicker">Matching</p>
+                    <h3>최근 매칭 제안</h3>
+                  </div>
+                </div>
+                <div className="admin-ledger-list">
+                  {(adminDashboard?.matchRequests ?? []).map((match) => (
+                    <article key={match.id}>
+                      <div>
+                        <span>{match.status} · {formatDateTime(match.createdAt)}</span>
+                        <strong>{match.projectTitle}</strong>
+                        <p>{match.requester.displayName} → {match.targetUser.displayName} · {Number(match.sharePercentage)}%</p>
+                      </div>
+                      <b>{match.projectType}</b>
+                    </article>
+                  ))}
+                  {adminDashboard && adminDashboard.matchRequests.length === 0 && <p className="admin-empty">최근 매칭 제안이 없습니다.</p>}
+                </div>
+              </section>
+            </div>
+          </section>
+        )}
+      </main>
+
+      <footer className="site-footer">
+        <div className="footer-brand">
+          <span className="footer-logo"><img src="/logo.png" alt="" /></span>
+          <div>
+            <strong>Creator Universe</strong>
+            <p>대한민국</p>
+          </div>
+        </div>
+        <p className="footer-copy">Copyright © 2026 Creator Universe Inc. 모든 권리 보유.</p>
+        <nav className="footer-links" aria-label="하단 링크">
+          <a href="/classic/?view=intro">서비스 소개</a>
+          <a href="/">현재 작품 홈</a>
+          <a href="/privacy-policy.html" target="_blank" rel="noreferrer">개인정보 처리방침</a>
+          <a href="/terms.html" target="_blank" rel="noreferrer">약관</a>
+          <a href="/refund-policy.html" target="_blank" rel="noreferrer">판매 및 환불</a>
+          <a href="/legal-notice.html" target="_blank" rel="noreferrer">법적 고지</a>
+          <a href="/sitemap.html" target="_blank" rel="noreferrer">사이트 맵</a>
+          <a href="/account-deletion.html" target="_blank" rel="noreferrer">계정 삭제 안내</a>
+        </nav>
+      </footer>
+
+      <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
+        <button className={activePage === "home" ? "active" : ""} onClick={() => navigate("home")}><Home size={18} />홈</button>
+        {isCreatorAppShell ? (
+          <button className={activePage === "studio" ? "active" : ""} onClick={() => navigate("studio")}><Rocket size={18} />스튜디오</button>
+        ) : (
+          <button className={activePage === "discover" ? "active" : ""} onClick={() => navigate("discover")}><BookOpen size={18} />작품</button>
+        )}
+        <button
+          className="mobile-plus-tab"
+          type="button"
+          onClick={() => {
+            setIsMobileQuickOpen((value) => !value);
+            setIsSupportBotOpen(false);
+            setIsMessengerOpen(false);
+            setIsAccountModalOpen(false);
+          }}
+          aria-label="빠른 메뉴 열기"
+          aria-expanded={isMobileQuickOpen}
+        >
+          {isMobileQuickOpen ? <X size={20} /> : <Plus size={22} />}
+        </button>
+        {isCreatorAppShell ? (
+          <button className={activePage === "matching" ? "active" : ""} onClick={() => navigate("matching")}><Users size={18} />매칭</button>
+        ) : (
+          <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
+        )}
+        <button
+          className={isAccountModalOpen && !isMobileQuickOpen ? "active" : ""}
+          onClick={openMyAccount}
+        >
+          <UserRound size={18} />마이
+        </button>
+      </nav>
+
+      {isMobileQuickOpen && (
+        <button
+          className="mobile-quick-backdrop"
+          type="button"
+          onClick={() => setIsMobileQuickOpen(false)}
+          aria-label="빠른 메뉴 닫기"
+        />
+      )}
+
+      <div className={`mobile-quick-sheet ${isMobileQuickOpen ? "open" : ""}`} aria-hidden={!isMobileQuickOpen}>
+        <div className="quick-sheet-head">
+          <strong>빠른 시작</strong>
+          <span>{isCreatorAppShell ? "작품을 만들고, 팀을 찾고, 제안을 바로 확인하세요" : "작품을 찾고, 코인을 충전하고, 내 보관함으로 이동하세요"}</span>
+        </div>
+        <div className="quick-sheet-primary-actions" aria-label="핵심 빠른 실행">
+          {isCreatorAppShell ? (
+            <>
+              <button onClick={() => navigate("studio")}><Rocket size={18} /><span>작품 등록</span><small>원고·웹툰·오디오</small></button>
+              <button onClick={() => navigate("matching")}><Users size={18} /><span>팀 매칭</span><small>팀원 찾기</small></button>
+              <button
+                onClick={() => {
+                  setIsMobileQuickOpen(false);
+                  openCreatorMessenger();
+                }}
+              >
+                <MessageCircle size={18} /><span>채팅</span><small>협업 DM</small>
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => navigate("discover")}><BookOpen size={18} /><span>작품</span><small>장르별 추천</small></button>
+              <button onClick={() => openReaderLibrary("scrapped")}><Heart size={18} /><span>스크랩</span><small>{scrappedWorks.length}개 저장</small></button>
+              <button
+                onClick={() => {
+                  setIsMobileQuickOpen(false);
+                  openPayment();
+                }}
+              >
+                <Coins size={18} /><span>충전</span><small>{formatCoins(wallet ?? 0)}</small>
+              </button>
+            </>
+          )}
+          <button onClick={() => navigate("support")}><ShieldCheck size={18} /><span>고객센터</span><small>문의·신고</small></button>
+        </div>
+
+        <div className="quick-sheet-secondary-actions" aria-label="보조 빠른 실행">
+          {isCreatorAppShell ? (
+            <button onClick={() => navigate("settlement")}><Split size={17} /><span>정산</span><small>{formatCoins(settlementPreview.mySettlementAmount)}</small></button>
+          ) : (
+            <button onClick={() => openReaderLibrary("recent")}><RefreshCw size={17} /><span>최근</span><small>{recentWorks.length}개</small></button>
+          )}
+          <button
+            onClick={() => {
+              setIsMobileQuickOpen(false);
+              openPayment();
+            }}
+          >
+            <Coins size={17} /><span>코인</span><small>{formatCoins(wallet ?? 0)}</small>
+          </button>
+          <button
+            onClick={() => {
+              setIsMobileQuickOpen(false);
+              if (!token) {
+                setAuthMode("login");
+                return;
+              }
+              setIsNotificationOpen(true);
+              setIsAccountMenuOpen(false);
+            }}
+          >
+            <Bell size={17} /><span>알림</span><small>{unreadNotificationCount}개</small>
+          </button>
+          <button
+            onClick={() => {
+              setIsMobileQuickOpen(false);
+              setIsSupportBotOpen(true);
+              setIsMessengerOpen(false);
+            }}
+          >
+            <Bot size={17} /><span>도움봇</span><small>상담</small>
+          </button>
+        </div>
+      </div>
+
+      <div className={`floating-messenger ${isMessengerOpen ? "open" : ""} ${isMessengerFullscreen ? "fullscreen-mode" : ""}`}>
+        {isMessengerOpen && (
+          <section className={`floating-messenger-panel ${isMessengerFullscreen ? "fullscreen" : ""}`} aria-label="창작자 채팅방">
+            <div className="floating-messenger-head">
+              <span><MessageCircle size={18} /></span>
+              <div>
+                <strong>{isMessengerFullscreen ? "Messages" : "Creator DM"}</strong>
+                <small>{isMessengerFullscreen ? "창작자와의 협업 대화를 한 화면에서 관리합니다" : "매칭 상담과 협업 제안을 이어서 보낼 수 있어요"}</small>
+              </div>
+              <div className="messenger-window-actions">
+                <button
+                  type="button"
+                  onClick={() => setIsMessengerFullscreen((value) => !value)}
+                  aria-label={isMessengerFullscreen ? "작은 채팅창으로 보기" : "전체 메시지창으로 보기"}
+                >
+                  {isMessengerFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMessengerOpen(false);
+                    setIsMessengerFullscreen(false);
+                  }}
+                  aria-label="채팅방 닫기"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+            </div>
+
+            <div className="messenger-body">
+              <div className="messenger-thread-list" aria-label="채팅 목록">
+                {isMessengerFullscreen && (
+                  <div className="messenger-inbox-title">
+                    <span>Inbox</span>
+                    <b>{messengerCreators.length}</b>
+                  </div>
+                )}
+                {messengerCreators.length ? messengerCreators.map((creator) => {
+                  const thread = creatorChatThreads[creator.userId] ?? [];
+                  const latestMessage = thread[thread.length - 1];
+                  return (
+                    <button
+                      type="button"
+                      key={creator.userId}
+                      className={activeChatCreator?.userId === creator.userId ? "active" : ""}
+                      onClick={() => setActiveChatCreatorId(creator.userId)}
+                    >
+                      <span>{creator.displayName.slice(0, 1)}</span>
+                      <div>
+                        <strong>{creator.displayName}</strong>
+                        <small>{latestMessage?.text ?? `${roleLabels[creator.primaryRole]} · 협업 가능`}</small>
+                      </div>
+                      {thread.length > 0 && <i aria-label="읽지 않은 메시지 표시" />}
+                    </button>
+                  );
+                }) : (
+                  <div className="messenger-empty">
+                    <MessageCircle size={22} />
+                    <strong>대화할 창작자를 찾아보세요</strong>
+                    <p>매칭 페이지에서 채팅 보내기를 누르면 대화방이 열립니다.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="messenger-chat-pane">
+                {activeChatCreator ? (
+                  <>
+                    <div className="messenger-chat-title">
+                      <div>
+                        <strong>{activeChatCreator.displayName}</strong>
+                        <small>{roleLabels[activeChatCreator.primaryRole]} · 평균 응답률 {activeChatCreator.responseRate}%</small>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMessengerOpen(false);
+                          setIsMessengerFullscreen(false);
+                          setSelectedCreator(activeChatCreator);
+                        }}
+                      >
+                        프로필
+                      </button>
+                    </div>
+                    <div className="messenger-messages">
+                      {activeChatMessages.length === 0 && (
+                        <div className="creator">
+                          <span>{activeChatCreator.displayName.slice(0, 1)}</span>
+                          <p>안녕하세요. 포트폴리오를 보고 협업 상담을 원하시면 아래에 메시지를 남겨주세요.</p>
+                          <small>방금</small>
+                        </div>
+                      )}
+                      {activeChatMessages.length > 0 && <div className="messenger-day-divider"><span>오늘</span></div>}
+                      {activeChatMessages.map((message, index) => (
+                        <div className={message.from === "me" ? "me" : "creator"} key={`${activeChatCreator.userId}-${index}`}>
+                          {message.from === "creator" && <span>{activeChatCreator.displayName.slice(0, 1)}</span>}
+                          <p>{message.text}</p>
+                          {message.matchProposal && message.from === "creator" && message.matchProposal.status === "PENDING" && (
+                            <button
+                              className="inline-match-accept-button"
+                              type="button"
+                              onClick={() => void acceptMatchProposal(message.matchProposal!.id)}
+                            >
+                              <CheckCircle2 size={15} /> 조건 보고 수락하기
+                            </button>
+                          )}
+                          <small>{message.time}</small>
+                        </div>
+                      ))}
+                    </div>
+                    <label className="messenger-input">
+                      <input
+                        value={messengerInput}
+                        onChange={(event) => setMessengerInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            void sendMessengerMessage();
+                          }
+                        }}
+                        placeholder={`${activeChatCreator.displayName}님에게 메시지 보내기`}
+                      />
+                      <button type="button" onClick={() => void sendMessengerMessage()}><Send size={17} /></button>
+                    </label>
+                  </>
+                ) : (
+                  <div className="messenger-empty">
+                    <MessageCircle size={24} />
+                    <strong>아직 열린 채팅방이 없어요</strong>
+                    <p>매칭 페이지에서 마음에 드는 창작자에게 먼저 말을 걸어보세요.</p>
+                  </div>
+                )}
+              </div>
+
+              {isMessengerFullscreen && activeChatCreator && (
+                <aside className="messenger-profile-panel" aria-label="대화 상대 프로필">
+                  <div className="messenger-profile-avatar">{activeChatCreator.displayName.slice(0, 1)}</div>
+                  <strong>{activeChatCreator.displayName}</strong>
+                  <span>@{activeChatCreator.username}</span>
+                  <p>{activeChatCreator.headline}</p>
+                  <div className="messenger-profile-status">
+                    <span>온라인</span>
+                    <small>평균 1시간 내 응답</small>
+                  </div>
+                  <div>
+                    <b>{roleLabels[activeChatCreator.primaryRole]}</b>
+                    <b>응답률 {activeChatCreator.responseRate}%</b>
+                    <b>{activeChatCreator.completedProjects}개 협업</b>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMessengerOpen(false);
+                      setIsMessengerFullscreen(false);
+                      setSelectedCreator(activeChatCreator);
+                    }}
+                  >
+                    프로필 자세히 보기
+                  </button>
+                </aside>
+              )}
+            </div>
+          </section>
+        )}
+        <button
+          className="floating-messenger-button"
+          type="button"
+          onClick={() => {
+            if (isMessengerOpen) {
+              setIsMessengerOpen(false);
+              setIsMessengerFullscreen(false);
+              return;
+            }
+            openCreatorMessenger();
+          }}
+          aria-label={isMessengerOpen ? "창작자 채팅 닫기" : "창작자 채팅 열기"}
+        >
+          {isMessengerOpen ? <X size={23} /> : <MessageCircle size={23} />}
+          {!isMessengerOpen && <i />}
+        </button>
+      </div>
+      <div className={`floating-help ${isSupportBotOpen ? "open" : ""}`}>
+        {isSupportBotOpen && (
+          <section className="floating-help-panel" aria-label="크리에이터 유니버스 도움봇">
+            <div className="floating-help-head">
+              <span><Bot size={18} /></span>
+              <div>
+                <strong>Universe Bot</strong>
+                <small><i /> 온라인 상담 대기 중</small>
+              </div>
+              <button type="button" onClick={() => setIsSupportBotOpen(false)} aria-label="도움봇 닫기"><X size={17} /></button>
+            </div>
+            <div className="floating-help-banner">
+              <b>무엇을 도와드릴까요?</b>
+              <p>결제, 정산, 접근성, 신고 키워드를 입력하면 알맞은 접수 유형을 추천해요.</p>
+            </div>
+            <div className="support-chat-window compact-chat" aria-label="고객센터 챗봇 대화">
+              {supportChatMessages.map((message, index) => (
+                <div className={message.from === "bot" ? "bot" : "user"} key={`${message.from}-${index}`}>
+                  <span>{message.from === "bot" ? "CU" : "나"}</span>
+                  <p>{message.text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="support-quick-replies compact-replies">
+              {["코인 환불", "정산 오류", "접근성 문제", "사용자 신고"].map((item) => (
+                <button key={item} onClick={() => sendSupportBotMessage(item)}>{item}</button>
+              ))}
+            </div>
+            <label className="support-chat-input">
+              <input
+                value={supportChatInput}
+                onChange={(event) => setSupportChatInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendSupportBotMessage();
+                  }
+                }}
+                placeholder="문의 내용을 입력하세요"
+              />
+              <button type="button" onClick={() => sendSupportBotMessage()}><Send size={17} /></button>
+            </label>
+          </section>
+        )}
+        <button
+          className="floating-help-button"
+          type="button"
+          onClick={() => {
+            setIsSupportBotOpen((value) => !value);
+            setIsMessengerOpen(false);
+          }}
+          aria-label="도움봇 열기"
+        >
+          {isSupportBotOpen ? <X size={24} /> : <Bot size={24} />}
+        </button>
+      </div>
+      {authMode && <AuthModal mode={authMode} onClose={closeClassicLogin} onAuth={completeAuth} />}
+      {matchProposalCreator && (
+        <MatchProposalModal
+          creator={matchProposalCreator}
+          project={project}
+          share={matchProposalShare}
+          message={matchProposalMessage}
+          isSubmitting={isMatchProposalSubmitting}
+          onShareChange={setMatchProposalShare}
+          onMessageChange={setMatchProposalMessage}
+          onClose={() => setMatchProposalCreator(null)}
+          onSubmit={() => void submitMatchProposal()}
+        />
+      )}
+      {user && isAccountModalOpen && (
+        <AccountModal
+          user={user}
+          wallet={wallet}
+          purchasedWorkIds={purchasedWorkIds}
+          scrappedWorkIds={scrappedWorkIds}
+          recentWorkIds={recentWorkIds}
+          workProgress={workProgress}
+          premiumSubscription={premiumSubscription}
+          notificationPreferences={notificationPreferences}
+          isCreatorAccount={isCreatorAccount}
+          onClose={() => setIsAccountModalOpen(false)}
+          onLogout={logout}
+          onDeleteAccount={() => void deleteAccount()}
+          onOpenPayment={() => {
+            setIsAccountModalOpen(false);
+            openPayment();
+          }}
+          onStartPremium={startPremiumSubscription}
+          onCancelPremium={cancelPremiumSubscription}
+          onUpgradeToCreator={() => void upgradeToCreatorAccount()}
+          onToggleNotificationPreference={toggleNotificationPreference}
+          onNavigate={navigate}
+          onOpenLibrary={openReaderLibrary}
+        />
+      )}
+      {selectedCreator && (
+        <CreatorDetailModal
+          creator={selectedCreator}
+          token={token}
+          onClose={() => setSelectedCreator(null)}
+          onLoginRequired={() => setAuthMode("login")}
+          onActionComplete={refreshAfterCommunityAction}
+          isFollowing={followedCreatorIds.includes(selectedCreator.userId)}
+          onToggleFollow={() => void toggleCreatorFollow(selectedCreator.userId)}
+        />
+      )}
+      {selectedWork && (
+        <WorkDetailModal
+          work={selectedWork}
+          token={token} salePrice={salePrices[selectedWork.id]}
+          rank={rankedReaderWorks.findIndex((work) => work.id === selectedWork.id) + 1}
+          reviews={contentReviews.filter((review) => review.workId === selectedWork.id)}
+          creators={creators}
+          isPurchased={purchasedWorkIds.includes(selectedWork.id)}
+          progress={workProgress[selectedWork.id]}
+          reviewRating={reviewRating}
+          reviewBody={reviewBody}
+          onClose={() => setSelectedWork(null)}
+          onOpenCreator={(creator) => {
+            setSelectedWork(null);
+            setSelectedCreator(creator);
+          }}
+          onOpenPayment={() => openWorkPayment(selectedWork.id)}
+          onOpenEpisode={(episodeNumber) => openWorkEpisode(selectedWork, episodeNumber)}
+          onRatingChange={setReviewRating}
+          onReviewBodyChange={setReviewBody}
+          onSubmitReview={() => void submitReview(selectedWork.id)}
+        />
+      )}
+      {isPaymentOpen && (
+        <PaymentModal
+          mode={paymentMode}
+          project={project}
+          work={paymentMode === "content" ? pendingPurchaseWork : null}
+          wallet={wallet}
+          isLoggedIn={Boolean(token && user)}
+          onClose={() => setIsPaymentOpen(false)}
+          token={token} userId={user?.id} salePrice={salePrices[pendingPurchaseWorkId]}
+          onBalance={balance => { setWallet(balance); if (token) void loadData(token).catch(() => {}); }}
+          onConfirm={handlePaymentConfirm}
+          onLogin={() => {
+            resumeCheckoutAfterLogin.current = true; setIsPaymentOpen(false);
+            setAuthMode("login");
+          }}
+        />
+      )}
+        {policyTab && <PolicyModal initialTab={policyTab} onClose={() => setPolicyTab(null)} />}
+    </div>
+  );
+}
