@@ -1,0 +1,62 @@
+.reader-shell .work-detail-modal {
+  --detail-pad: clamp(12px, 2vw, 24px);
+  padding: 0 var(--detail-pad) var(--detail-pad);
+  border-radius: 21px;
+  background: var(--surface);
+  overscroll-behavior: contain;
+  scroll-padding-top: 62px;
+}
+
+.cu-detail-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 calc(-1 * var(--detail-pad)) var(--detail-pad);
+  padding: 4px var(--detail-pad);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.cu-detail-nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 42px;
+  padding: 4px 10px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.cu-detail-nav button:first-child { margin-right: auto; }
+.cu-detail-nav button:is(:hover, :focus-visible) { background: var(--surface-2); }
+.reader-shell .work-detail-hero { grid-template-columns: minmax(155px, 27%) minmax(0, 1fr); align-items: center; }
+.reader-shell .work-detail-hero > img {
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.reader-shell .work-detail-hero > div { padding: 0; border: 0; background: none; }
+.reader-shell .work-detail-hero h2 { font-family: var(--cu-font-editorial); font-weight: 700; }
+.reader-shell .work-rank-badge { color: var(--cu-action); background: var(--surface-2); font-weight: 650; }
+.cu-detail-related {
+  display: inline-flex; align-items: center; gap: 4px; justify-self: start;
+  min-height: 40px; border: 0; padding: 0; text-align: left;
+  font-weight: 720; color: var(--text); background: transparent;
+}
+.cu-detail-related:is(:hover, :focus-visible) { text-decoration: underline; text-underline-offset: .2em; }
+@media (max-width: 600px) {
+  .reader-shell .work-detail-hero { grid-template-columns: minmax(75px, 28%) minmax(0, 1fr); align-items: start; gap: 12px; }
+  .reader-shell .work-detail-hero > div { gap: 8px; }
+  .reader-shell .work-detail-hero h2 { font-size: clamp(1.35rem, 6vw, 2rem); }
+  .reader-shell .work-detail-hero .reader-actions { flex-wrap: wrap; }
+  .reader-shell .work-rank-badge { padding: 4px 7px; font-size: .8rem; }
+}

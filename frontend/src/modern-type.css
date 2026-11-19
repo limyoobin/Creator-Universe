@@ -1,0 +1,66 @@
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+
+/* Google's Nanum Myeongjo subset covers the featured titles and original chapter headings. */
+@font-face {
+  font-family: "Nanum Myeongjo Titles";
+  src: url("/fonts/nanum-myeongjo/titles-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+.app:is(.reader-shell, .studio-shell) {
+  --cu-font-sans: "Pretendard Variable", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --cu-font-editorial: "Nanum Myeongjo Titles", "Nanum Myeongjo", "AppleMyungjo", Batang, serif;
+  font-family: var(--cu-font-sans);
+  background: var(--bg);
+  color: var(--text);
+}
+
+body:not([data-high-contrast="true"]):not([data-theme="dark"]) :is(.reader-shell, .studio-shell) {
+  --bg: #faf9f6;
+  --surface: #fffefa;
+  --surface-2: #f1f0ec;
+  --text: #202123;
+  --muted: #5f636b;
+  --line: #deded7;
+  --cu-action: #3055b6;
+}
+
+:is(.reader-shell, .studio-shell) :is(input, select, textarea, button) {
+  font-family: inherit;
+}
+
+.studio-shell .creator-profile-publisher,
+.studio-shell .creator-profile-publisher :is(input, textarea),
+.studio-shell .support-donation-box textarea {
+  font-family: var(--cu-font-sans);
+}
+
+.reader-shell .tide-reader :is(h2, h3) {
+  font-family: var(--cu-font-editorial);
+  font-weight: 700;
+}
+
+:is(.reader-shell, .studio-shell) nav.app-primary-tabs {
+  --brand: var(--cu-action);
+}
+
+.reader-shell nav.app-primary-tabs {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.reader-shell nav.app-primary-tabs .mobile-plus-tab {
+  width: 44px;
+  height: 44px;
+  margin-top: 0;
+  border-radius: 15px;
+  background: var(--text);
+  color: var(--surface);
+  box-shadow: none;
+}
+
+.reader-shell nav.app-primary-tabs button.active {
+  color: var(--cu-action);
+}

@@ -2,6 +2,18 @@
 .tide-reader { width:min(760px,100%); max-height:100%; overflow:auto; overscroll-behavior:contain; background:#f8f5ee; color:#1c3337; border-radius:22px; box-shadow:0 30px 100px #08192780; scrollbar-gutter:stable; }
 .tide-reader-bar,.tide-reading-tools,.tide-film-controls,.tide-chapter-end div { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .tide-reader-bar { position:sticky; top:0; z-index:4; padding:14px clamp(16px,4vw,34px); background:rgb(248 245 238 / 96%); border-bottom:1px solid #dcded2; }
+.tide-reader-bar > div { flex:1; min-width:0; }
+.tide-reader-bar .tide-episode-picker {
+  max-width:47%; min-height:40px; min-width:0; padding:6px 8px; text-overflow:ellipsis;
+  border:1px solid #cbd4cd; border-radius:9px; background:#fffdf8; color:#29484b; font-size:.86rem;
+}
+.tide-reader-bar .tide-close { flex:none; }
+.tide-reading-progress { position:absolute; inset:auto 0 -1px; width:100%; height:3px; border:0; appearance:none; background:transparent; color:#337374; }
+.tide-reading-progress::-webkit-progress-bar { background:transparent; }
+.tide-reading-progress::-webkit-progress-value { background:#337374; }
+.tide-reading-progress::-moz-progress-bar { background:#337374; }
+.tide-reading-tools .tide-share { display:inline-flex; align-items:center; gap:6px; min-height:42px; padding:0 6px; color:#345657; font-weight:650; border:0; background:transparent; }
+.tide-copy-url { flex:1 1 100%; min-width:0; border:1px solid #adbdb6; border-radius:6px; padding:8px; color:#223c40; background:white; }
 .tide-imprint { color:#51645f; font-size:.71rem; font-weight:700; letter-spacing:.06em; }
 .tide-reader h2,.tide-reader h3 { font-family:"Nanum Myeongjo",Batang,"AppleMyungjo",serif; color:#182f36; }
 .tide-reader h2 { font-size:1.33rem; margin:3px 0 0; letter-spacing:-.055em; }
@@ -44,3 +56,15 @@
 @media(max-width:600px) { .tide-backdrop.modal-backdrop { padding:0; }.tide-reader { height:100%; max-height:100dvh; border-radius:0; }.tide-reader-bar { padding-top:max(12px,env(safe-area-inset-top)); }.tide-chapter { padding-top:18px; }.tide-film-controls { gap:7px; padding-inline:12px; } }
 @media(prefers-reduced-motion:reduce) { .tide-film-frame img,.tide-shimmer { animation:none!important; } }
 body[data-reduced-motion=true] .tide-film-frame img,body[data-reduced-motion=true] .tide-shimmer { animation:none!important; }
+@media (max-width:440px) {
+  .tide-reader-bar { gap:6px; padding-inline:12px; }
+  .tide-reader-bar .tide-imprint { display:none; }
+  .tide-reader-bar h2 { font-size:1.12rem; }
+  .tide-reader-bar .tide-episode-picker { max-width:41%; }
+  .tide-reading-tools { gap:6px; }
+}
+body[data-theme="dark"] .tide-reader { background:#192324; color:#edf2ea; }
+body[data-theme="dark"] .tide-reader-bar { background:#1c2929; border-color:#3e5150; }
+body[data-theme="dark"] .tide-reader :is(h2,h3,.tide-chapter p,.tide-narration) { color:#eef1e7; }
+body[data-theme="dark"] .tide-reader :is(.tide-imprint,.tide-chapter small,.tide-chapter-end p,.tide-share,.tide-speech b) { color:#c7d5c9; }
+body[data-theme="dark"] .tide-reader-bar :is(.tide-episode-picker,.tide-close) { color:#e8efea; border-color:#536462; background:#293a3b; }

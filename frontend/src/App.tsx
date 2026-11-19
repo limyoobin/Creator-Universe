@@ -2,7 +2,10 @@ import { API_URL, cleanDisplayText, getFriendlyError, request } from "./api";
 import { AuthModal, PaymentModal, PurchasedAudio, formatCoins, formatDuration, type AuthView, type User } from "./AccountDialogs";
 import { readProviderReturn, clearProviderReturn } from "./portone";
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { StudioEntry, StudioWorkspace, useStudioPanel } from "./StudioWorkspace";
+import { useStudioDraft } from "./studioDraft";
 import { WorksCatalog } from "./WorksCatalog";
+import { CatalogSearch } from "./CatalogSearch";
 import { MatchingProviders, matchProviderNames } from "./MatchingProviders";
 import type { MatchingProviderIssues } from "../../shared/matching-providers";
 import { TideReader, type TideMode } from "./TideReader";
@@ -699,21 +702,8 @@ type AppMode = "reader" | "creator";
 type WorkProgressEntry = {
   episodeNumber: number;
   percent: number;
+  chapterOffset?: number;
   updatedAt: string;
-};
-
-type StudioDraftState = {
-  title: string;
-  format: string;
-  genre: string;
-  synopsis: string;
-  episodeTitle: string;
-  accessType: string;
-  priceCoins: number;
-  publishMode: string;
-  scheduledAt: string;
-  previewText: string;
-  uploadMemo: string;
 };
 
 type StudioUploadKind = "audio" | "image" | "document";
@@ -784,6 +774,10 @@ function locationPage(): PageId {
   const params = new URLSearchParams(window.location.search);
   return studioSections.find(section => section === params.get("studio"))
     ?? readerDestinations.find(section => section === params.get("view")) ?? "discover";
+}
+
+function locationCatalogQuery() {
+  return locationPage() === "discover" ? new URLSearchParams(window.location.search).get("q") ?? "" : "";
 }
 
 const catalogueCredits: Record<string, { name: string; role: string }> = {
@@ -1205,6 +1199,8 @@ function readWorkProgress(key: string): Record<string, WorkProgressEntry> {
       acc[workId] = {
         episodeNumber: Math.max(1, Math.floor(episodeNumber)),
         percent: Math.max(0, Math.min(100, Math.floor(percent))),
+        chapterOffset: typeof item.chapterOffset === "number" && Number.isFinite(item.chapterOffset)
+          ? Math.max(0, Math.min(100, item.chapterOffset)) : undefined,
         updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : new Date().toISOString(),
       };
       return acc;
@@ -2355,6 +2351,7 @@ function WorkDetailModal({
   reviewRating,
   reviewBody,
   onClose,
+  onRelatedWork,
   onOpenCreator,
   onOpenPayment,
   onOpenEpisode,
@@ -2373,6 +2370,7 @@ function WorkDetailModal({
   reviewRating: number;
   reviewBody: string;
   onClose: () => void;
+  onRelatedWork: (next: ReaderWork) => void;
   onOpenCreator: (creator: Creator) => void;
   onOpenPayment: () => void;
   onOpenEpisode: (episodeNumber: number) => void;
@@ -2393,19 +2391,20 @@ function WorkDetailModal({
     .slice(0, 3);
 
   return (
-    <div className="modal-backdrop work-detail-backdrop" role="dialog" aria-modal="true">
+    <div className="modal-backdrop work-detail-backdrop" role="dialog" aria-modal="true" aria-labelledby="cu-detail-title">
       <div className="work-detail-modal">
+        <nav className="cu-detail-nav" aria-label="작품 상세 메뉴">
+          <button type="button" onClick={onClose} aria-label="작품 상세 닫기"><X size={17} /> 닫기</button>
+          <button type="button" onClick={() => document.getElementById("cu-detail-credits")?.focus()}>참여 작가</button>
+          <button type="button" onClick={() => document.getElementById("cu-detail-reviews")?.focus()}>리뷰</button>
+        </nav>
         <div className={`work-detail-hero ${work.tone}`}>
-          <img src={work.coverImage} alt={`${work.title} 커버`} />
+          <img src={work.coverImage} alt="" />
           <div>
             <div className="modal-header">
               <div>
-                <p className="kicker">Work Detail</p>
-                <h2>{work.title}</h2>
+                <h2 id="cu-detail-title" tabIndex={-1}>{work.title}</h2>
               </div>
-              <button className="icon-button" onClick={onClose} aria-label="작품 상세 닫기">
-                <X size={19} />
-              </button>
             </div>
             <span className="work-rank-badge"><Flame size={16} /> 전체 #{rank} · {work.genre} 인기작</span>
             <p>{work.tagline}</p>
@@ -2530,7 +2529,7 @@ function WorkDetailModal({
           <div className="section-head compact-head">
             <div>
               <p className="kicker">Production Team</p>
-              <h3>이 작품에 참여한 창작자</h3>
+              <h3 id="cu-detail-credits" tabIndex={-1}>이 작품에 참여한 창작자</h3>
             </div>
           </div>
           <div className="work-detail-creators">
@@ -2557,9 +2556,8 @@ function WorkDetailModal({
           <div className="section-head compact-head">
             <div>
               <p className="kicker">Comments & Reviews</p>
-              <h3>작품 댓글/리뷰</h3>
+              <h3 id="cu-detail-reviews" tabIndex={-1}>작품 댓글/리뷰</h3>
             </div>
-            <p>작품 상세 안에서만 리뷰가 보이도록 분리했습니다.</p>
           </div>
           <div className="review-form work-review-form">
             <select value={reviewRating} onChange={(event) => onRatingChange(Number(event.target.value))} aria-label="리뷰 평점">
@@ -2600,12 +2598,11 @@ function WorkDetailModal({
                   <img src={related.coverImage} alt="" />
                   <div>
                     <span>{related.format} · {related.genre}</span>
-                    <strong>{related.title}</strong>
+                    <button type="button" className="cu-detail-related" onClick={() => onRelatedWork(related)}>{related.title}<ArrowUpRight size={15} /></button>
                     <p>{related.tagline}</p>
                     <div>
                       <b><Star size={13} /> {related.rating}</b>
                       <b>{related.episodes}화</b>
-                      <b>{formatCoins(related.priceCoins)}</b>
                     </div>
                   </div>
                 </article>
@@ -3169,8 +3166,9 @@ export function App() {
   const [isAiHistoryOpen, setIsAiHistoryOpen] = useState(false);
   const [isAiMatching, setIsAiMatching] = useState(false);
   const [aiMatchMessage, setAiMatchMessage] = useState("");
-  const [readerSearch, setReaderSearch] = useState("");
+  const [readerSearch, setReaderSearch] = useState(locationCatalogQuery);
   const catalogSearch = useRef<HTMLInputElement>(null);
+  const catalogBrowseScroll = useRef(0);
   const [readerFilters, setReaderFilters] = useState<string[]>([]);
   const [readerLibraryView, setReaderLibraryView] = useState<(typeof libraryViewItems)[number]["id"]>("recent");
   const [purchasedWorkIds, setPurchasedWorkIds] = useState<string[]>([]);
@@ -3207,19 +3205,8 @@ export function App() {
   const [reportTargetUserId, setReportTargetUserId] = useState("");
   const [reportReason, setReportReason] = useState("");
   const [communityMessage, setCommunityMessage] = useState("");
-  const [studioDraft, setStudioDraft] = useState<StudioDraftState>({
-    title: "네온 별자리 탐정단",
-    format: "웹툰",
-    genre: "판타지",
-    synopsis: "밤마다 별자리가 사라지는 도시에서 작가, 일러스트레이터, 성우가 함께 확장하는 미스터리 판타지 프로젝트입니다.",
-    episodeTitle: "1화. 별빛이 켜지는 골목",
-    accessType: "코인 열람",
-    priceCoins: 700,
-    publishMode: "예약 발행",
-    scheduledAt: "2026-05-15 20:00",
-    previewText: "무료 미리보기에서는 첫 장면의 분위기와 주인공의 목표가 선명하게 보이도록 구성합니다.",
-    uploadMemo: "원고, 콘티, 표지 이미지, 접근성 대본, 오디오 큐시트를 발행 전까지 연결합니다.",
-  });
+  const { panel: studioPanel, selectPanel: selectStudioPanel } = useStudioPanel();
+  const { draft: studioDraft, savedTitle: studioSavedTitle, message: studioSaveMessage, update: updateStudioDraft, save: saveStudioDraft } = useStudioDraft(studioWindow ? user?.id : undefined);
   const [studioEpisodeUploads, setStudioEpisodeUploads] = useState<Partial<Record<StudioUploadKind, UploadedAsset>>>({});
   const [isStudioUploading, setIsStudioUploading] = useState(false);
   const [studioUploadMessage, setStudioUploadMessage] = useState("");
@@ -3305,6 +3292,10 @@ export function App() {
   const entryQuery = new URLSearchParams(window.location.search);
   const [selectedWork, setSelectedWork] = useState<ReaderWork | null>(() => entryQuery.get("work") === tideWork.id ? tideWork : null);
   const [tideMode, setTideMode] = useState<TideMode>(() => entryQuery.get("view") === "motion" ? "motion" : "read");
+  const tideBookmark = workProgress[tideWork.id];
+  const offsetFromPercent = tideBookmark ? tideBookmark.percent * tideWork.episodes - (tideBookmark.episodeNumber - 1) * 100 : 0;
+  // Older library entries stored an episode boundary as soon as the reader opened it.
+  const lastTideOffset = tideBookmark?.chapterOffset ?? (offsetFromPercent > 1 && offsetFromPercent < 98 ? offsetFromPercent : 0);
   const [tideEntryEpisode, setTideEntryEpisode] = useState<number | null>(() => {
     const ep = Number(entryQuery.get("episode"));
     return [1,2,3].includes(ep) ? ep : null;
@@ -3317,7 +3308,6 @@ export function App() {
   const [activeIntroSlide, setActiveIntroSlide] = useState(0);
   const [activeFlowStep, setActiveFlowStep] = useState(0);
   const [status, setStatus] = useState("백엔드 연결 중");
-  const [isBootLoading, setIsBootLoading] = useState(true);
   const aiChatLogRef = useRef<HTMLDivElement | null>(null);
   const aiRequestRef = useRef<AbortController | null>(null);
 
@@ -3329,11 +3319,11 @@ export function App() {
   useEffect(() => {
     if (studioWindow || overlay) return;
     function focusSearch(event: KeyboardEvent) {
-      if (event.key !== "/" || event.defaultPrevented || event.isComposing || event.altKey || event.metaKey || event.ctrlKey) return;
+      if (event.key !== "/" || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.altKey || event.metaKey || event.ctrlKey) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [role='textbox']"))) return;
       event.preventDefault();
-      catalogSearch.current?.focus();
+      catalogSearch.current?.focus({ preventScroll: true });
     }
     document.addEventListener("keydown", focusSearch);
     return () => document.removeEventListener("keydown", focusSearch);
@@ -3360,7 +3350,7 @@ export function App() {
         case "payment": setIsPaymentOpen(false); break;
         case "match-proposal": setMatchProposalCreator(null); break;
         case "creator-detail": setSelectedCreator(null); break;
-        case "work-detail": setSelectedWork(null); break;
+        case "work-detail": closeWork(); break;
         case "account": setIsAccountModalOpen(false); break;
         case "quick": setIsMobileQuickOpen(false); break;
         case "menu": setIsMobileMenuOpen(false); break;
@@ -3897,7 +3887,7 @@ export function App() {
   }, [studioFanPostDraft]);
 
   const studioGrowthInsights = useMemo(() => {
-    const works = myStudioWorks.length > 0 ? myStudioWorks : readerWorks.slice(0, 3);
+    const works = myStudioWorks;
     const totalAudience = works.reduce((sum, work) => sum + parseAudienceCount(work.listeners), 0);
     const averageRating = works.reduce((sum, work) => sum + work.rating, 0) / Math.max(works.length, 1);
     const estimatedCoinSales = works.reduce((sum, work) => sum + work.priceCoins * Math.max(work.episodes, 1), 0);
@@ -3906,8 +3896,8 @@ export function App() {
 
     return {
       metrics: [
-        { label: "누적 감상", value: `${Math.round(totalAudience / 1000).toLocaleString("ko-KR")}K`, detail: "참여 작품 기준", icon: <Users size={20} /> },
-        { label: "평균 평점", value: averageRating.toFixed(1), detail: "독자 만족도", icon: <Star size={20} /> },
+        { label: "누적 감상", value: totalAudience.toLocaleString("ko-KR"), detail: "참여 작품 기준", icon: <Users size={20} /> },
+        { label: "평균 평점", value: works.length ? averageRating.toFixed(1) : "—", detail: "참여 작품 기준", icon: <Star size={20} /> },
         { label: "예상 판매 풀", value: formatCoins(estimatedCoinSales), detail: "회차 가격 합산", icon: <Coins size={20} /> },
         { label: "팬 수익화 준비", value: `${fanPostReadiness}%`, detail: "유료 포스트 체크", icon: <Heart size={20} /> },
       ],
@@ -4086,10 +4076,6 @@ export function App() {
     document.body.dataset.appShell = "android";
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setIsBootLoading(false), 1200);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     const chatLog = aiChatLogRef.current;
@@ -4393,6 +4379,17 @@ export function App() {
     }
   }
 
+  function closeWork() {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("work")) {
+      url.searchParams.delete("work");
+      url.searchParams.delete("episode");
+      if (url.searchParams.get("view") === "motion") url.searchParams.delete("view");
+      window.history.replaceState(null, "", url);
+    }
+    setSelectedWork(null);
+  }
+
   function openReaderLibrary(view: (typeof libraryViewItems)[number]["id"]) {
     if ((view === "purchased" || view === "scrapped" || view === "recent") && !user) {
       setIsMobileQuickOpen(false);
@@ -4409,7 +4406,7 @@ export function App() {
   useEffect(() => {
     function restorePage() {
       setActivePage(locationPage());
-      setReaderSearch("");
+      setReaderSearch(locationCatalogQuery());
       setIsMobileMenuOpen(false);
       setIsMobileQuickOpen(false);
       setSelectedWork(null);
@@ -4419,16 +4416,34 @@ export function App() {
     return () => window.removeEventListener("popstate", restorePage);
   }, []);
 
-  function selectPage(page: PageId) {
+  function selectPage(page: PageId, catalogQuery = "") {
     const url = new URL(window.location.href);
+    const editingSearch = Boolean(url.searchParams.get("q")) && Boolean(catalogQuery);
     if (studioWindow && studioSections.some(section => section === page)) {
       url.searchParams.set("studio", page);
     } else if (!studioWindow && readerDestinations.some(section => section === page)) {
       if (page === "discover") url.searchParams.delete("view");
       else url.searchParams.set("view", page);
     }
-    if (url.href !== window.location.href) window.history.pushState(null, "", url);
+    if (page === "discover" && catalogQuery) url.searchParams.set("q", catalogQuery);
+    else url.searchParams.delete("q");
+    if (url.href !== window.location.href) {
+      if (editingSearch) window.history.replaceState(null, "", url);
+      else window.history.pushState(null, "", url);
+    }
     setActivePage(page);
+  }
+
+  function updateCatalogQuery(value: string, submitted = false) {
+    const wasSearching = activePage === "discover" && Boolean(readerSearch.trim());
+    const query = value.trim();
+    if (!wasSearching && query) catalogBrowseScroll.current = activePage === "discover" ? window.scrollY : 0;
+    setReaderSearch(value);
+    selectPage("discover", query);
+    if (submitted || wasSearching !== Boolean(query)) {
+      const top = query ? 0 : catalogBrowseScroll.current;
+      requestAnimationFrame(() => window.scrollTo({ top, behavior: "instant" }));
+    }
   }
 
   function navigate(page: PageId) {
@@ -4448,7 +4463,6 @@ export function App() {
       selectPage(page);
       return;
     }
-    if (page === "discover" || page === "ranking") setReaderSearch("");
     if (protectedPages.has(page) && (!token || !user)) {
       setAuthMode("login");
       setIsMobileMenuOpen(false);
@@ -4465,6 +4479,7 @@ export function App() {
       return;
     }
 
+    if (page !== activePage || page === "discover" || page === "ranking") setReaderSearch("");
     selectPage(page);
     setIsMobileMenuOpen(false);
     setIsMobileQuickOpen(false);
@@ -5014,13 +5029,6 @@ export function App() {
     setSettlementMessage("정산 설정이 저장되었습니다. 플랫폼 수수료는 일반 13%, 공식 파트너 8% 고정 정책으로 적용됩니다.");
   }
 
-  function updateStudioDraft<K extends keyof StudioDraftState>(key: K, value: StudioDraftState[K]) {
-    setStudioDraft((current) => ({
-      ...current,
-      [key]: value,
-    }));
-  }
-
   function updateStudioFanPostDraft<K extends keyof StudioFanPostDraftState>(key: K, value: StudioFanPostDraftState[K]) {
     setStudioFanPostDraft((current) => ({
       ...current,
@@ -5036,14 +5044,6 @@ export function App() {
       ...current,
       [key]: value,
     }));
-  }
-
-  function submitStudioWorkDraft(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const title = String(data.get("title") || "새 작품");
-    const episodeTitle = String(data.get("episodeTitle") || "새 회차");
-    setCommunityMessage(`${title} · ${episodeTitle} 발행 초안이 저장되었습니다. 체크리스트를 모두 채우면 예약 발행으로 넘길 수 있어요.`);
   }
 
   function submitStudioFanPost(event: React.FormEvent<HTMLFormElement>) {
@@ -5106,10 +5106,6 @@ export function App() {
         : `${title} 회차 메모가 저장되었습니다. 오디오, 표지, 대본 파일을 연결하면 업로드 초안으로 관리할 수 있어요.`,
     );
     event.currentTarget.reset();
-  }
-
-  function saveStudioTeamPlan() {
-    setCommunityMessage("팀원 초대와 수익 지분 설정이 저장되었습니다. 매칭 제안함 기능과 연결하면 수락 즉시 팀에 합류시킬 수 있어요.");
   }
 
   function completeAuth(nextUser: User, nextToken: string) {
@@ -5209,57 +5205,14 @@ export function App() {
 
   return (
     <div className={`app ${studioWindow ? "studio-shell" : "reader-shell"} page-${activePage}`}>
-      {isBootLoading && studioWindow && (
-        <div className="boot-loader" role="status" aria-live="polite">
-          <div className="boot-loader-card">
-            <div className="loader-cat" aria-hidden="true">
-              <span className="cat-shadow" />
-              <span className="cat-tail" />
-              <span className="cat-body">
-                <i className="cat-paw paw-one" />
-                <i className="cat-paw paw-two" />
-              </span>
-              <span className="cat-head">
-                <i className="cat-ear ear-left" />
-                <i className="cat-ear ear-right" />
-                <b className="cat-eye eye-left" />
-                <b className="cat-eye eye-right" />
-                <em className="cat-nose" />
-                <small className="cat-cheek cheek-left" />
-                <small className="cat-cheek cheek-right" />
-                <strong className="cat-whisker whisker-left" />
-                <strong className="cat-whisker whisker-right" />
-              </span>
-              <span className="cat-heart" />
-              <span className="cat-yarn" />
-            </div>
-            <div className="loader-3d-universe" aria-hidden="true">
-              <i />
-              <b />
-              <em />
-            </div>
-            <strong>크리에이터 유니버스 준비 중</strong>
-            <p>창작자, 작품, 정산 데이터를 불러오고 있어요.</p>
-            <div className="loader-dots" aria-hidden="true"><span /><span /><span /></div>
-          </div>
-        </div>
-      )}
       <header className="cu-masthead">
         <div className="cu-header-row">
           <a className="cu-wordmark" href={studioWindow ? "/?studio=studio" : "/"}>
             <img src="/logo.png" width="34" height="34" alt="" />
             <strong>{studioWindow ? "Creator Studio" : "Creator Universe"}</strong>
           </a>
-          {!studioWindow && <form className="cu-search" role="search" onSubmit={event => {
-            event.preventDefault();
-            selectPage("discover");
-            window.scrollTo(0, 0);
-          }}>
-            <Search size={18} aria-hidden="true" />
-            <input type="search" ref={catalogSearch} aria-keyshortcuts="/" aria-label="작품명 또는 작가명 검색" placeholder="작품명, 작가명 검색"
-              value={readerSearch} onChange={event => { setReaderSearch(event.target.value); selectPage("discover"); window.scrollTo(0, 0); }} />
-            <kbd aria-hidden="true">/</kbd>
-          </form>}
+          {!studioWindow && <CatalogSearch inputRef={catalogSearch}
+            value={activePage === "discover" ? readerSearch : ""} onQuery={updateCatalogQuery} />}
         <div className="header-actions">
           <button className="ghost-button nav-pay-button" onClick={openPayment}>
             <Coins size={16} /> 충전 체험
@@ -6143,7 +6096,7 @@ export function App() {
           <WorksCatalog works={readerWorks} query={readerSearch} mode={activePage === "ranking" ? "ranking" : "works"}
             lastReadEpisode={workProgress[tideWork.id]?.episodeNumber}
             onModeChange={mode => navigate(mode === "ranking" ? "ranking" : "discover")}
-            onClearSearch={() => setReaderSearch("")} getRankScore={getWorkRankScore} getCreatorNames={getCreditNames}
+            onClearSearch={() => updateCatalogQuery("")} getRankScore={getWorkRankScore} getCreatorNames={getCreditNames}
             onOpenWork={(work, mode, episode) => { setTideEntryEpisode(episode ?? null); setTideMode(mode ?? "read"); setSelectedWork(work); setReviewWorkId(work.id); }} />
         )}
 
@@ -6366,108 +6319,23 @@ export function App() {
         </section>}
 
         {studioWindow && creatorOnlyPages.has(activePage) && !isStudioMemberView && (
-          <section className="cu-studio-entry">
-            <img src="/logo.png" alt="" width="72" height="72" />
-            <h1>창작자 스튜디오</h1>
-            <p>작품을 등록하고, 함께할 팀원을 찾고, 주 단위 정산 내역을 확인하세요.</p>
-            <button className="primary-button" onClick={() => setAuthMode("login")}>로그인하고 시작하기</button>
-          </section>
+          <StudioEntry destination={activePage} onLogin={(destination, panel) => {
+            navigate(destination);
+            if (panel) selectStudioPanel(panel);
+            setAuthMode("login");
+          }} />
         )}
         {activePage === "studio" && isStudioMemberView && <section className="section studio-page page-panel">
-          <section className="app-studio-dashboard" aria-label="앱 창작자 스튜디오 요약">
-            <div className="app-studio-head">
-              <span>Creator Studio</span>
-              <h2>{myCreatorProfile ? "오늘의 창작 스튜디오" : "먼저 내 프로필을 만들어볼까요?"}</h2>
-              <p>
-                앱에서는 자주 쓰는 작업만 앞에 모았습니다. 프로필 등록, 매칭 제안 확인, 채팅, 지갑 이동을 빠르게 시작할 수 있어요.
-              </p>
-            </div>
-
-            <div className="app-studio-status-grid">
-              <article>
-                <UserRound size={18} />
-                <span>프로필</span>
-                <strong>{studioProfileCompletion.percent}%</strong>
-                <p>{myCreatorProfile ? roleLabels[myCreatorProfile.primaryRole] : "등록 대기"}</p>
-              </article>
-              <article>
-                <MessageCircle size={18} />
-                <span>제안함</span>
-                <strong>{matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length}건</strong>
-                <p>대기 중</p>
-              </article>
-              <article>
-                <Wallet size={18} />
-                <span>지갑</span>
-                <strong>{formatCoins(wallet ?? 0)}</strong>
-                <p>보유 코인</p>
-              </article>
-            </div>
-
-            <div className="app-studio-flow-card">
-              <span>추천 순서</span>
-              <div>
-                <b>1</b>
-                <p>프로필 공개</p>
-              </div>
-              <div>
-                <b>2</b>
-                <p>팀원 찾기</p>
-              </div>
-              <div>
-                <b>3</b>
-                <p>제안 수락</p>
-              </div>
-              <div>
-                <b>4</b>
-                <p>정산 확인</p>
-              </div>
-            </div>
-
-            <div className="app-studio-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCreatorProfileFormOpen(true);
-                  navigate("matching");
-                }}
-              >
-                <UserPlus size={16} /> 프로필 등록
-              </button>
-              <button type="button" onClick={openStudioMatchingAi}>
-                <Sparkles size={16} /> AI 팀원 찾기
-              </button>
-              <button type="button" onClick={() => openCreatorMessenger()}>
-                <MessageCircle size={16} /> 채팅 열기
-              </button>
-              <button type="button" onClick={() => navigate("wallet")}>
-                <Wallet size={16} /> 지갑
-              </button>
-            </div>
-          </section>
-
-          <div className="studio-hero">
-            <div>
-              <p className="kicker">Creator Studio</p>
-              <h2>내 채널, 작품, 팀원, 수익을 한눈에 관리하는 창작자 작업실</h2>
-              <p>
-                창작자는 프로필을 공개하고, 대표작을 정리하고, 팀원을 초대하고, 멤버십과 정산 상태까지 한 화면에서 관리할 수 있습니다.
-                이 페이지는 Creator Universe의 창작자 홈이자 작품 운영 콘솔입니다.
-              </p>
-              <div className="studio-hero-actions">
-                <button className="primary-button" onClick={openStudioMatchingAi}><Sparkles size={18} /> AI 매칭 매니저</button>
-                <button className="ghost-button" onClick={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}><UserPlus size={18} /> 매칭 프로필 준비</button>
-                <button className="ghost-button" onClick={() => navigate("settlement")}><Split size={18} /> 정산 설정으로 이동</button>
-              </div>
-            </div>
-            <div className="studio-status-card">
-              <span>Studio Status</span>
-              <strong>{myCreatorProfile ? "창작자 프로필 공개 중" : "프로필 등록 대기"}</strong>
-              <p>{myCreatorProfile ? myCreatorProfile.headline : "매칭 보드에 프로필을 올리면 팀원이 내 스튜디오로 합류할 수 있어요."}</p>
-            </div>
-          </div>
-
-          <section className="studio-command-center">
+          <StudioWorkspace name={user?.displayName ?? "창작자"} panel={studioPanel} selectPanel={selectStudioPanel}
+            workCount={myStudioWorks.length} proposalCount={matchInboxCounts.pending} profilePercent={studioProfileCompletion.percent}
+            savedTitle={studioSavedTitle} onMatch={openStudioMatchingAi}
+            onProfile={() => { setIsCreatorProfileFormOpen(true); navigate("matching"); }}
+            onProposals={() => {
+              setMatchInboxFilter("pending");
+              navigate("matching");
+              requestAnimationFrame(() => document.getElementById("studio-proposal-inbox")?.focus());
+            }} />
+          <section className="studio-command-center" hidden={studioPanel !== "team"} id="studio-panel-team" tabIndex={-1}>
             <article className="studio-profile-score">
               <div className="studio-score-ring" style={{ "--score": `${studioProfileCompletion.percent}%` } as never}>
                 <strong>{studioProfileCompletion.percent}%</strong>
@@ -6516,20 +6384,13 @@ export function App() {
             </article>
           </section>
 
-          <div className="studio-kpi-grid">
-            <article><BookOpen size={22} /><span>대표 작품</span><strong>{myStudioWorks.length || 3}개</strong><p>창작자 채널에 보여줄 대표작과 참여작을 관리합니다.</p></article>
-            <article><Users size={22} /><span>매칭 제안</span><strong>{matchProposalInboxItems.filter((item) => item.proposal.status === "PENDING").length}건</strong><p>지분율 조건을 확인하고 팀 합류 여부를 결정합니다.</p></article>
-            <article><Split size={22} /><span>기본 지분</span><strong>40 · 30 · 30</strong><p>팀장 40%, 팀원 30% 프리셋을 적용할 수 있습니다.</p></article>
-            <article><Rocket size={22} /><span>채널 준비</span><strong>{studioProfileCompletion.percent}%</strong><p>프로필, 대표작, 포트폴리오 기준의 준비 상태입니다.</p></article>
-          </div>
-
-          <section className="studio-channel-dashboard">
+          <section className="studio-channel-dashboard" hidden={studioPanel !== "channel"} id="studio-panel-channel" tabIndex={-1}>
             <div className="section-head">
               <div>
                 <p className="kicker">Creator Channel</p>
                 <h2>내 창작자 홈 구성</h2>
               </div>
-              <p>픽시브식 포트폴리오, 포스타입식 멤버십, 팀 프로젝트 정산을 한 화면으로 묶은 창작자 채널 영역입니다.</p>
+              <p>독자에게 공개할 대표작과 멤버십, 창작자 프로필을 관리하세요.</p>
             </div>
             <div className="studio-channel-grid">
               <article className="studio-feature-work">
@@ -6553,23 +6414,24 @@ export function App() {
             </div>
           </section>
 
-          <section className="studio-publish-editor">
+          <section className="studio-publish-editor" hidden={studioPanel !== "publishing"} id="studio-panel-publishing" tabIndex={-1}>
             <div className="section-head">
               <div>
                 <p className="kicker">Publishing Editor</p>
                 <h2>작품/회차 발행 에디터</h2>
               </div>
-              <p>작품 기본 정보, 회차 제목, 가격, 공개 방식, 접근성 대본 메모를 한 번에 정리하고 독자에게 보일 화면을 바로 확인합니다.</p>
+              <p>이번 회차를 준비하고 독자 화면을 미리 보세요. 초안은 이 계정으로 사용하는 현재 브라우저에 저장됩니다.</p>
             </div>
 
             <div className="studio-editor-workspace">
-              <form className="studio-form studio-publish-form" onSubmit={submitStudioWorkDraft}>
+              <form className="studio-form studio-publish-form" onSubmit={event => { event.preventDefault(); saveStudioDraft(); }}>
                 <div className="studio-form-section">
                   <span>작품 정보</span>
                   <label>작품 제목
                     <input
                       name="title"
                       required
+                      placeholder="작품의 제목을 입력하세요"
                       value={studioDraft.title}
                       onChange={(event) => updateStudioDraft("title", event.target.value)}
                     />
@@ -6595,7 +6457,7 @@ export function App() {
                   <label>회차 제목
                     <input
                       name="episodeTitle"
-                      required
+                      placeholder="예: 1화. 첫 만남"
                       value={studioDraft.episodeTitle}
                       onChange={(event) => updateStudioDraft("episodeTitle", event.target.value)}
                     />
@@ -6603,7 +6465,7 @@ export function App() {
                   <label className="wide">작품 소개
                     <textarea
                       name="synopsis"
-                      required
+                      placeholder="독자에게 들려주고 싶은 이야기를 적어 주세요"
                       value={studioDraft.synopsis}
                       onChange={(event) => updateStudioDraft("synopsis", event.target.value)}
                     />
@@ -6649,6 +6511,7 @@ export function App() {
                   <label>예약 시간
                     <input
                       name="scheduledAt"
+                      type="datetime-local"
                       value={studioDraft.scheduledAt}
                       onChange={(event) => updateStudioDraft("scheduledAt", event.target.value)}
                     />
@@ -6669,7 +6532,7 @@ export function App() {
                   </label>
                 </div>
 
-                <button className="primary-button" type="submit"><Sparkles size={17} /> 발행 초안 저장</button>
+                <div className="sw-save"><button className="primary-button" type="submit"><CheckCircle2 size={17} /> 이 기기에 초안 저장</button><span role="status">{studioSaveMessage}</span></div>
               </form>
 
               <aside className="studio-publish-preview">
@@ -6707,32 +6570,7 @@ export function App() {
             </div>
           </section>
 
-          <div className="studio-layout">
-            <section className="studio-work-form-card compact-studio-card">
-              <div className="section-head compact-head">
-                <div>
-                  <p className="kicker">Quick Work</p>
-                  <h3>빠른 작품 초안</h3>
-                </div>
-                <p>간단한 초안만 빠르게 남기고 싶을 때 사용하는 축약 폼입니다.</p>
-              </div>
-              <form className="studio-form" onSubmit={submitStudioWorkDraft}>
-                <label>작품 제목<input name="title" required placeholder="예: 네온 별자리 탐정단" /></label>
-                <label>콘텐츠 형식
-                  <select name="format" defaultValue="웹툰">
-                    {readerFormatFilters.filter((item) => item !== "전체").map((format) => <option key={format}>{format}</option>)}
-                  </select>
-                </label>
-                <label>대표 장르
-                  <select name="genre" defaultValue="판타지">
-                    {readerGenreFilters.map((genre) => <option key={genre}>{genre}</option>)}
-                  </select>
-                </label>
-                <label className="wide">작품 소개<textarea name="synopsis" required placeholder="작품의 핵심 설정, 독자에게 보여줄 매력, 필요한 팀원을 적어주세요." /></label>
-                <button className="primary-button" type="submit"><Sparkles size={17} /> 작품 초안 저장</button>
-              </form>
-            </section>
-
+          <div className="studio-layout" hidden={studioPanel !== "publishing"}>
             <section className="studio-work-form-card compact-studio-card">
               <div className="section-head compact-head">
                 <div>
@@ -6807,7 +6645,7 @@ export function App() {
             </section>
           </div>
 
-          <section className="studio-fan-commerce">
+          <section className="studio-fan-commerce" hidden={studioPanel !== "channel"}>
             <div className="section-head">
               <div>
                 <p className="kicker">Fan Commerce</p>
@@ -6925,7 +6763,7 @@ export function App() {
             </div>
           </section>
 
-          <section className="studio-growth-analytics">
+          <section className="studio-growth-analytics" hidden={studioPanel !== "channel"}>
             <div className="section-head">
               <div>
                 <p className="kicker">Growth Analytics</p>
@@ -6951,7 +6789,7 @@ export function App() {
               <article className="growth-funnel-card">
                 <div className="growth-card-head">
                   <span><Flame size={17} /> Reader Funnel</span>
-                  <strong>독자 전환 흐름</strong>
+                  <strong>독자 전환 흐름 예시</strong>
                 </div>
                 <div className="growth-funnel-list">
                   {studioGrowthInsights.funnel.map((item) => (
@@ -6993,7 +6831,7 @@ export function App() {
             </div>
           </section>
 
-          <section className="studio-accessibility-lab">
+          <section className="studio-accessibility-lab" hidden={studioPanel !== "publishing"}>
             <div className="section-head">
               <div>
                 <p className="kicker">Barrier-free QA</p>
@@ -7090,13 +6928,13 @@ export function App() {
             </div>
           </section>
 
-          <section className="studio-team-board">
+          <section className="studio-team-board" hidden={studioPanel !== "team"}>
             <div className="section-head">
               <div>
                 <p className="kicker">Team Builder</p>
-                <h2>팀원 초대와 수익 지분 설정</h2>
+                <h2>협업 팀의 지분 구성 예시</h2>
               </div>
-              <p>매칭에서 찾은 창작자를 작품 팀으로 초대하고, 30:30:40 같은 지분율을 사전에 합의하는 영역입니다.</p>
+              <p>원작, 작화, 목소리, 음악이 함께하는 팀의 한 가지 예입니다. 실제 팀의 지분은 정산 화면에서 확인하세요.</p>
             </div>
             <div className="studio-team-grid">
               {[
@@ -7115,15 +6953,15 @@ export function App() {
             </div>
             <div className="studio-share-summary">
               <div>
-                <span>현재 지분 합계</span>
+                <span>예시 지분 합계</span>
                 <strong>100%</strong>
-                <p>팀원이 수락하면 이 비율을 정산 콘솔에 그대로 반영할 수 있습니다.</p>
+                <p>팀원과 합의한 비율로 정산 설정을 조정하세요.</p>
               </div>
-              <button className="primary-button compact" onClick={saveStudioTeamPlan}><CheckCircle2 size={17} /> 팀 구성 저장</button>
+              <button className="primary-button compact" onClick={() => navigate("settlement")}><Split size={17} /> 정산 설정 열기</button>
             </div>
           </section>
 
-          <section className="studio-portfolio-panel">
+          <section className="studio-portfolio-panel" hidden={studioPanel !== "team"}>
             <div className="section-head">
               <div>
                 <p className="kicker">Portfolio Manager</p>
@@ -7148,7 +6986,7 @@ export function App() {
                 <Coins size={22} />
                 <strong>팬 후원/구독 포스트</strong>
                 <p>러프, 짤 이미지팩, 보이스 샘플을 유료 포스트로 확장할 수 있습니다.</p>
-                <button onClick={() => setCommunityMessage("팬 포스트 작성기는 다음 단계에서 이미지 업로드와 함께 연결하면 좋아요.")}>포스트 준비</button>
+                <button onClick={() => { selectStudioPanel("channel"); requestAnimationFrame(() => document.querySelector<HTMLElement>(".fan-post-editor-card input")?.focus()); }}>팬 포스트 작성</button>
               </article>
             </div>
           </section>
@@ -7613,7 +7451,7 @@ export function App() {
             </form>
           )}
 
-          <section className="match-inbox-panel">
+          <section className="match-inbox-panel" id="studio-proposal-inbox" tabIndex={-1}>
             <div className="section-head compact-head">
               <div>
                 <p className="kicker">Proposal Inbox</p>
@@ -8507,7 +8345,7 @@ export function App() {
 
       <nav className={`mobile-tabs app-primary-tabs ${isMobileQuickOpen ? "quick-open" : ""}`} aria-label="앱 하단 메뉴">
         <button className={activePage === (studioWindow ? "studio" : "discover") ? "active" : ""} onClick={() => navigate(studioWindow ? "studio" : "discover")}><BookOpen size={18} />{studioWindow ? "스튜디오" : "작품"}</button>
-        <button className={activePage === (studioWindow ? "matching" : "ranking") ? "active" : ""} onClick={() => navigate(studioWindow ? "matching" : "ranking")}><Trophy size={18} />{studioWindow ? "매칭" : "랭킹"}</button>
+        <button className={activePage === (studioWindow ? "matching" : "ranking") ? "active" : ""} onClick={() => navigate(studioWindow ? "matching" : "ranking")}>{studioWindow ? <Users size={18} /> : <Trophy size={18} />}{studioWindow ? "매칭" : "랭킹"}</button>
         <button
           className="mobile-plus-tab"
           type="button"
@@ -8522,8 +8360,8 @@ export function App() {
         >
           {isMobileQuickOpen ? <X size={20} /> : <Plus size={22} />}
         </button>
-        {isStudioMemberView ? (
-          <button className={activePage === "matching" ? "active" : ""} onClick={() => navigate("matching")}><Users size={18} />매칭</button>
+        {studioWindow ? (
+          <button className={activePage === "settlement" ? "active" : ""} onClick={() => navigate("settlement")}><Split size={18} />정산</button>
         ) : (
           <button className={activePage === "wallet" ? "active" : ""} onClick={() => navigate("wallet")}><Coins size={18} />지갑</button>
         )}
@@ -8907,15 +8745,24 @@ export function App() {
         />
       )}
       {selectedWork?.id === tideWork.id && <TideReader
-        initialEpisode={tideEntryEpisode ?? workProgress[tideWork.id]?.episodeNumber ?? 1}
-        mode={tideMode} onMode={setTideMode} onClose={() => setSelectedWork(null)}
-        onRead={episode => {
-          setWorkProgress(current => ({...current, [tideWork.id]: {episodeNumber: episode, percent: Math.round(episode / 3 * 100), updatedAt: new Date().toISOString()}}));
-          setRecentWorkIds(current => [tideWork.id, ...current.filter(id => id !== tideWork.id)].slice(0,12));
+        key={libraryStorageOwner}
+        initialEpisode={tideEntryEpisode ?? tideBookmark?.episodeNumber ?? 1}
+        initialReadOffset={tideEntryEpisode === null ? lastTideOffset : 0}
+        mode={tideMode} onMode={setTideMode} onClose={closeWork}
+        onRead={(episode, offset) => {
+          if (libraryStorageOwner !== (user?.id ?? "anonymous") || (token && !user)) return;
+          setWorkProgress(current => {
+            const previous = current[tideWork.id];
+            if (previous?.episodeNumber === episode && previous.chapterOffset === offset) return current;
+            const percent = Math.round(((episode - 1) * 100 + offset) / tideWork.episodes);
+            return { ...current, [tideWork.id]: { episodeNumber: episode, chapterOffset: offset, percent, updatedAt: new Date().toISOString() } };
+          });
+          setRecentWorkIds(current => current[0] === tideWork.id ? current : [tideWork.id, ...current.filter(id => id !== tideWork.id)].slice(0, 12));
         }}
       />}
       {selectedWork && selectedWork.id !== tideWork.id && (
         <WorkDetailModal
+          key={selectedWork.id}
           token={token}
           work={selectedWork}
           rank={rankedReaderWorks.findIndex((work) => work.id === selectedWork.id) + 1}
@@ -8928,7 +8775,14 @@ export function App() {
           progress={workProgress[selectedWork.id]}
           reviewRating={reviewRating}
           reviewBody={reviewBody}
-          onClose={() => setSelectedWork(null)}
+          onClose={closeWork}
+          onRelatedWork={next => {
+            setSelectedWork(next);
+            setTideEntryEpisode(null);
+            setTideMode("read");
+            setReviewWorkId(next.id);
+            requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".work-detail-backdrop button")?.focus({ preventScroll: true }));
+          }}
           onOpenCreator={(creator) => {
             setSelectedWork(null);
             setSelectedCreator(creator);

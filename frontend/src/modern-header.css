@@ -1,0 +1,212 @@
+.reader-shell .cu-masthead {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.reader-shell:is(.page-discover, .page-ranking) .cu-masthead {
+  position: sticky;
+  top: 0;
+}
+
+.reader-shell .cu-header-row {
+  min-height: 70px;
+}
+
+.reader-shell .cu-wordmark {
+  gap: 10px;
+}
+
+.reader-shell .cu-wordmark img {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.reader-shell .cu-wordmark strong {
+  font-family: var(--cu-font-sans, system-ui, sans-serif);
+  font-size: clamp(19px, 1.55vw, 24px);
+  font-weight: 780;
+  letter-spacing: -.065em;
+}
+
+.reader-shell .cu-search {
+  max-width: 470px;
+  margin-inline: clamp(0px, 1.8vw, 28px) 0;
+  padding-inline: 14px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 64%, var(--surface));
+}
+
+.reader-shell .cu-search:focus-within {
+  border-color: var(--cu-action);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cu-action) 16%, transparent);
+}
+
+.reader-shell .cu-search > svg {
+  flex-shrink: 0;
+  color: var(--text);
+}
+
+.reader-shell .cu-search input {
+  height: 40px;
+  font-family: var(--cu-font-sans, inherit);
+  letter-spacing: -.025em;
+}
+
+.reader-shell .cu-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.reader-shell .cu-search kbd {
+  margin-right: 4px;
+}
+
+.reader-shell .cu-search-clear {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+.reader-shell .cu-search-clear:hover,
+.reader-shell .cu-search-clear:focus-visible {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.reader-shell .cu-masthead .header-actions .primary-button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--surface);
+  background: var(--text);
+}
+
+.reader-shell .cu-masthead .header-actions .nav-pay-button {
+  font-size: .85rem;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.reader-shell .cu-nav-row {
+  min-height: 44px;
+  gap: 22px;
+}
+
+.reader-shell .cu-sections {
+  gap: clamp(18px, 2.5vw, 36px);
+  scrollbar-width: none;
+}
+
+.reader-shell .cu-sections button {
+  font-weight: 730;
+  letter-spacing: -.025em;
+}
+
+.reader-shell .cu-classic-shortcut {
+  font-weight: 550;
+}
+
+.reader-shell .cu-studio-link {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.reader-shell .cu-studio-link:hover {
+  color: var(--cu-action);
+  border-color: currentColor;
+}
+
+/* A horizontal overflow wrapper otherwise becomes sticky's nearest scrollport. */
+@media (max-width: 860px) {
+  body:has(.reader-shell:is(.page-discover, .page-ranking)),
+  .app.reader-shell:is(.page-discover, .page-ranking) {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
+body.cu-android-app:has(.reader-shell:is(.page-discover, .page-ranking)),
+body.cu-android-app #root:has(> .reader-shell:is(.page-discover, .page-ranking)),
+body.cu-android-app .app.reader-shell:is(.page-discover, .page-ranking) {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
+body.cu-android-app .reader-shell .cu-masthead .mobile-menu-button {
+  display: inline-flex;
+}
+
+@media (max-width: 730px) {
+  .reader-shell:is(.page-discover, .page-ranking) .cu-masthead {
+    /* The identity row scrolls away. Search and section navigation stay in reach. */
+    top: -50px;
+  }
+
+  .reader-shell:is(.page-discover, .page-ranking) .cu-masthead:has(.header-actions :focus-visible),
+  .reader-shell:is(.page-discover, .page-ranking) .cu-masthead:has(.cu-wordmark:focus-visible) {
+    top: 0;
+  }
+
+  .reader-shell .cu-header-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(42px, auto) auto;
+    min-height: 0;
+    gap: 4px 7px;
+    padding-block: 4px;
+  }
+
+  .reader-shell .cu-wordmark {
+    gap: 7px;
+  }
+
+  .reader-shell .cu-wordmark strong {
+    font-size: clamp(16px, 4.6vw, 20px);
+  }
+
+  .reader-shell .cu-wordmark img {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .reader-shell .cu-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+    margin: 0;
+  }
+
+  .reader-shell .cu-search input {
+    /* iOS otherwise zooms the viewport when the search field receives focus. */
+    font-size: 16px;
+  }
+
+  .reader-shell .cu-nav-row {
+    gap: 8px;
+  }
+
+  .reader-shell .cu-sections {
+    gap: clamp(10px, 3.1vw, 19px);
+  }
+
+  .reader-shell .cu-sections button {
+    padding-inline: 0;
+  }
+
+  .reader-shell .cu-studio-link {
+    padding-inline: 10px;
+    min-height: 30px;
+  }
+}

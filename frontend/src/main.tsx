@@ -4,6 +4,9 @@ import { App } from "./App";
 import "./styles.css";
 import "./matching-enhancements.css";
 import "./reader-shell.css";
+import "./modern-type.css";
+import "./modern-header.css";
+import "./work-detail.css";
 
 const entry = new URL(window.location.href);
 if (entry.pathname === "/" && entry.searchParams.get("view") === "home"

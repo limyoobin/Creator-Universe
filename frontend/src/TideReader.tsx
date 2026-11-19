@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, Clapperboard, Pause, Play, RotateCcw, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { BookOpen, ChevronLeft, ChevronRight, Clapperboard, Link2, Pause, Play, RotateCcw, X } from "lucide-react";
 import { tideChapters, tideWork } from "./tide-letter";
 import "./tide-reader.css";
 
@@ -62,33 +62,100 @@ function MotionToon({ initialEpisode }: { initialEpisode: number }) {
   </div>;
 }
 
-type Props = { initialEpisode: number; mode: TideMode; onMode: (m: TideMode) => void; onClose: () => void; onRead: (n: number) => void };
-export function TideReader({ initialEpisode, mode, onMode, onClose, onRead }: Props) {
-  const [episode, setEpisode] = useState(Math.max(1, Math.min(3, initialEpisode || 1)));
+type Props = {
+  initialEpisode: number;
+  initialReadOffset: number;
+  mode: TideMode;
+  onMode: (m: TideMode) => void;
+  onClose: () => void;
+  onRead: (episode: number, offset: number) => void;
+};
+export function TideReader({ initialEpisode, initialReadOffset, mode, onMode, onClose, onRead }: Props) {
+  const [episode, setEpisode] = useState(Math.max(1, Math.min(tideChapters.length, initialEpisode || 1)));
   const chapter = tideChapters[episode - 1];
   const scroller = useRef<HTMLDivElement>(null);
+  const progress = useRef<HTMLProgressElement>(null);
+  const bookmark = useRef({ episode, offset: initialReadOffset });
+  const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "manual">("idle");
+  const shareRequest = useRef(0);
+  const chapterLink = new URL("/", window.location.origin);
+  chapterLink.searchParams.set("work", tideWork.id);
+  chapterLink.searchParams.set("episode", String(episode));
   const readCallback = useRef(onRead);
   readCallback.current = onRead;
-  useEffect(() => { if (mode === "read") readCallback.current(episode); scroller.current?.scrollTo(0, 0); }, [episode, mode]);
+  useLayoutEffect(() => {
+    shareRequest.current++;
+    setShareStatus("idle");
+    const reader = scroller.current;
+    if (!reader) return;
+    if (mode !== "read") { reader.scrollTop = 0; return; }
+    const offset = bookmark.current.episode === episode ? bookmark.current.offset : 0;
+    const extent = () => Math.max(0, reader.scrollHeight - reader.clientHeight);
+    reader.scrollTop = extent() * offset / 100;
+    bookmark.current = { episode, offset };
+    if (progress.current) progress.current.value = offset;
+    readCallback.current(episode, offset);
+
+    let frame = 0;
+    let saveTimer = 0;
+    let pendingOffset: number | undefined;
+    function savePosition() {
+      if (pendingOffset !== undefined) readCallback.current(episode, pendingOffset);
+      pendingOffset = undefined;
+    }
+    function record() {
+      frame = 0;
+      const range = extent();
+      if (!range || !reader) return;
+      const percent = Math.min(100, Math.max(0, Math.round(reader.scrollTop / range * 100)));
+      if (progress.current) progress.current.value = percent;
+      if (percent === bookmark.current.offset) return;
+      bookmark.current = { episode, offset: percent };
+      pendingOffset = percent;
+      clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(savePosition, 200);
+    }
+    function onScroll() { if (!frame) frame = requestAnimationFrame(record); }
+    reader.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      reader.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+      clearTimeout(saveTimer);
+      savePosition();
+    };
+  }, [episode, mode]);
+  async function copyChapterLink() {
+    const request = ++shareRequest.current;
+    setShareStatus("manual");
+    try {
+      await navigator.clipboard.writeText(chapterLink.href);
+      if (request === shareRequest.current) setShareStatus("copied");
+    } catch {
+      // The selectable link stays available when the browser blocks clipboard access.
+    }
+  }
   return <div className="modal-backdrop work-detail-backdrop tide-backdrop" role="dialog" aria-modal="true" aria-labelledby="tide-title">
     <div className="tide-reader" ref={scroller}>
       <header className="tide-reader-bar">
         <div><span className="tide-imprint">크리에이터 유니버스 오리지널</span><h2 id="tide-title">{tideWork.title}</h2></div>
+        {mode === "read" && <select className="tide-episode-picker" aria-label="회차 선택" value={episode} onChange={e => setEpisode(Number(e.currentTarget.value))}>{tideChapters.map((c, i) => <option value={i+1} key={c.title}>{i+1}화 · {c.title}</option>)}</select>}
         <button type="button" className="tide-close" onClick={onClose} aria-label="작품 닫기"><X size={21}/></button>
+        {mode === "read" && <progress ref={progress} max={100} className="tide-reading-progress" aria-label="현재 회차 읽은 위치" />}
       </header>
       <div className="tide-reading-tools">
         <div className="tide-modes" role="group" aria-label="감상 방식">
           <button type="button" aria-pressed={mode === "read"} onClick={() => onMode("read")}><BookOpen/>웹툰</button>
           <button type="button" aria-pressed={mode === "motion"} onClick={() => onMode("motion")}><Clapperboard/>모션툰</button>
         </div>
-        {mode === "read" && <select aria-label="회차 선택" value={episode} onChange={e => setEpisode(Number(e.currentTarget.value))}>{tideChapters.map((c, i) => <option value={i+1} key={c.title}>{i+1}화 · {c.title}</option>)}</select>}
+        {mode === "read" && <button type="button" className="tide-share" onClick={copyChapterLink}><Link2 size={16} /><span aria-live="polite">{shareStatus === "copied" ? "링크 복사됨" : "회차 링크 복사"}</span></button>}
+        {mode === "read" && shareStatus === "manual" && <input className="tide-copy-url" aria-label="복사할 회차 주소" readOnly value={chapterLink.href} onFocus={e => e.currentTarget.select()} />}
       </div>
       {mode === "motion" ? <MotionToon initialEpisode={episode}/> : <>
         <header className="tide-chapter">
           <small>제 {episode} 화</small><h3>{chapter.title}</h3><p>{chapter.lead}</p>
         </header>
         <div className="tide-strip">{chapter.panels.map((panel, i) => <figure className="tide-panel" key={panel.art}>
-          <img src={panel.art} alt={panel.alt} loading={i ? "lazy" : "eager"}/>
+          <img src={panel.art} alt={panel.alt} width={panel.width} height={panel.height} loading={i ? "lazy" : "eager"}/>
           <figcaption>
             {panel.caption && <p className="tide-narration">{panel.caption}</p>}
             {panel.lines.map((line, j) => <div key={j} className={"tide-speech " + (line.speaker === "해온" ? "tide-haeon" : "")}>
